@@ -1,13 +1,23 @@
 import type { WorkflowStep, WorkflowEvent } from 'cloudflare:workers';
 import { getDb } from '../db';
 import { assertSchemaCurrent } from '../db/schema-status';
-import { NotFoundError, PayloadTooLargeError, UnauthorizedError } from '../domain/errors';
+import {
+	NotFoundError,
+	PayloadTooLargeError,
+	UnauthorizedError,
+	ValidationError
+} from '../domain/errors';
 import {
 	GedcomService,
 	isStagingKeyOf,
 	type ImportCounts,
 	type ImportQueueMessage
 } from '../services/gedcom-service';
+import {
+	EMPTY_MEDIA_COUNTS,
+	GedzipImportService,
+	isUploadKeyOf
+} from '../services/gedzip-import-service';
 import { ImportJobService } from '../services/import-job-service';
 import { NonRetryableError, WorkflowEntrypoint } from './workflow-runtime';
 
@@ -20,6 +30,7 @@ const FAILURE_MESSAGES = {
 	missingTree: 'The tree no longer exists.',
 	tooLarge: 'The file is too large to import.',
 	missingFile: 'The uploaded file is no longer available. Upload it again.',
+	badArchive: 'The file is not a valid .gdz archive.',
 	generic: 'The import failed. Please try again.'
 } as const;
 
@@ -28,6 +39,7 @@ function safeFailure(err: unknown): string {
 	if (err instanceof UnauthorizedError) return FAILURE_MESSAGES.unauthorized;
 	if (err instanceof NotFoundError) return FAILURE_MESSAGES.missingTree;
 	if (err instanceof PayloadTooLargeError) return FAILURE_MESSAGES.tooLarge;
+	if (err instanceof ValidationError) return FAILURE_MESSAGES.badArchive;
 	// A refusal crosses the step boundary as a plain `Error` whose class is not guaranteed, so it is
 	// recognised by its message, which is one of the fixed sentences above and nothing else.
 	const known: string[] = Object.values(FAILURE_MESSAGES);
@@ -41,6 +53,8 @@ function asNonRetryable(err: unknown): unknown {
 		return new NonRetryableError(safeFailure(err));
 	}
 	if (err instanceof PayloadTooLargeError) return new NonRetryableError(FAILURE_MESSAGES.tooLarge);
+	// Only an archive can raise this here, and a bad one is bad on every attempt.
+	if (err instanceof ValidationError) return new NonRetryableError(FAILURE_MESSAGES.badArchive);
 	return err;
 }
 
@@ -58,7 +72,9 @@ export class GedcomImportWorkflow extends WorkflowEntrypoint<
 		const jobId = event.instanceId;
 		const message = event.payload;
 		const jobs = new ImportJobService(getDb(this.env.DB));
+		const archive = new GedzipImportService(getDb(this.env.DB), { bucket: this.env.MEDIA_BUCKET });
 
+		const isArchive = message.isArchive === true;
 		try {
 			await step.do('start-job', async () => {
 				await jobs.start(jobId);
@@ -66,7 +82,16 @@ export class GedcomImportWorkflow extends WorkflowEntrypoint<
 
 			// One retry beyond the first attempt, as for export: a dataset that runs the isolate out of
 			// memory would only do so again.
-			const counts = await step.do('import-dataset', { retries: { limit: 2 } }, async () => {
+			let counts = await step.do('import-dataset', { retries: { limit: 2 } }, async () => {
+				if (isArchive) {
+					await assertSchemaCurrent(this.env.DB);
+					try {
+						return await archive.importDataset(message);
+					} catch (err) {
+						console.error(`Import job ${jobId} failed:`, err);
+						throw asNonRetryable(err);
+					}
+				}
 				// A re-run of this step after it wrote (a lost response, a restarted instance) must not
 				// import again: the staged text is gone and the job says it finished.
 				const done = await jobs.completedCounts(jobId);
@@ -85,6 +110,40 @@ export class GedcomImportWorkflow extends WorkflowEntrypoint<
 				}
 			});
 
+			if (isArchive) {
+				// One step per batch: each is bounded by the platform's step limits (see the service), and a
+				// step's result is only a cursor and a few counts, far under the 1 MiB result limit.
+				const media = { ...EMPTY_MEDIA_COUNTS };
+				let cursor: number | null = 0;
+				for (let batch = 0; cursor !== null; batch++) {
+					const from: number = cursor;
+					const done = await step.do(
+						`import-media-${batch}`,
+						{ retries: { limit: 2 } },
+						async () => {
+							try {
+								return await archive.importMediaBatch(message, from);
+							} catch (err) {
+								console.error(`Import job ${jobId} failed:`, err);
+								throw asNonRetryable(err);
+							}
+						}
+					);
+					for (const key of Object.keys(media) as Array<keyof typeof media>) {
+						media[key] += done.counts[key];
+					}
+					cursor = done.next;
+				}
+				media.unresolved = await step.do('close-archive', async () => {
+					try {
+						return await archive.close(message);
+					} catch (err) {
+						throw asNonRetryable(err);
+					}
+				});
+				counts = { ...counts, media };
+			}
+
 			await step.do('complete-job', async () => {
 				await jobs.complete(jobId, counts);
 			});
@@ -97,7 +156,10 @@ export class GedcomImportWorkflow extends WorkflowEntrypoint<
 		} finally {
 			// `importStagedCounted` deletes on success and on a refusal; this covers every other end.
 			await step.do('discard-staged', async () => {
-				if (!isStagingKeyOf(message.treeId, message.r2ObjectKey)) return;
+				const isOurs = isArchive
+					? isUploadKeyOf(message.treeId, message.r2ObjectKey)
+					: isStagingKeyOf(message.treeId, message.r2ObjectKey);
+				if (!isOurs) return;
 				try {
 					await this.env.MEDIA_BUCKET.delete(message.r2ObjectKey);
 				} catch (err) {

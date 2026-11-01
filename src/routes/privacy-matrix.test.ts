@@ -79,6 +79,10 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/uploads/[id]/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
 	[`${API}/uploads/[id]/complete/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
 	[`${API}/uploads/[id]/parts/[n]/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
+	[`${API}/uploads/[id]/import/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/gedzip-import-service.test.ts'
+	},
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
 	[`${API}/csp-report/+server.ts`]: { kind: 'no-record-data', covers: 'http/csp-report.test.ts' },
 	[`${API}/trees/[id]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },

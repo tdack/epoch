@@ -979,6 +979,12 @@ export const uploadCreateSchema = z.object({
 	totalBytes: z.number().int().positive().safe()
 });
 
+/** Starts the import of a finished `.gdz` upload session; the tree and the archive come from the session. */
+export const gedzipImportSchema = z.object({
+	mode: z.enum(['replace', 'merge']).default('replace'),
+	shouldMergeDuplicateFamilies: z.boolean().default(false)
+});
+
 /** Gives an unresolved file the bytes of a finished media upload session; the file comes from the path. */
 export const resolveFromUploadSchema = z.object({
 	sessionId: idSchema,
