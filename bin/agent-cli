@@ -1,0 +1,797 @@
+#!/usr/bin/env node
+// agent-cli: one place for the lookups and commands agents kept re-deriving across sessions.
+// Output is terse and meant for an agent; every subcommand takes --help and --json.
+// No dependencies: it shells out to git/npx with argument arrays, never through a shell, because
+// a zsh session once passed a whole file list to prettier as one name and it checked nothing.
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+const argv = process.argv.slice(2);
+const isJson = argv.includes('--json');
+const wantsHelp = argv.includes('--help') || argv.includes('-h');
+const args = argv.filter((a) => a !== '--json' && a !== '--help' && a !== '-h');
+const cmdName = args.shift();
+
+function sh(file, fileArgs, opts = {}) {
+	const r = spawnSync(file, fileArgs, {
+		cwd: ROOT,
+		encoding: 'utf8',
+		maxBuffer: 64 << 20,
+		...opts
+	});
+	return { code: r.status ?? 1, out: (r.stdout ?? '').trimEnd(), err: (r.stderr ?? '').trimEnd() };
+}
+const git = (...a) => sh('git', a).out;
+const read = (p) => readFileSync(join(ROOT, p), 'utf8');
+const flag = (name) => {
+	const i = args.indexOf(name);
+	if (i < 0) return undefined;
+	const v = args[i + 1];
+	args.splice(i, 2);
+	return v;
+};
+const has = (name) => {
+	const i = args.indexOf(name);
+	if (i >= 0) args.splice(i, 1);
+	return i >= 0;
+};
+function emit(data, text) {
+	if (isJson) console.log(JSON.stringify(data, null, 1));
+	else console.log(typeof text === 'function' ? text(data) : (text ?? data));
+}
+function tail(s, n) {
+	return s.split('\n').slice(-n).join('\n');
+}
+
+/** Merge base the "changed files" view compares against: origin/main if fetched, else main. */
+function baseRef() {
+	for (const ref of ['origin/main', 'main']) {
+		if (sh('git', ['rev-parse', '--verify', '-q', ref]).code === 0) {
+			const mb = git('merge-base', 'HEAD', ref);
+			if (mb) return mb;
+		}
+	}
+	return 'HEAD';
+}
+function changedFiles(base = baseRef()) {
+	const committed = git('diff', '--name-only', '--diff-filter=d', base, 'HEAD');
+	const worktree = git('diff', '--name-only', '--diff-filter=d', 'HEAD');
+	const untracked = git('ls-files', '--others', '--exclude-standard');
+	return [
+		...new Set([committed, worktree, untracked].join('\n').split('\n').filter(Boolean))
+	].filter((f) => existsSync(join(ROOT, f)));
+}
+const LINTABLE = /\.(ts|js|mjs|svelte)$/;
+const FORMATTABLE = /\.(ts|js|mjs|svelte|css|json|jsonc|md|html|yml|yaml)$/;
+
+function walk(dir, out = []) {
+	for (const e of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+		const p = join(dir, e.name);
+		if (e.isDirectory()) walk(p, out);
+		else out.push(p);
+	}
+	return out;
+}
+
+// ---------- subcommands ----------
+const commands = {
+	status: {
+		help: 'status\n  Branch, dirty files, ahead/behind origin/main, worktrees, remotes, last 3 commits.\n  Replaces: git status -sb; git branch --show-current; git worktree list; git remote -v; git log --oneline -3.',
+		run() {
+			const branch = git('branch', '--show-current') || '(detached)';
+			const dirty = git('status', '--porcelain').split('\n').filter(Boolean);
+			const ab = sh('git', ['rev-list', '--left-right', '--count', 'origin/main...HEAD']);
+			const [behind, ahead] = ab.code === 0 ? ab.out.split(/\s+/).map(Number) : [null, null];
+			const worktrees = git('worktree', 'list').split('\n').filter(Boolean);
+			const remotes = [
+				...new Set(
+					git('remote', '-v')
+						.split('\n')
+						.filter(Boolean)
+						.map((l) => l.split(/\s+/).slice(0, 2).join(' '))
+				)
+			];
+			const log = git('log', '--oneline', '-3').split('\n');
+			emit({ branch, dirty, ahead, behind, worktrees, remotes, log }, (d) =>
+				[
+					`branch ${d.branch}  vs origin/main: +${d.ahead ?? '?'} -${d.behind ?? '?'}`,
+					`dirty ${d.dirty.length}${d.dirty.length ? ': ' + d.dirty.slice(0, 15).join(', ') : ''}`,
+					`remotes ${d.remotes.join(' | ')}`,
+					`worktrees ${d.worktrees.length}`,
+					...d.log.map((l) => `  ${l}`)
+				].join('\n')
+			);
+		}
+	},
+
+	changed: {
+		help: 'changed [base]\n  Files changed vs base (default: merge-base with origin/main), incl. uncommitted and untracked.\n  Replaces: git diff --name-only <sha> HEAD; git status --short.',
+		run() {
+			const base = args[0] ?? baseRef();
+			const files = changedFiles(base);
+			emit(
+				{ base, files },
+				(d) => `base ${d.base.slice(0, 10)}  ${d.files.length} files\n${d.files.join('\n')}`
+			);
+		}
+	},
+
+	lint: {
+		help: 'lint [--full]\n  Default: prettier --check + eslint on changed files, then knip (whole repo; it has no per-file mode).\n  --full: npm run lint (the push gate).\n  Prints pass/fail per tool and only failing lines.',
+		run() {
+			const results = [];
+			if (has('--full')) {
+				const r = sh('npm', ['run', 'lint']);
+				results.push({
+					tool: 'npm run lint',
+					ok: r.code === 0,
+					out: r.code ? tail(r.out + '\n' + r.err, 25) : ''
+				});
+			} else {
+				const files = changedFiles();
+				const fmt = files.filter((f) => FORMATTABLE.test(f));
+				const lin = files.filter((f) => LINTABLE.test(f));
+				if (fmt.length) {
+					const r = sh('npx', ['prettier', '--check', ...fmt]);
+					results.push({
+						tool: 'prettier',
+						ok: r.code === 0,
+						out: r.code
+							? (r.out + '\n' + r.err)
+									.split('\n')
+									.filter((l) => l.includes('[warn]'))
+									.join('\n')
+							: ''
+					});
+				}
+				if (lin.length) {
+					const r = sh('npx', ['eslint', ...lin]);
+					results.push({
+						tool: 'eslint',
+						ok: r.code === 0,
+						out: r.code ? tail(r.out + r.err, 30) : ''
+					});
+				}
+				const k = sh('npx', ['knip']);
+				results.push({
+					tool: 'knip',
+					ok: k.code === 0,
+					out: k.code ? tail(k.out + k.err, 20) : ''
+				});
+			}
+			emit(results, (rs) =>
+				rs.map((r) => `${r.ok ? 'PASS' : 'FAIL'} ${r.tool}${r.out ? '\n' + r.out : ''}`).join('\n')
+			);
+			process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+		}
+	},
+
+	check: {
+		help: 'check\n  npm run check (svelte-kit sync + svelte-check + setup tsc). Prints the summary line and errors only.',
+		run() {
+			const r = sh('npm', ['run', 'check']);
+			const all = r.out + '\n' + r.err;
+			const errors = all
+				.split('\n')
+				.filter((l) => /error|Error TS|\bERROR\b/.test(l))
+				.slice(0, 40);
+			const summary =
+				all
+					.split('\n')
+					.filter((l) => /svelte-check found|COMPLETED/.test(l))
+					.pop() ?? '';
+			emit({ ok: r.code === 0, summary, errors }, (d) =>
+				`${d.ok ? 'PASS' : 'FAIL'} check ${d.summary}\n${d.errors.join('\n')}`.trim()
+			);
+			process.exitCode = r.code;
+		}
+	},
+
+	test: {
+		help: 'test [files|patterns...] [--changed] [--all]\n  vitest run on the given files, or with --changed the colocated *.test.ts / *.component.test.ts of changed\n  sources (and changed tests themselves). --all runs the whole suite.\n  Prints the Test Files / Tests lines and FAIL lines only.',
+		run() {
+			let targets = [...args];
+			const isAll = has('--all');
+			if (has('--changed') || (!targets.length && !isAll)) {
+				targets = [];
+				for (const f of changedFiles()) {
+					if (/\.test\.ts$/.test(f)) targets.push(f);
+					else if (/\.(ts|svelte)$/.test(f)) {
+						const stem = f.replace(/\.(ts|svelte)$/, '');
+						for (const t of [`${stem}.test.ts`, `${stem}.component.test.ts`])
+							if (existsSync(join(ROOT, t))) targets.push(t);
+					}
+				}
+				targets = [...new Set(targets.filter((t) => !t.startsWith('e2e/')))];
+				if (!targets.length)
+					return emit(
+						{ ok: true, targets, note: 'no colocated tests for changed files' },
+						'no colocated tests for changed files'
+					);
+			}
+			const missing = targets.filter((t) => /\.test\.ts$/.test(t) && !existsSync(join(ROOT, t)));
+			if (missing.length) throw new Error(`no such test file: ${missing.join(', ')}`);
+			const r = sh('npx', ['vitest', 'run', ...(isAll ? [] : targets)]);
+			const lines = (r.out + '\n' + r.err).split('\n');
+			const summary = lines.filter((l) => /^\s*(Test Files|Tests)\s/.test(l)).map((l) => l.trim());
+			let fails = [
+				...new Set(lines.filter((l) => /FAIL|AssertionError|Error:/.test(l)).map((l) => l.trim()))
+			].slice(0, 30);
+			// A run that fails before any suite starts (bad filter, config error) matches none of the above.
+			if (r.code && !summary.length && !fails.length)
+				fails = tail(r.out + '\n' + r.err, 8).split('\n');
+			emit({ ok: r.code === 0, targets, summary, fails }, (d) =>
+				[
+					`${d.ok ? 'PASS' : 'FAIL'} vitest ${d.targets.length ? d.targets.length + ' files' : 'all'}`,
+					...d.summary,
+					...d.fails
+				].join('\n')
+			);
+			process.exitCode = r.code;
+		}
+	},
+
+	e2e: {
+		help: 'e2e [spec...]\n  playwright test (needs the dev DB migrated). Prints pass/fail counts and failing test titles.',
+		run() {
+			const r = sh('npx', ['playwright', 'test', '--reporter=line', ...args]);
+			const lines = (r.out + '\n' + r.err).split('\n');
+			const keep = lines
+				.filter((l) => /\d+ (passed|failed|flaky|skipped)|✘|^\s+\d+\) /.test(l))
+				.map((l) => l.trim());
+			emit(
+				{ ok: r.code === 0, lines: keep },
+				(d) => `${d.ok ? 'PASS' : 'FAIL'} e2e\n${d.lines.join('\n')}`
+			);
+			process.exitCode = r.code;
+		}
+	},
+
+	gate: {
+		help: 'gate [--e2e]\n  The full pre-push run in order: npm run lint, npm run check, vitest (all), optionally e2e.\n  Stops at the first failure.',
+		run() {
+			const steps = [
+				['lint', ['npm', ['run', 'lint']]],
+				['check', ['npm', ['run', 'check']]],
+				['vitest', ['npx', ['vitest', 'run']]]
+			];
+			if (has('--e2e')) steps.push(['e2e', ['npx', ['playwright', 'test', '--reporter=line']]]);
+			const results = [];
+			for (const [name, [f, a]] of steps) {
+				const t0 = Date.now();
+				const r = sh(f, a);
+				const ok = r.code === 0;
+				results.push({
+					step: name,
+					ok,
+					seconds: Math.round((Date.now() - t0) / 1000),
+					out: ok ? '' : tail(r.out + '\n' + r.err, 25)
+				});
+				if (!ok) break;
+			}
+			emit(results, (rs) =>
+				rs
+					.map(
+						(r) => `${r.ok ? 'PASS' : 'FAIL'} ${r.step} ${r.seconds}s${r.out ? '\n' + r.out : ''}`
+					)
+					.join('\n')
+			);
+			process.exitCode = results.every((r) => r.ok) && results.length === steps.length ? 0 : 1;
+		}
+	},
+
+	adr: {
+		help: 'adr next | list [term] | show <n> | grep <term>\n  next: the next free ADR number and file path. list: number, status, title (from docs/decisions.md).\n  show: print docs/adr/ADR-NNN.md. grep: matching lines across all ADRs.',
+		run() {
+			const sub = args.shift() ?? 'next';
+			const rows = read('docs/decisions.md')
+				.split('\n')
+				.map((l) => l.match(/^\|\s*(\d+)\s*\|\s*(.*?)\s*\|.*\|\s*(.*?)\s*\|\s*$/))
+				.filter(Boolean)
+				.map((m) => ({ n: Number(m[1]), title: m[2], status: m[3] }));
+			const files = readdirSync(join(ROOT, 'docs/adr'))
+				.map((f) => Number(f.match(/ADR-(\d+)/)?.[1]))
+				.filter(Boolean);
+			const pad = (n) => String(n).padStart(3, '0');
+			if (sub === 'next') {
+				const n = Math.max(0, ...files, ...rows.map((r) => r.n)) + 1;
+				return emit(
+					{
+						next: n,
+						file: `docs/adr/ADR-${pad(n)}.md`,
+						tableRow: `| ${n} | <title> | [ADR-${pad(n)}.md](adr/ADR-${pad(n)}.md) | <status> |`
+					},
+					(d) => `${d.next} ${d.file}\nrow: ${d.tableRow}`
+				);
+			}
+			if (sub === 'list') {
+				const term = args.join(' ').toLowerCase();
+				const hit = rows.filter((r) => !term || r.title.toLowerCase().includes(term));
+				return emit(hit, (h) =>
+					h.map((r) => `${pad(r.n)} ${r.status.padEnd(12)} ${r.title}`).join('\n')
+				);
+			}
+			if (sub === 'show')
+				return emit({ text: read(`docs/adr/ADR-${pad(Number(args[0]))}.md`) }, (d) => d.text);
+			if (sub === 'grep') {
+				const r = sh('grep', ['-n', '-i', '-E', args.join(' '), '-r', 'docs/adr']);
+				return emit(r.out.split('\n').filter(Boolean), (l) => l.join('\n') || 'no match');
+			}
+			throw new Error(`unknown adr subcommand ${sub}`);
+		}
+	},
+
+	backlog: {
+		help: 'backlog [term] [--section <name>]\n  No term: the section outline with line numbers. term: matching lines, each tagged with its ### section.\n  --section: print that whole section.',
+		run() {
+			const section = flag('--section');
+			docSearch('docs/backlog.md', args.join(' '), section);
+		}
+	},
+
+	docs: {
+		help: 'docs <term> [--file architecture|decisions|backlog|development|...]\n  Search docs/*.md (not ADRs; use `adr grep`), each hit tagged with file:line and its nearest heading.\n  docs --outline <file>: headings only.',
+		run() {
+			const outline = flag('--outline');
+			if (outline) return docSearch(`docs/${outline.replace(/\.md$/, '')}.md`, '', undefined);
+			const only = flag('--file');
+			const files = readdirSync(join(ROOT, 'docs')).filter(
+				(f) => f.endsWith('.md') && (!only || f.startsWith(only))
+			);
+			const term = args.join(' ');
+			if (!term) throw new Error('docs needs a term');
+			const hits = [];
+			for (const f of files) hits.push(...searchMd(`docs/${f}`, term));
+			emit(
+				hits,
+				(h) => h.map((x) => `${x.file}:${x.line} [${x.heading}] ${x.text}`).join('\n') || 'no match'
+			);
+		}
+	},
+
+	migration: {
+		help: 'migration [latest|next|list|show <n>|grep <term>]\n  latest (default): newest drizzle/NNNN_*.sql and its journal tag. next: the number db:generate will use.\n  list: last 10. show: print a migration. grep: search all migration SQL.\n  Reminder printed with next: migrations are expand-and-contract; pushing to cloudflare runs them on production.',
+		run() {
+			const sub = args.shift() ?? 'latest';
+			const sqls = readdirSync(join(ROOT, 'drizzle'))
+				.filter((f) => /^\d{4}_.*\.sql$/.test(f))
+				.sort();
+			const last = sqls.at(-1);
+			const n = Number(last.slice(0, 4));
+			if (sub === 'latest') return emit({ latest: last, number: n }, `${last}`);
+			if (sub === 'next')
+				return emit(
+					{ next: n + 1, padded: String(n + 1).padStart(4, '0') },
+					`${String(n + 1).padStart(4, '0')}  (npm run db:generate; then db:migrate:local. Expand-and-contract only.)`
+				);
+			if (sub === 'list') return emit(sqls.slice(-10), (l) => l.join('\n'));
+			if (sub === 'show') {
+				const f = sqls.find((s) => s.startsWith(String(args[0]).padStart(4, '0')));
+				return emit({ file: f, sql: read(`drizzle/${f}`) }, (d) => `-- ${d.file}\n${d.sql}`);
+			}
+			if (sub === 'grep') {
+				const r = sh('grep', [
+					'-n',
+					'-i',
+					'-E',
+					args.join(' '),
+					...sqls.map((s) => `drizzle/${s}`)
+				]);
+				return emit(r.out.split('\n').filter(Boolean), (l) => l.join('\n') || 'no match');
+			}
+			throw new Error(`unknown migration subcommand ${sub}`);
+		}
+	},
+
+	find: {
+		help: 'find <regex> [-i] [-l] [--in src|e2e|docs|...] [--svelte|--ts] [--tests]\n  grep -rnE over source, skipping tests unless --tests. -i: ignore case. -l: files only. Caps at 60 lines.\n  Replaces the many grep -rn "X" src --include=*.svelte | grep -v test | head chains.',
+		run() {
+			const where = flag('--in') ?? 'src';
+			const includes = has('--svelte')
+				? ['--include=*.svelte']
+				: has('--ts')
+					? ['--include=*.ts']
+					: [
+							'--include=*.ts',
+							'--include=*.svelte',
+							'--include=*.css',
+							'--include=*.js',
+							'--include=*.mjs'
+						];
+			const withTests = has('--tests');
+			const filesOnly = has('-l');
+			const isCaseless = has('-i');
+			const pattern = args.join(' ');
+			if (!pattern) throw new Error('find needs a pattern');
+			const r = sh('grep', [
+				'-rnE',
+				...(isCaseless ? ['-i'] : []),
+				...(filesOnly ? ['-l'] : []),
+				...includes,
+				pattern,
+				where
+			]);
+			let lines = r.out.split('\n').filter(Boolean);
+			if (!withTests) lines = lines.filter((l) => !/\.test\.ts|\.spec\.ts/.test(l.split(':')[0]));
+			const total = lines.length;
+			lines = lines.slice(0, 60).map((l) => (l.length > 220 ? l.slice(0, 220) + '…' : l));
+			emit(
+				{ total, lines },
+				(d) => `${d.total} hits${d.total > 60 ? ' (first 60)' : ''}\n${d.lines.join('\n')}`
+			);
+		}
+	},
+
+	uses: {
+		help: 'uses <Name|path-fragment>\n  Who imports a component/module: files whose import lines mention it (tests excluded unless --tests).',
+		run() {
+			const withTests = has('--tests');
+			const name = args[0];
+			if (!name) throw new Error('uses needs a name');
+			const r = sh('grep', [
+				'-rlE',
+				`(import|from).*['"/]${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\.svelte|\\.ts)?['"]`,
+				'src',
+				'e2e',
+				'workers',
+				'--include=*.ts',
+				'--include=*.svelte'
+			]);
+			const files = r.out
+				.split('\n')
+				.filter(Boolean)
+				.filter((f) => withTests || !/\.test\.ts|\.spec\.ts/.test(f));
+			emit(files, (f) => f.join('\n') || 'no importers');
+		}
+	},
+
+	def: {
+		help: 'def <symbol> [-A <lines>] [--in <dir>]\n  Locate a definition (function/const/class/interface/type/export) and print it with -A lines (default 25).\n  Replaces grep -n "function X" -A30 file; sed -n a,bp file.',
+		run() {
+			const after = Number(flag('-A') ?? 25);
+			const where = flag('--in') ?? 'src';
+			const sym = args[0];
+			if (!sym) throw new Error('def needs a symbol');
+			const re = `(function\\*?\\s+${sym}\\b|(const|let|class|interface|type|enum)\\s+${sym}\\b|^\\s*(async\\s+)?${sym}\\s*\\([^)]*\\)\\s*[:{])`;
+			const r = sh('grep', [
+				'-rnE',
+				'--include=*.ts',
+				'--include=*.svelte',
+				'--include=*.mjs',
+				re,
+				where,
+				'workers',
+				'scripts'
+			]);
+			const hits = r.out
+				.split('\n')
+				.filter(Boolean)
+				.filter((l) => !/\.test\.ts/.test(l))
+				.slice(0, 5);
+			const out = hits.map((h) => {
+				const [file, line] = h.split(':');
+				const body = readFileSync(join(ROOT, file), 'utf8')
+					.split('\n')
+					.slice(Number(line) - 1, Number(line) - 1 + after);
+				return { file, line: Number(line), body: body.join('\n') };
+			});
+			emit(out, (o) => o.map((x) => `== ${x.file}:${x.line}\n${x.body}`).join('\n') || 'not found');
+		}
+	},
+
+	exports: {
+		help: 'exports <file>\n  Exported symbols of a file with line numbers and one-line signatures.\n  Use instead of cat-ing helpers such as src/lib/server/testing/d1.ts (the real-D1 test helpers).',
+		run() {
+			const file = args[0] ?? 'src/lib/server/testing/d1.ts';
+			const lines = read(file).split('\n');
+			const out = [];
+			lines.forEach((l, i) => {
+				if (/^export\s/.test(l)) out.push({ line: i + 1, sig: l.replace(/\s*\{\s*$/, '').trim() });
+			});
+			emit(
+				{ file, exports: out },
+				(d) => `${d.file}\n` + d.exports.map((e) => `${e.line}: ${e.sig}`).join('\n')
+			);
+		}
+	},
+
+	map: {
+		help: 'map [layer]\n  Where things live. No arg: the layers (domain, repositories, services, routes, components, shared) with file counts.\n  With a layer (e.g. services, components/forms, routes/api): its files, tests excluded.',
+		run() {
+			const layers = {
+				domain: 'src/lib/server/domain',
+				repositories: 'src/lib/server/repositories',
+				services: 'src/lib/server/services',
+				'db schema': 'src/lib/server/db',
+				gedcom: 'src/lib/server/gedcom',
+				'routes (pages+api)': 'src/routes',
+				components: 'src/lib/components',
+				shared: 'src/lib/shared',
+				'charts/tree-layout': 'src/lib/tree-layout',
+				'test helpers': 'src/lib/server/testing',
+				e2e: 'e2e',
+				migrations: 'drizzle'
+			};
+			const target = args[0];
+			if (!target) {
+				const rows = Object.entries(layers)
+					.filter(([, p]) => existsSync(join(ROOT, p)))
+					.map(([name, p]) => {
+						const files = walk(p);
+						return {
+							name,
+							path: p,
+							files: files.filter((f) => !/\.test\.ts$/.test(f)).length,
+							tests: files.filter((f) => /\.test\.ts$/.test(f)).length
+						};
+					});
+				const comps = readdirSync(join(ROOT, 'src/lib/components')).filter((d) =>
+					statSync(join(ROOT, 'src/lib/components', d)).isDirectory()
+				);
+				return emit(
+					{ layers: rows, componentDirs: comps },
+					(d) =>
+						d.layers
+							.map((r) => `${r.name.padEnd(20)} ${r.path}  ${r.files} files, ${r.tests} tests`)
+							.join('\n') +
+						`\ncomponents/: ${d.componentDirs.join(' ')}\nrule: domain → repositories → services → routes; routes never touch D1; server/shared never import components.`
+				);
+			}
+			const p =
+				layers[target] ??
+				(existsSync(join(ROOT, target))
+					? target
+					: existsSync(join(ROOT, 'src/lib', target))
+						? join('src/lib', target)
+						: join('src', target));
+			const files = walk(p)
+				.filter((f) => !/\.test\.ts$/.test(f))
+				.map((f) => relative(ROOT, join(ROOT, f)));
+			emit(files, (f) => f.join('\n'));
+		}
+	},
+
+	dev: {
+		help: 'dev [status|seed|start]\n  status (default): which local port answers (5173-5180), whether .dev.vars sets ACCESS_BYPASS_DEV, and\n  whether the local D1 has migrations applied. seed: SEED_URL=<live port> node scripts/seed.mjs (imports\n  test/data/The Simpsons.ged). start: prints the start command; it does not background a server itself.',
+		async run() {
+			const sub = args[0] ?? 'status';
+			const ports = [];
+			for (let p = 5173; p <= 5180; p++) {
+				try {
+					const res = await fetch(`http://localhost:${p}/`, {
+						redirect: 'manual',
+						signal: AbortSignal.timeout(800)
+					});
+					ports.push({ port: p, status: res.status });
+				} catch {
+					/* not listening */
+				}
+			}
+			const devVars = existsSync(join(ROOT, '.dev.vars')) ? read('.dev.vars') : '';
+			const hasBypass = /ACCESS_BYPASS_DEV\s*=\s*"?true/.test(devVars);
+			const hasLocalDb = existsSync(join(ROOT, '.wrangler/state/v3/d1'));
+			if (sub === 'seed') {
+				if (!ports.length) throw new Error('no dev server on 5173-5180; start one: npm run dev');
+				const r = sh('node', ['scripts/seed.mjs'], {
+					env: { ...process.env, SEED_URL: `http://localhost:${ports[0].port}` }
+				});
+				return emit(
+					{ port: ports[0].port, ok: r.code === 0, out: tail(r.out + r.err, 5) },
+					(d) => `${d.ok ? 'OK' : 'FAIL'} seed :${d.port}\n${d.out}`
+				);
+			}
+			emit(
+				{
+					live: ports,
+					hasBypass,
+					hasLocalDb,
+					start: 'npm run db:migrate:local && npm run dev',
+					seed: 'agent-cli dev seed',
+					testData: readdirSync(join(ROOT, 'test/data'))
+				},
+				(d) =>
+					`live ${d.live.map((p) => `:${p.port}(${p.status})`).join(' ') || 'none'}\nACCESS_BYPASS_DEV ${d.hasBypass ? 'on' : 'OFF (.dev.vars)'}  local-d1 ${d.hasLocalDb ? 'present' : 'missing → npm run db:migrate:local'}\nstart: ${d.start}\nseed: ${d.seed}\ngedcom: ${d.testData.join(', ')}`
+			);
+		}
+	},
+
+	remotes: {
+		help: 'remotes [--fetch]\n  Local main vs origin/main and cloudflare/main by ls-remote (the post-push check), plus cf auth state.\n  cloudflare is a Cloudflare Artifacts repo reached through scripts/agit.zsh; pushing main there DEPLOYS\n  and runs pending migrations on production.',
+		run() {
+			if (has('--fetch')) sh('git', ['fetch', '-q', 'origin']);
+			const local = git('rev-parse', '--short=10', 'main');
+			const head = git('rev-parse', '--short=10', 'HEAD');
+			const lsOrigin =
+				sh('git', ['ls-remote', 'origin', 'main'], { timeout: 20000 })
+					.out.split(/\s/)[0]
+					?.slice(0, 10) || null;
+			const hasCloudflare = git('remote').split('\n').includes('cloudflare');
+			let lsCloudflare = null;
+			if (hasCloudflare && existsSync('/bin/zsh')) {
+				const r = sh(
+					'zsh',
+					['-c', `source ${ROOT}/scripts/agit.zsh; agit ls-remote cloudflare main`],
+					{ timeout: 30000 }
+				);
+				lsCloudflare = r.out.split(/\s/)[0]?.slice(0, 10) || `error: ${tail(r.err, 1)}`;
+			}
+			const cf = hasCloudflare
+				? sh('npx', ['-y', 'cf', 'auth', 'whoami'], { timeout: 30000 })
+				: null;
+			const pendingMigrations = lsOrigin
+				? git('diff', '--name-only', lsOrigin, 'main', '--', 'drizzle')
+						.split('\n')
+						.filter((f) => f.endsWith('.sql'))
+				: [];
+			emit(
+				{
+					head,
+					main: local,
+					origin: lsOrigin,
+					cloudflare: hasCloudflare ? lsCloudflare : 'no remote',
+					cfAuthed: cf ? cf.code === 0 && /expiresAt|account/i.test(cf.out) : null,
+					pendingMigrations
+				},
+				(d) =>
+					`HEAD ${d.head}  main ${d.main}\norigin/main ${d.origin ?? '?'} ${d.origin === d.main ? '=' : '≠'}\ncloudflare/main ${d.cloudflare}${d.cfAuthed === null ? '' : `  cf-auth ${d.cfAuthed ? 'ok' : 'NEEDS npx -y cf auth login'}`}\nmigrations not yet on origin: ${d.pendingMigrations.join(', ') || 'none'}`
+			);
+		}
+	},
+
+	ship: {
+		help: 'ship [--yes]\n  Push main to cloudflare (deploys) and origin, then verify both with ls-remote.\n  Without --yes it only prints the plan. Only pass --yes when the user has approved this push:\n  it deploys to production and runs migrations there.',
+		run() {
+			const plan = [
+				`zsh -c 'source scripts/agit.zsh; agit push cloudflare main'`,
+				'git push origin main',
+				'agent-cli remotes'
+			];
+			if (!has('--yes'))
+				return emit(
+					{ dryRun: true, plan },
+					`plan (dry run; add --yes once the user approved the deploy):\n${plan.join('\n')}`
+				);
+			const steps = [];
+			const r1 = sh('zsh', [
+				'-c',
+				`source ${ROOT}/scripts/agit.zsh; cd ${ROOT} && agit push cloudflare main`
+			]);
+			steps.push({ step: 'cloudflare', ok: r1.code === 0, out: tail(r1.out + r1.err, 3) });
+			const r2 = sh('git', ['push', 'origin', 'main']);
+			steps.push({ step: 'origin', ok: r2.code === 0, out: tail(r2.out + r2.err, 2) });
+			emit(
+				steps,
+				(s) =>
+					s.map((x) => `${x.ok ? 'OK' : 'FAIL'} push ${x.step}\n${x.out}`).join('\n') +
+					'\nnext: agent-cli remotes'
+			);
+			process.exitCode = steps.every((s) => s.ok) ? 0 : 1;
+		}
+	},
+
+	memory: {
+		help: 'memory [name]\n  List (or print) the Claude Code memory notes for this project, such as push-to-cloudflare-deploys.md,\n  from ~/.claude/projects/*epoch*/memory/. Empty on cloud containers, which have none.',
+		run() {
+			const base = join(homedir(), '.claude/projects');
+			const dirs = existsSync(base)
+				? readdirSync(base)
+						.filter((d) => /epoch/i.test(d))
+						.map((d) => join(base, d, 'memory'))
+						.filter((d) => existsSync(d))
+				: [];
+			const files = dirs.flatMap((d) => readdirSync(d).map((f) => join(d, f)));
+			if (args[0]) {
+				const f = files.find((x) => x.endsWith(args[0]) || x.endsWith(args[0] + '.md'));
+				if (!f) throw new Error(`no memory note ${args[0]}`);
+				return emit({ file: f, text: readFileSync(f, 'utf8') }, (d) => d.text);
+			}
+			emit(files, (f) => f.join('\n') || 'no memory notes here');
+		}
+	},
+
+	rules: {
+		help: 'rules\n  The project rules agents re-read AGENTS.md for, one line each, plus the commit trailer format.',
+		run() {
+			const rules = [
+				'layering: domain → repositories → services → routes; routes never touch D1; server/ and shared/ never import components/; every edit goes through the mutation runner',
+				'wrangler.jsonc main stays at the adapter default; custom entry is workers/entry.ts (outside src/), passed positionally',
+				'nodeLinker node-modules, never PnP',
+				'no TS enum: as const objects; names carry units; booleans start is/has/should/can/did/will/was/are/allow/needs (D1 columns by hand)',
+				'comments explain why; TSDoc only where the type cannot say it',
+				'tests colocated *.test.ts; real D1 via src/lib/server/testing/d1.ts (agent-cli exports)',
+				'migrations expand-and-contract; wrangler rollback restores code, never schema',
+				'backlog/architecture/decisions live in docs/; update those, not AGENTS.md',
+				'push gate: npm run lint (agent-cli gate for lint+check+vitest); pushing main to cloudflare deploys production',
+				'commits: Conventional Commits <type>[scope]: <desc>, imperative, <72 chars, one change each; end with Co-Authored-By: <model> <noreply@<provider>>',
+				'new ADR: agent-cli adr next, add docs/adr/ADR-NNN.md and a row in docs/decisions.md'
+			];
+			emit(rules, (r) => r.map((x) => `- ${x}`).join('\n'));
+		}
+	},
+
+	commit: {
+		help: 'commit-check "<subject>"  (alias: commit)\n  Validate a commit subject against the repo convention: type(scope): description, imperative, <72 chars.',
+		run() {
+			const s = args.join(' ');
+			const problems = [];
+			if (
+				!/^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|merge)(\([\w./-]+\))?!?: \S/.test(
+					s
+				)
+			)
+				problems.push('not <type>[(scope)]: <description>');
+			if (s.length >= 72) problems.push(`${s.length} chars (max 71)`);
+			if (/^\w+(\(.*\))?: \w+(ed|ing)\b/.test(s))
+				problems.push('description should be imperative (add, not added/adding)');
+			emit({ ok: !problems.length, problems }, (d) =>
+				d.ok ? 'OK' : `FAIL ${d.problems.join('; ')}`
+			);
+			process.exitCode = problems.length ? 1 : 0;
+		}
+	}
+};
+commands['commit-check'] = commands.commit;
+
+// ---------- markdown helpers ----------
+function searchMd(file, term) {
+	const lines = read(file).split('\n');
+	let heading = '';
+	const hits = [];
+	const re = new RegExp(term, 'i');
+	lines.forEach((l, i) => {
+		if (/^#{1,4} /.test(l)) heading = l.replace(/^#+ /, '');
+		else if (re.test(l)) hits.push({ file, line: i + 1, heading, text: l.trim().slice(0, 200) });
+	});
+	return hits;
+}
+function docSearch(file, term, section) {
+	const lines = read(file).split('\n');
+	if (section) {
+		const start = lines.findIndex(
+			(l) => /^#{2,4} /.test(l) && l.toLowerCase().includes(section.toLowerCase())
+		);
+		if (start < 0) throw new Error(`no section matching ${section}`);
+		const level = lines[start].match(/^#+/)[0].length;
+		let end = lines.findIndex((l, i) => i > start && new RegExp(`^#{1,${level}} `).test(l));
+		if (end < 0) end = lines.length;
+		return emit(
+			{ file, start: start + 1, text: lines.slice(start, end).join('\n') },
+			(d) => `${d.file}:${d.start}\n${d.text}`
+		);
+	}
+	if (!term) {
+		const outline = lines.map((l, i) => ({ line: i + 1, l })).filter((x) => /^#{1,4} /.test(x.l));
+		return emit(outline, (o) => o.map((x) => `${x.line}: ${x.l}`).join('\n'));
+	}
+	const hits = searchMd(file, term);
+	emit(hits, (h) => h.map((x) => `${x.line} [${x.heading}] ${x.text}`).join('\n') || 'no match');
+}
+
+// ---------- dispatch ----------
+const usage = `agent-cli <command> [args] [--json] [--help]
+commands:
+${Object.entries(commands)
+	.filter(([k]) => k !== 'commit-check')
+	.map(([k, v]) => `  ${k.padEnd(10)} ${v.help.split('\n')[1].trim()}`)
+	.join('\n')}`;
+
+if (!cmdName || cmdName === 'help') {
+	console.log(usage);
+} else if (!commands[cmdName]) {
+	console.error(`unknown command ${cmdName}\n${usage}`);
+	process.exitCode = 2;
+} else if (wantsHelp) {
+	console.log(commands[cmdName].help);
+} else {
+	try {
+		await commands[cmdName].run();
+	} catch (e) {
+		if (isJson) console.log(JSON.stringify({ error: e.message }));
+		else console.error(`error: ${e.message}`);
+		process.exitCode = 1;
+	}
+}
