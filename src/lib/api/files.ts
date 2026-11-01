@@ -2,16 +2,6 @@ import type { FileLinkResponse } from '#lib/shared/api-contracts.js';
 import type { FileListDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 import { ApiError, call, json, path, restartSignIn } from './client.js';
 
-/** Attach a photo or document to a person, partnership or source; the server checks the caller may add media to it. */
-export async function uploadMediaApi(treeId: string, entityId: string, file: File): Promise<void> {
-	const body = new FormData();
-	body.append('file', file);
-	body.append('treeId', treeId);
-	body.append('entityId', entityId);
-	body.append('title', file.name);
-	await call('/api/media/upload', { method: 'POST', body }, 'Upload failed');
-}
-
 /**
  * Files a finished upload session as media on a person, partnership or source. The bytes are
  * already stored, so this sends only the session and the record; the server checks them again.

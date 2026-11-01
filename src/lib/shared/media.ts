@@ -36,13 +36,6 @@ export type UploadMediaType = (typeof UPLOAD_MEDIA_TYPES)[number];
 export const MEDIA_UPLOAD_ACCEPT = UPLOAD_MEDIA_TYPES.join(',');
 
 /**
- * How many bytes a stored media file may carry. The upload route counts the request body as it
- * streams and aborts once that count passes this plus a little multipart framing, so an oversized
- * body is never buffered whole; the parsed file size is then checked against this exactly.
- */
-export const MAX_MEDIA_UPLOAD_BYTES = 25 * 1024 * 1024;
-
-/**
  * How many bytes one tree's stored media may total. A soft quota: the total is read before a write
  * and the write follows, so two uploads racing at the edge can each pass and overshoot by at most
  * one file each. Bounding the total, not each request, is what stops a collaborator's repeated

@@ -66,7 +66,6 @@ const ENTRIES: Record<string, Entry> = {
 		covers: 'services/import-job-service.test.ts'
 	},
 	[`${API}/media/[...key]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
-	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/media/from-upload/+server.ts`]: {
 		kind: 'role-gated',
 		covers: 'services/media-from-upload.test.ts'
