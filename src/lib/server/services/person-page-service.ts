@@ -267,7 +267,7 @@ export class PersonPageService {
 		const readable = await readableFileIds(
 			this.db,
 			treeId,
-			linkedMedia.map(({ row }) => row.id),
+			linkedMedia.map(({ row }) => row),
 			scope
 		);
 		const mediaRows = linkedMedia.filter(({ row }) => readable.has(row.id));

@@ -28,7 +28,13 @@ import { TreeRepository } from '../repositories/tree-repository';
 import { UploadRepository } from '../repositories/upload-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong, visibleSourcesAmong } from '../repositories/visibility';
-import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
+import {
+	MAX_TREE_MEDIA_BYTES,
+	isUnresolvedFile,
+	objectIdOf,
+	type MediaCrop
+} from '../../shared/media';
+import type { PersonPrivacy } from '../../shared/privacy';
 import type {
 	FileLinkDto,
 	FileListDto,
@@ -58,9 +64,17 @@ export interface FileRenameInput {
 
 export interface FileLinkInput {
 	treeId: string;
+	/** The object (before the contract migrations, its first file's id). */
 	mediaId: string;
 	/** The person, partnership or source the file is linked to or unlinked from. */
 	entityId: string;
+	/** The fact the pointer sits under; `entityId` stays the fact's person or partnership. */
+	factId?: string | null;
+	/** The pointer's place among its siblings, a crop and a title that overrides the file's. */
+	sortOrder?: number | null;
+	crop?: MediaCrop | null;
+	title?: string | null;
+	/** The object's version, or the file's before the backfill. */
 	expectedVersion?: number;
 }
 
@@ -82,16 +96,20 @@ interface VisibleOwners {
 }
 
 /**
- * Whether a viewer may read a file: every record it is linked to must be visible, a person, every
- * partner of a partnership, a source (ADR-028's rule, held to `maskRows` by a test). A file with no
- * link is editor-only. Kept as one function so every read path shares the rule.
+ * Whether a viewer may read an object, and so any of its files (ADR-082): its own `privacy` must not
+ * be `private`, and every record it is linked to must be visible, a person, every partner of a
+ * partnership, a source (ADR-028's rule, held to `maskRows` by a test). A fact link is judged by its
+ * owner, which is its `entity_id`. `public` is no bypass: a person's override beats it. An object with
+ * no link is editor-only. Kept as one function so every read path shares the rule.
  */
 function canReadRow(
 	links: FileLinks,
+	privacy: PersonPrivacy | undefined,
 	scope: Pick<ViewerScope, 'isRestricted'>,
 	visible: VisibleOwners
 ): boolean {
 	if (!scope.isRestricted) return true;
+	if (privacy === 'private') return false;
 	if (links.isDangling || (links.people.length === 0 && links.sources.length === 0)) return false;
 	return (
 		links.people.every((id) => visible.people.has(id)) &&
@@ -165,19 +183,34 @@ async function visibleOf(
 }
 
 /**
- * Which of these files the viewer may read, by the one rule in `canReadRow`. The Files list, a
- * direct read and a person's page all go through it, so they cannot disagree.
+ * Which of these files the viewer may read, by the one rule in `canReadRow`, judged on each file's
+ * object. The Files list, a direct read and a person's page all go through it, so they cannot
+ * disagree.
  */
 export async function readableFileIds(
 	db: DbClient,
 	treeId: string,
-	mediaIds: readonly string[],
+	files: ReadonlyArray<{ id: string; objectId: string | null }>,
 	scope: ViewerScope
 ): Promise<Set<string>> {
-	if (!scope.isRestricted || mediaIds.length === 0) return new Set(mediaIds);
-	const resolved = await resolveLinks(new MediaRepository(db), treeId, mediaIds);
+	if (!scope.isRestricted || files.length === 0) return new Set(files.map((f) => f.id));
+	const media = new MediaRepository(db);
+	const objectIds = files.map(objectIdOf);
+	const resolved = await resolveLinks(media, treeId, objectIds);
 	const visible = await visibleOf(db, treeId, resolved, scope);
-	return new Set(mediaIds.filter((id) => canReadRow(resolved.linksOf(id), scope, visible)));
+	const objects = await media.objectsOf(treeId, objectIds);
+	return new Set(
+		files
+			.filter((f) =>
+				canReadRow(
+					resolved.linksOf(objectIdOf(f)),
+					objects.get(objectIdOf(f))?.privacy,
+					scope,
+					visible
+				)
+			)
+			.map((f) => f.id)
+	);
 }
 
 /**
@@ -205,6 +238,8 @@ interface TreeView {
 	/** Records in the tree the caller may see; only consulted when `isRestricted`. */
 	visible: VisibleOwners;
 	resolved: ResolvedLinks;
+	/** Object privacy and version by object id; an object with no row (not backfilled) reads as `auto`. */
+	objects: ReadonlyMap<string, { privacy: PersonPrivacy; version: number }>;
 	/** Names shown beside a file, keyed by the record it is linked to. */
 	labels: ReadonlyMap<string, string>;
 }
@@ -283,11 +318,17 @@ function fileDto(
 	tree: CallerTree,
 	links: FileLinkDto[],
 	uploadedBy: string | null,
-	userId: string
+	userId: string,
+	objectVersion: number | null
 ): FileRowDto {
 	const rights = rightsOf(row, tree.role, userId);
+	const isUnresolved = isUnresolvedFile(row);
 	return {
 		id: row.id,
+		objectId: objectIdOf(row),
+		// Link ops guard the object; before the backfill the file stands for it.
+		objectVersion: objectVersion ?? row.version,
+		isUnresolved,
 		title: row.title,
 		version: row.version,
 		mimeType: row.mimeType,
@@ -298,8 +339,10 @@ function fileDto(
 		uploadedBy,
 		createdAt: row.createdAt ? row.createdAt.getTime() : null,
 		// The object key is what the serve route reads by, so it goes only to a caller who may preview.
-		previewKey: rights.canPreview ? row.r2ObjectKey : null,
-		...rights
+		// An unresolved file has no bytes, so there is nothing to preview.
+		previewKey: rights.canPreview && !isUnresolved ? row.r2ObjectKey : null,
+		...rights,
+		canPreview: rights.canPreview && !isUnresolved
 	};
 }
 
@@ -361,8 +404,10 @@ export class MediaService {
 			this.now()
 		);
 		const row = await this.media.findByKey(parsed.treeId, key);
-		if (!row) throw new NotFoundError('Media', key);
-		if (!(await readableFileIds(this.db, parsed.treeId, [row.id], scope)).has(row.id))
+		// An unresolved file has no object in the bucket; its placeholder key never parses, and this is
+		// the second lock on the same door.
+		if (!row || isUnresolvedFile(row)) throw new NotFoundError('Media', key);
+		if (!(await readableFileIds(this.db, parsed.treeId, [row], scope)).has(row.id))
 			throw new NotFoundError('Media', key);
 		return { title: row.title };
 	}
@@ -435,10 +480,20 @@ export class MediaService {
 			const tree = trees.get(row.treeId);
 			if (!tree) return null;
 			// A tree the caller is not a member of (install owner only): metadata, nothing that names a person.
-			if (tree.role === null) return fileDto(row, tree, [], null, context.user.id);
+			if (tree.role === null) return fileDto(row, tree, [], null, context.user.id, null);
 			const view = views.get(row.treeId);
-			if (!view || !canReadRow(view.resolved.linksOf(row.id), view, view.visible)) return null;
-			const links = view.resolved.entitiesOf(row.id).flatMap((entityId): FileLinkDto[] => {
+			const objectId = objectIdOf(row);
+			if (
+				!view ||
+				!canReadRow(
+					view.resolved.linksOf(objectId),
+					view.objects.get(objectId)?.privacy,
+					view,
+					view.visible
+				)
+			)
+				return null;
+			const links = view.resolved.entitiesOf(objectId).flatMap((entityId): FileLinkDto[] => {
 				const kind = view.resolved.kinds.get(entityId);
 				if (!kind) return [];
 				return [
@@ -454,7 +509,14 @@ export class MediaService {
 				row.uploadedBy !== null && isManagerRole(tree.role)
 					? (uploaders.get(row.uploadedBy) ?? null)
 					: null;
-			return fileDto(row, tree, links, uploadedBy, context.user.id);
+			return fileDto(
+				row,
+				tree,
+				links,
+				uploadedBy,
+				context.user.id,
+				view.objects.get(objectId)?.version ?? null
+			);
 		});
 	}
 
@@ -469,11 +531,9 @@ export class MediaService {
 		rows: MediaItemRow[],
 		context: AuthenticatedContext
 	): Promise<TreeView> {
-		const resolved = await resolveLinks(
-			this.media,
-			treeId,
-			rows.filter((r) => r.treeId === treeId).map((r) => r.id)
-		);
+		const objectIds = rows.filter((r) => r.treeId === treeId).map(objectIdOf);
+		const resolved = await resolveLinks(this.media, treeId, objectIds);
+		const objects = await this.media.objectsOf(treeId, objectIds);
 		const isRestricted = !canSeePrivatePeople(role);
 		const scope = isRestricted
 			? await requireTreeScope(this.users, this.trees, treeId, context, 'media:view', this.now())
@@ -495,7 +555,7 @@ export class MediaService {
 				labels.set(id, partnerNames.length > 0 ? partnerNames.join(' and ') : 'A partnership');
 			}
 		}
-		return { isRestricted, visible, labels, resolved };
+		return { isRestricted, visible, labels, resolved, objects };
 	}
 
 	/**
@@ -595,24 +655,61 @@ export class MediaService {
 		});
 	}
 
-	/** Link a file to a person, partnership or source in the same tree; linking again changes nothing. */
+	/**
+	 * Link an object to a person, partnership or source in the same tree, or to a fact of one;
+	 * linking again changes nothing. `mediaId` names the object: for the whole expand phase that is
+	 * the id of its first file.
+	 */
 	link(context: AuthenticatedContext, input: FileLinkInput): Promise<MutationResult> {
 		return this.editFile(input.treeId, context, {
 			kind: 'link_media',
 			mediaId: input.mediaId,
 			entityId: input.entityId,
+			factId: input.factId,
+			sortOrder: input.sortOrder,
+			crop: input.crop,
+			title: input.title,
 			expectedVersion: input.expectedVersion
 		});
 	}
 
-	/** Unlink a file from one record; the file is kept, and is detached when this was its last link. */
+	/** Unlink an object from one record or fact; the object is kept, and is detached when this was its last link. */
 	unlink(context: AuthenticatedContext, input: FileLinkInput): Promise<MutationResult> {
 		return this.editFile(input.treeId, context, {
 			kind: 'unlink_media',
 			mediaId: input.mediaId,
 			entityId: input.entityId,
+			factId: input.factId,
 			expectedVersion: input.expectedVersion
 		});
+	}
+
+	/** Edit one pointer's title, crop and position; only the keys present change, and null clears. */
+	updateLink(
+		context: AuthenticatedContext,
+		input: Pick<FileLinkInput, 'treeId' | 'mediaId' | 'entityId' | 'factId' | 'expectedVersion'> &
+			Partial<Pick<FileLinkInput, 'sortOrder' | 'crop' | 'title'>>
+	): Promise<MutationResult> {
+		const { treeId, ...rest } = input;
+		return this.editFile(treeId, context, { kind: 'update_media_link', ...rest });
+	}
+
+	/** Set the order of every object linked to one record or fact, as one change. */
+	reorderLinks(
+		context: AuthenticatedContext,
+		input: { treeId: string; entityId: string; factId?: string | null; orderedMediaIds: string[] }
+	): Promise<MutationResult> {
+		const { treeId, ...rest } = input;
+		return this.editFile(treeId, context, { kind: 'reorder_media_links', ...rest });
+	}
+
+	/** Set an object's privacy. A person's override still beats `public` (ADR-082). */
+	setObjectPrivacy(
+		context: AuthenticatedContext,
+		input: { treeId: string; mediaId: string; privacy: PersonPrivacy; expectedVersion?: number }
+	): Promise<MutationResult> {
+		const { treeId, ...rest } = input;
+		return this.editFile(treeId, context, { kind: 'update_media_object', ...rest });
 	}
 
 	/**
@@ -635,15 +732,17 @@ export class MediaService {
 	}
 
 	/**
-	 * Delete a file: its row first, then its bytes. Not a logged change, so it cannot be undone; an
-	 * earlier change that involves the file will refuse its undo once it is gone. A manager may delete
-	 * any file, and an editor only their own uploads. The bytes are removed after the row, so if that
-	 * second step fails the file is still gone for everyone and the bytes become an orphan that the
-	 * unlinked cleanup finds; `wasObjectRemoved` says which happened.
+	 * Delete a file's object: its links, its files and the object, rows first and then the bytes. Not a
+	 * logged change, so it cannot be undone; an earlier change that involves the file will refuse its
+	 * undo once it is gone. A manager may delete any; an editor only their own uploads. The bytes are
+	 * removed after the rows, so if that second step fails the file is still gone for everyone and
+	 * the bytes become an orphan that the unlinked cleanup finds; `wasObjectRemoved` says which
+	 * happened. With `isFileOnly` only the named file goes and the object and its other files stay.
+	 * An unresolved file has no bytes, so the bucket is not called for it.
 	 */
 	async delete(
 		context: AuthenticatedContext,
-		input: { treeId: string; mediaId: string },
+		input: { treeId: string; mediaId: string; isFileOnly?: boolean },
 		bucket: R2Bucket
 	): Promise<{ wasObjectRemoved: boolean }> {
 		requireRealUser(context);
@@ -661,9 +760,16 @@ export class MediaService {
 			throw new UnauthorizedError(
 				"Forbidden: insufficient privileges for action 'media:delete_any'"
 			);
-		await this.media.deleteRow(file.id);
+		const files =
+			input.isFileOnly === true
+				? [file]
+				: await this.media.filesOfObject(input.treeId, objectIdOf(file));
+		if (input.isFileOnly === true) await this.media.deleteFileRow(file.id);
+		else await this.media.deleteObjectRows(objectIdOf(file));
+		const keys = files.filter((f) => !isUnresolvedFile(f)).map((f) => f.r2ObjectKey);
+		if (keys.length === 0) return { wasObjectRemoved: true };
 		try {
-			await bucket.delete(file.r2ObjectKey);
+			await bucket.delete(keys);
 			return { wasObjectRemoved: true };
 		} catch {
 			return { wasObjectRemoved: false };

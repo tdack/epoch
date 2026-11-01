@@ -87,6 +87,9 @@ const TREE = { id: 't1', name: 'Tree One', slug: 'tree-one' };
 function row(overrides: Partial<FileRowDto>): FileRowDto {
 	return {
 		id: 'f1',
+		objectId: 'f1',
+		objectVersion: 3,
+		isUnresolved: false,
 		title: 'Certificate.pdf',
 		version: 3,
 		mimeType: 'application/pdf',

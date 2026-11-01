@@ -17,6 +17,12 @@ export interface FileLinkDto {
 /** One file as the caller may see it. */
 export interface FileRowDto {
 	id: string;
+	/** The object (ADR-082) link, unlink and privacy ops name. Equals `id` for the first file until the contract migrations. */
+	objectId: string;
+	/** The object's version, sent back on link and unlink; the file's own `version` is for rename. */
+	objectVersion: number;
+	/** The file's bytes are not in Epoch: no preview, no download, no size. */
+	isUnresolved: boolean;
 	title: string | null;
 	/** The row's version, sent back on rename, link and unlink so a stale edit is refused. */
 	version: number;

@@ -31,6 +31,9 @@ afterEach(() => {
 
 const file = (id: string, overrides: Partial<FileRowDto> = {}): FileRowDto => ({
 	id,
+	objectId: id,
+	objectVersion: 1,
+	isUnresolved: false,
 	title: `${id}.png`,
 	version: 1,
 	mimeType: 'image/png',

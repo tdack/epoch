@@ -11,12 +11,7 @@
 
 import type { MediaLinkRow, MediaObjectRow, MediaRow, RowOp, TreeRows } from './change-log';
 import { ConcurrencyConflictError, NotFoundError, ValidationError } from './errors';
-import {
-	MAX_MEDIA_TITLE_LENGTH,
-	mediaLinkId,
-	objectIdOf,
-	type MediaCrop
-} from '../../shared/media';
+import { MAX_MEDIA_TITLE_LENGTH, mediaLinkId, type MediaCrop } from '../../shared/media';
 import type { PersonPrivacy } from '../../shared/privacy';
 import { PERSON_PRIVACY_VALUES } from '../../shared/privacy';
 
@@ -197,16 +192,6 @@ function cropColumns(crop: MediaCrop | null) {
 		cropHeight: crop?.height ?? null,
 		cropWidth: crop?.width ?? null
 	};
-}
-
-/** A link's crop as a value, or null when it has none. */
-export function cropOf(
-	link: Pick<MediaLinkRow, 'cropTop' | 'cropLeft' | 'cropHeight' | 'cropWidth'>
-): MediaCrop | null {
-	const { cropTop, cropLeft, cropHeight, cropWidth } = link;
-	if (cropTop === null || cropLeft === null || cropHeight === null || cropWidth === null)
-		return null;
-	return { top: cropTop, left: cropLeft, height: cropHeight, width: cropWidth };
 }
 
 /** Throws unless the host is a person, union or source, and the fact (if any) belongs to it. */

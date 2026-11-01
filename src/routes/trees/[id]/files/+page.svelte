@@ -214,12 +214,15 @@
 			dialogError = `Already linked to ${owner.name}.`;
 			return;
 		}
-		void run(() => linkFileApi(file.id, file.treeId, owner.id, file.version), 'File linked');
+		void run(
+			() => linkFileApi(file.objectId, file.treeId, owner.id, file.objectVersion),
+			'File linked'
+		);
 	};
 
 	async function unlink(file: FileRowDto, link: FileRowDto['links'][number]) {
 		try {
-			await unlinkFileApi(file.id, file.treeId, link.entityId, file.version);
+			await unlinkFileApi(file.objectId, file.treeId, link.entityId, file.objectVersion);
 			toasts.push(`Unlinked from ${link.label}`);
 			await reload();
 		} catch (cause) {
