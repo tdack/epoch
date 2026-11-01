@@ -250,7 +250,11 @@ export class GraphWindowRepository {
 		);
 	}
 
-	/** The files linked to any of these records, each once however many of them it is linked to. */
+	/**
+	 * Every file of every object linked to any of these records, each once however many links name its
+	 * object. All the files, not just the first: a secondary file of an object shows on the same page
+	 * (ADR-082). A file with no `object_id` is its own object, so the match is on the coalesced id.
+	 */
 	mediaOf(treeId: string, entityIds: readonly string[]): Read<Array<Ranked<MediaRow>>> {
 		return this.readIn(mediaItems, entityIds, (chunk) =>
 			this.db
@@ -260,7 +264,7 @@ export class GraphWindowRepository {
 					and(
 						inTree(mediaItems.treeId, treeId),
 						inArray(
-							mediaItems.id,
+							sql`coalesce(${mediaItems.objectId}, ${mediaItems.id})`,
 							this.db
 								.select({ id: mediaLinks.mediaId })
 								.from(mediaLinks)

@@ -37,10 +37,12 @@ import {
 } from '../../shared/media';
 import type { PersonPrivacy } from '../../shared/privacy';
 import type {
+	ExtraFileDto,
 	FileLinkDto,
 	FileListDto,
 	FileRowDto,
 	FileUsageDto,
+	HostLinkDto,
 	UnlinkedFileDto,
 	UnlinkedListDto
 } from '../../shared/files';
@@ -314,13 +316,30 @@ function rightsOf(row: MediaItemRow, role: TreeRole | null, userId: string) {
 	};
 }
 
+/** A further file of an object, with the same preview rule as the row that stands for the object. */
+function extraFileDto(row: MediaItemRow, canPreview: boolean): ExtraFileDto {
+	const isUnresolved = isUnresolvedFile(row);
+	return {
+		id: row.id,
+		title: row.title,
+		version: row.version,
+		mimeType: row.mimeType,
+		// An undone `resolve_media_file` leaves the size of the bytes it removed; an unresolved file has none.
+		sizeBytes: isUnresolved ? null : row.sizeBytes,
+		isUnresolved,
+		gedcomPath: row.gedcomPath,
+		previewKey: canPreview && !isUnresolved ? row.r2ObjectKey : null
+	};
+}
+
 function fileDto(
 	row: MediaItemRow,
 	tree: CallerTree,
 	links: FileLinkDto[],
 	uploadedBy: string | null,
 	userId: string,
-	objectVersion: number | null
+	objectVersion: number | null,
+	extras: { files: MediaItemRow[]; hostLink: HostLinkDto | null } = { files: [], hostLink: null }
 ): FileRowDto {
 	const rights = rightsOf(row, tree.role, userId);
 	const isUnresolved = isUnresolvedFile(row);
@@ -330,10 +349,13 @@ function fileDto(
 		// Link ops guard the object; before the backfill the file stands for it.
 		objectVersion: objectVersion ?? row.version,
 		isUnresolved,
+		gedcomPath: row.gedcomPath,
+		extraFiles: extras.files.map((file) => extraFileDto(file, rights.canPreview)),
+		hostLink: extras.hostLink,
 		title: row.title,
 		version: row.version,
 		mimeType: row.mimeType,
-		sizeBytes: row.sizeBytes,
+		sizeBytes: isUnresolved ? null : row.sizeBytes,
 		treeId: row.treeId,
 		treeName: tree.name,
 		links,
@@ -465,7 +487,8 @@ export class MediaService {
 	private async decideRows(
 		rows: MediaItemRow[],
 		trees: Map<string, CallerTree>,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		entityId?: string
 	): Promise<Array<FileRowDto | null>> {
 		const views = new Map<string, TreeView>();
 		for (const treeId of new Set(rows.map((row) => row.treeId))) {
@@ -477,6 +500,17 @@ export class MediaService {
 			.filter((row) => row.uploadedBy !== null && isManagerRole(trees.get(row.treeId)?.role))
 			.map((row) => row.uploadedBy as string);
 		const uploaders = await this.media.uploaderNamesOf(uploaderIds);
+		// The other files of each listed object, and (when narrowed to a record) that record's pointer to it.
+		const filesByObject = new Map<string, MediaItemRow[]>();
+		const hostLinks = new Map<string, HostLinkDto>();
+		for (const [treeId] of views) {
+			const objectIds = rows.filter((r) => r.treeId === treeId).map(objectIdOf);
+			for (const [id, files] of await this.media.filesOfObjects(treeId, objectIds))
+				filesByObject.set(id, files);
+			if (entityId !== undefined)
+				for (const [id, link] of await this.media.recordLinksOf(treeId, entityId, objectIds))
+					hostLinks.set(id, link);
+		}
 		return rows.map((row) => {
 			const tree = trees.get(row.treeId);
 			if (!tree) return null;
@@ -516,7 +550,11 @@ export class MediaService {
 				links,
 				uploadedBy,
 				context.user.id,
-				view.objects.get(objectId)?.version ?? null
+				view.objects.get(objectId)?.version ?? null,
+				{
+					files: (filesByObject.get(objectId) ?? []).filter((file) => file.id !== row.id),
+					hostLink: hostLinks.get(objectId) ?? null
+				}
 			);
 		});
 	}
@@ -589,7 +627,7 @@ export class MediaService {
 				limit: FILE_SCAN_BATCH
 			});
 			if (batch.length === 0) break;
-			const decided = await this.decideRows(batch, trees, context);
+			const decided = await this.decideRows(batch, trees, context, query.entityId);
 			let isConsumed = true;
 			for (const [index, row] of batch.entries()) {
 				if (files.length >= limit || scanned >= FILE_SCAN_CAP) {

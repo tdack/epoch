@@ -125,12 +125,12 @@
 			{#each dto.media as item (item.id)}
 				<li class="flex flex-col gap-1">
 					<a
-						href={mediaUrl(item.r2ObjectKey)}
+						href={item.r2ObjectKey ? mediaUrl(item.r2ObjectKey) : undefined}
 						target="_blank"
 						rel="noreferrer"
 						class="group relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg border border-stone-300 bg-stone-100 transition-colors hover:border-emerald-600"
 					>
-						{#if isInlineMediaType(item.mimeType)}
+						{#if item.r2ObjectKey && isInlineMediaType(item.mimeType)}
 							<img
 								src={mediaUrl(item.r2ObjectKey)}
 								alt={item.title || 'Media'}

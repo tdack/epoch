@@ -431,6 +431,58 @@ export class MediaRepository {
 		return new Map(rows.map((row) => [row.id, row.uploadedBy]));
 	}
 
+	/** Every file of these objects, each object's in order (`sort_order`, null as 0, then id), so the first is the one a list shows. */
+	async filesOfObjects(
+		treeId: string,
+		objectIds: readonly string[]
+	): Promise<Map<string, MediaItemRow[]>> {
+		const byObject = new Map<string, MediaItemRow[]>();
+		for (const part of chunkIds([...new Set(objectIds)])) {
+			const rows = await this.db
+				.select()
+				.from(mediaItems)
+				.where(and(eq(mediaItems.treeId, treeId), inArray(objectIdSql, part)))
+				.orderBy(sql`coalesce(${mediaItems.sortOrder}, 0)`, mediaItems.id)
+				.all();
+			for (const row of rows) {
+				const id = row.objectId ?? row.id;
+				byObject.set(id, [...(byObject.get(id) ?? []), row]);
+			}
+		}
+		return byObject;
+	}
+
+	/** The pointer from one record itself (not from a fact of it) to each of these objects. */
+	async recordLinksOf(
+		treeId: string,
+		entityId: string,
+		objectIds: readonly string[]
+	): Promise<Map<string, { title: string | null; sortOrder: number }>> {
+		const links = new Map<string, { title: string | null; sortOrder: number }>();
+		for (const part of chunkIds([...new Set(objectIds)])) {
+			const rows = await this.db
+				.select({
+					mediaId: mediaLinks.mediaId,
+					title: mediaLinks.title,
+					sortOrder: mediaLinks.sortOrder,
+					factId: mediaLinks.factId
+				})
+				.from(mediaLinks)
+				.where(
+					and(
+						eq(mediaLinks.treeId, treeId),
+						eq(mediaLinks.entityId, entityId),
+						inArray(mediaLinks.mediaId, part)
+					)
+				)
+				.all();
+			for (const row of rows)
+				if (row.factId === null)
+					links.set(row.mediaId, { title: row.title, sortOrder: row.sortOrder ?? 0 });
+		}
+		return links;
+	}
+
 	/** The files of an object, first first. A file not yet backfilled is its own object. */
 	async filesOfObject(treeId: string, objectId: string): Promise<MediaItemRow[]> {
 		return this.db
