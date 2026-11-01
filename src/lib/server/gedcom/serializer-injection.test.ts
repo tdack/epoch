@@ -10,7 +10,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ValidationError } from '../domain/errors';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
-import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
+import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';
 import EVIDENCE from './fixtures/evidence.ged?raw';
 import { parseGedcom } from './parser';
 import {
@@ -400,10 +400,12 @@ describe('a file with a lone CR round-trips', () => {
 		await importGedcomToDb(t.d1, lf, EVIDENCE, 'CR');
 		await importGedcomToDb(t.d1, cr, EVIDENCE.replace(/\n/g, '\r'), 'CR');
 		for (const format of [buildGedcom551String, buildGedcom7String]) {
+			// The two trees were imported at different moments, so their CHAN/CREA stamps differ.
+			const unstamped = (text: string) => withoutStamps(text.split('\r\n')).join('\r\n');
 			const fromLf = format(await getTreeExportData(t.d1, lf));
 			const fromCr = format(await getTreeExportData(t.d1, cr));
 			expect(isClean(fromCr)).toBe(true);
-			expect(fromCr).toEqual(fromLf);
+			expect(unstamped(fromCr)).toEqual(unstamped(fromLf));
 		}
 	});
 });
