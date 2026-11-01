@@ -21,7 +21,7 @@ export const uploadSessions = sqliteTable(
 		partSizeBytes: integer('part_size_bytes').notNull(),
 		totalBytes: integer('total_bytes').notNull(),
 		partsJson: text('parts_json').notNull().default('{}'),
-		status: text('status', { enum: ['open', 'complete', 'aborted'] })
+		status: text('status', { enum: ['open', 'complete', 'aborted', 'imported'] })
 			.notNull()
 			.default('open'),
 		// No FK, like `media_items.uploaded_by`: an uploader who leaves the tree must not abandon

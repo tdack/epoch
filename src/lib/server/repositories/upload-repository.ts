@@ -3,7 +3,7 @@ import type { DbClient } from '../db';
 import { uploadSessions } from '../db/schema';
 import type { UploadPurpose } from '../../shared/uploads';
 
-type UploadStatus = 'open' | 'complete' | 'aborted';
+type UploadStatus = 'open' | 'complete' | 'aborted' | 'imported';
 
 export interface UploadSessionRow {
 	id: string;
@@ -123,6 +123,19 @@ export class UploadRepository {
 			.update(uploadSessions)
 			.set({ status })
 			.where(and(eq(uploadSessions.id, id), eq(uploadSessions.status, 'open')))
+			.returning({ id: uploadSessions.id });
+		return changed.length > 0;
+	}
+
+	/**
+	 * Hands a finished session to one import: only a `complete` session changes, so of two starts
+	 * exactly one sees true. `imported` is closed for the sweep and every part, abort and complete call.
+	 */
+	async claimForImport(id: string): Promise<boolean> {
+		const changed = await this.db
+			.update(uploadSessions)
+			.set({ status: 'imported' })
+			.where(and(eq(uploadSessions.id, id), eq(uploadSessions.status, 'complete')))
 			.returning({ id: uploadSessions.id });
 		return changed.length > 0;
 	}

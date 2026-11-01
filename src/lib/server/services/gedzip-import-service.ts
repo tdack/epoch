@@ -8,6 +8,7 @@
 import type { R2Bucket, ReadableStream as WorkersReadableStream } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
 import {
+	ConcurrencyConflictError,
 	NotFoundError,
 	PayloadTooLargeError,
 	UnauthorizedError,
@@ -161,8 +162,7 @@ export class GedzipImportService {
 	/**
 	 * Starts the Workflow for a completed `gedzip_import` session. The archive key is the session
 	 * row's, never the client's; only the session's creator may start it, into the session's tree.
-	 * shortcut: nothing stops two starts of one session, the second fails once the first deletes
-	 * the archive; add a "consumed" mark when a double click shows up in practice.
+	 * The session is claimed with one conditional update, so a double click starts one import.
 	 */
 	async start(
 		sessionId: string,
@@ -176,7 +176,14 @@ export class GedzipImportService {
 			throw new NotFoundError('Upload');
 		}
 		await requireTreeAction(this.users, session.treeId, context, 'tree:import');
+		if (session.status === 'imported') {
+			throw new ConcurrencyConflictError('This upload has already been imported');
+		}
 		if (session.status !== 'complete') throw new ValidationError('This upload is not finished');
+
+		if (!(await this.uploads.claimForImport(session.id))) {
+			throw new ConcurrencyConflictError('This upload has already been imported');
+		}
 
 		const jobId = crypto.randomUUID();
 		const message: ImportQueueMessage = {

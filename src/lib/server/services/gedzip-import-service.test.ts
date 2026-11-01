@@ -16,6 +16,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { GedcomImportWorkflow, type GedcomImportPayload } from '../workflows/import-workflow';
+import { UploadRepository } from '../repositories/upload-repository';
 import { GedzipImportService } from './gedzip-import-service';
 
 // The runtime is absent under Vitest; see export-workflow.test.ts.
@@ -232,5 +233,39 @@ describe.skipIf(!existsSync(archiveUrl))('importing maximal70.gdz', () => {
 		await expect(
 			s.service.importDataset({ ...s.message, r2ObjectKey: `media/${s.treeId}/x.jpg` })
 		).rejects.toMatchObject({ status: 403 });
+	});
+
+	it('starts a session once and refuses a second start', async () => {
+		const owner = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, owner);
+		const bucket = new RangeBucket();
+		const sent: string[] = [];
+		const service = new GedzipImportService(t.db, {
+			bucket: bucket as unknown as R2Bucket,
+			importWorkflow: { create: async ({ id }) => void sent.push(id) }
+		});
+		const sessionId = crypto.randomUUID();
+		await new UploadRepository(t.db).insert({
+			id: sessionId,
+			treeId,
+			purpose: 'gedzip_import',
+			r2Key: `staging/uploads/${treeId}/${sessionId}`,
+			r2UploadId: 'u',
+			partSizeBytes: 10,
+			totalBytes: 10,
+			createdBy: owner.userId,
+			createdAt: new Date(),
+			expiresAt: new Date(Date.now() + 60_000)
+		});
+		await new UploadRepository(t.db).closeOpen(sessionId, 'complete');
+		const input = { mode: 'merge', shouldMergeDuplicateFamilies: false } as const;
+
+		await expect(service.start(sessionId, input, owner.context)).resolves.toMatchObject({
+			status: 'queued'
+		});
+		await expect(service.start(sessionId, input, owner.context)).rejects.toMatchObject({
+			status: 409
+		});
+		expect(sent).toHaveLength(1);
 	});
 });
