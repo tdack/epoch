@@ -352,6 +352,24 @@ describe('TreeShell with an uploaded .gdz', () => {
 		);
 	});
 
+	it('keeps polling past the timeout while files are still being stored', async () => {
+		vi.useFakeTimers();
+		const { shell } = await previewed();
+		vi.mocked(startGedzipImport).mockResolvedValue({ status: 'queued', treeId: 't1', jobId: 'j1' });
+		let done = 0;
+		importStatus.mockImplementation(async () =>
+			++done < 120
+				? { status: 'running', progress: { done, total: 120 } }
+				: { status: 'complete', result: { individualsCount: 1, media: MEDIA } }
+		);
+
+		const running = shell.confirmImport('replace', { shouldMergeDuplicateFamilies: false });
+		await vi.advanceTimersByTimeAsync(1_500_000);
+		await running;
+
+		expect(shell.importStatus).toMatch(/^Import complete/);
+	});
+
 	it('says so when the upload was already imported', async () => {
 		const { shell } = await previewed();
 		vi.mocked(startGedzipImport).mockRejectedValue(

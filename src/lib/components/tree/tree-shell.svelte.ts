@@ -387,7 +387,8 @@ export class TreeShell {
 	 * import may still finish and the person should look before importing again.
 	 */
 	private async pollImport(jobId: string): Promise<GedcomImportResult> {
-		const deadline = Date.now() + IMPORT_POLL_TIMEOUT_MS;
+		let deadline = Date.now() + IMPORT_POLL_TIMEOUT_MS;
+		let lastDone = 0;
 		let delay = EXPORT_POLL_INITIAL_MS;
 		while (Date.now() < deadline) {
 			this.importStatus = 'Importing a large file in the background…';
@@ -397,6 +398,11 @@ export class TreeShell {
 			if (job.status === 'complete') return job.result ?? {};
 			if (job.progress) {
 				this.importProgressText = `Storing files: ${job.progress.done} of ${job.progress.total} handled.`;
+				// A .gdz's media can take longer than the timeout; only a job that stops advancing is given up on.
+				if (job.progress.done > lastDone) {
+					lastDone = job.progress.done;
+					deadline = Date.now() + IMPORT_POLL_TIMEOUT_MS;
+				}
 			}
 			if (job.status === 'failed') throw new Error(job.error || 'The import failed.');
 			delay = Math.min(delay * 2, EXPORT_POLL_MAX_MS);
