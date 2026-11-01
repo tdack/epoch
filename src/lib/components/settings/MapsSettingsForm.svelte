@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import HelpHover from '#lib/components/forms/HelpHover.svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import {
 		DEFAULT_MAPS_SETTINGS,
@@ -26,6 +27,19 @@
 	let wasSaved = $state(false);
 
 	const isChanged = $derived(JSON.stringify(draft) !== JSON.stringify(resolveMapsSettings(stored)));
+	/** Community-run Photon servers; none is endorsed, and any may change its limits or go away. */
+	const PUBLIC_PHOTON_INSTANCES = [
+		{ url: 'https://photon.koalasec.org/' },
+		{
+			url: 'https://photon.donsomhong.net/',
+			limit: '10 requests per second, per source IP',
+			source: 'https://github.com/Freika/dawarich/discussions/693#discussioncomment-12032318'
+		},
+		{ url: 'https://photon.marsmathis.com/' },
+		{ url: 'https://photon.vanoosterhout.cloud/', limit: '10 requests per second, per source IP' },
+		{ url: 'https://photon.kllswitch.com/' }
+	];
+
 	const inputClass =
 		'w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none';
 
@@ -78,7 +92,31 @@
 		</span>
 	</label>
 	<div>
-		<label for="maps-photon-url" class="field-label">Photon address</label>
+		<div class="flex items-center gap-1">
+			<label for="maps-photon-url" class="field-label">Photon address</label>
+			<HelpHover id="maps-photon-url" label="Public Photon servers" class="mb-1 flex items-center">
+				<p class="mb-1.5 font-semibold text-stone-800">Community public instances</p>
+				<ul class="space-y-1">
+					{#each PUBLIC_PHOTON_INSTANCES as instance (instance.url)}
+						<li>
+							<span class="font-mono text-stone-900 select-all">{instance.url}</span>
+							{#if instance.limit}
+								<span class="block text-stone-600">
+									Rate limited to
+									{#if instance.source}
+										<a
+											href={instance.source}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-emerald-800 underline underline-offset-2">{instance.limit}</a
+										>{:else}{instance.limit}{/if}
+								</span>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</HelpHover>
+		</div>
 		<input
 			id="maps-photon-url"
 			type="url"
