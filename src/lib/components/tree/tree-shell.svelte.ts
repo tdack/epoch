@@ -4,7 +4,7 @@
  * yet, so both offer the same actions with the same dialogs.
  */
 
-import { isExpiredExportError } from '#lib/api/client.js';
+import { ApiError, isExpiredExportError } from '#lib/api/client.js';
 import {
 	clearExportClientUuid,
 	exportDownloadUrl,
@@ -12,14 +12,18 @@ import {
 	gedcomExportUrl,
 	importStatusApi,
 	previewGedcomImport,
+	previewGedzipImport,
 	startGedcomExport,
+	startGedzipImport,
 	submitGedcomImport,
 	type GedcomExportChoice,
 	type GedcomImportResult
 } from '#lib/api/files.js';
 import { createTreeApi } from '#lib/api/trees.js';
+import { isAbortError, startUpload } from '#lib/api/uploader.js';
 import { messageOf } from '#lib/components/feedback/error-message.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
+import { describeMediaResult } from '#lib/shared/media.js';
 import type { ImportPreviewData } from '#lib/types/genealogy.js';
 
 /** How long the client polls a running export before handing the instance back to be resumed. */
@@ -97,6 +101,18 @@ export class TreeShell {
 	isLoadingPreview = $state(false);
 	isConfirmingImport = $state(false);
 	importConfirmError = $state<string | null>(null);
+	/** A `.gdz` on its way up; it goes up first so its media never has to pass through one request. */
+	importUpload = $state<{
+		fileName: string;
+		uploadedBytes: number;
+		totalBytes: number;
+		phase: 'uploading' | 'failed';
+		error: string | null;
+	} | null>(null);
+	/** Where a running `.gdz` import is up to, in words. */
+	importProgressText = $state<string | null>(null);
+	private gedzipSessionId: string | null = null;
+	private uploadAbort: AbortController | null = null;
 
 	// Export
 	isExporting = $state(false);
@@ -258,7 +274,61 @@ export class TreeShell {
 		this.pendingImportFile = file;
 		this.importPreview = null;
 		this.importConfirmError = null;
-		void this.openImportConfirm();
+		this.gedzipSessionId = null;
+		// Without a tree there is nowhere to hold an upload, so a `.gdz` takes the plain path there
+		// (dataset only, as before); a small archive with no media gains nothing from the other.
+		if (/\.gdz$/i.test(file.name) && this.options.treeId()) void this.openGedzipConfirm(file);
+		else void this.openImportConfirm();
+	};
+
+	private async openGedzipConfirm(file: File) {
+		const treeId = this.options.treeId();
+		if (!treeId) return;
+		this.isImportConfirmModalOpen = true;
+		this.isLoadingPreview = true;
+		this.importConfirmError = null;
+		const abort = new AbortController();
+		this.uploadAbort = abort;
+		this.importUpload = {
+			fileName: file.name,
+			uploadedBytes: 0,
+			totalBytes: file.size,
+			phase: 'uploading',
+			error: null
+		};
+		try {
+			const uploaded = await startUpload({
+				file,
+				treeId,
+				purpose: 'gedzip_import',
+				signal: abort.signal,
+				onProgress: (p) => {
+					if (this.importUpload) {
+						this.importUpload = { ...this.importUpload, uploadedBytes: p.uploadedBytes };
+					}
+				}
+			});
+			this.gedzipSessionId = uploaded.sessionId;
+			this.importUpload = null;
+			this.importPreview = await previewGedzipImport(uploaded.sessionId);
+		} catch (err) {
+			if (isAbortError(err)) return;
+			if (this.importUpload) {
+				this.importUpload = {
+					...this.importUpload,
+					phase: 'failed',
+					error: messageOf(err, 'The upload stopped.')
+				};
+			} else {
+				this.importConfirmError = messageOf(err, '');
+			}
+		} finally {
+			this.isLoadingPreview = false;
+		}
+	}
+
+	retryGedzipUpload = () => {
+		if (this.pendingImportFile) void this.openGedzipConfirm(this.pendingImportFile);
 	};
 
 	private async openImportConfirm() {
@@ -285,26 +355,27 @@ export class TreeShell {
 		this.isImporting = true;
 		this.importStatus = 'Importing GEDCOM records into Cloudflare D1...';
 		try {
-			let result: GedcomImportResult = await submitGedcomImport(
-				this.pendingImportFile,
-				mode,
-				this.options.treeId(),
-				options
-			);
+			let result: GedcomImportResult = this.gedzipSessionId
+				? await startGedzipImport(this.gedzipSessionId, { mode, ...options })
+				: await submitGedcomImport(this.pendingImportFile, mode, this.options.treeId(), options);
 			if (result.status === 'queued' && result.jobId) {
 				// A large file runs in the background; the dialog stays open on its progress until it ends.
 				result = { ...(await this.pollImport(result.jobId)), treeId: result.treeId };
 			}
-			this.importStatus = `Import complete: ${result.individualsCount || 0} individuals, ${result.familiesCount || 0} families${result.mergedFamiliesCount ? ` (${result.mergedFamiliesCount} duplicate families merged)` : ''}.`;
+			this.importStatus = `Import complete: ${result.individualsCount || 0} individuals, ${result.familiesCount || 0} families${result.mergedFamiliesCount ? ` (${result.mergedFamiliesCount} duplicate families merged)` : ''}.${result.media ? ` ${describeMediaResult(result.media)}` : ''}`;
 			this.isImportConfirmModalOpen = false;
 			this.pendingImportFile = null;
 			this.importPreview = null;
 			await this.options.reload();
 			if (result.treeId) this.options.goTo(result.treeId);
 		} catch (err) {
-			this.importConfirmError = messageOf(err, '');
+			this.importConfirmError =
+				err instanceof ApiError && err.status === 409 && this.gedzipSessionId
+					? 'This file has already been imported. Close this and choose it again to import it again.'
+					: messageOf(err, '');
 			this.importStatus = null;
 		} finally {
+			this.importProgressText = null;
 			this.isConfirmingImport = false;
 			this.isImporting = false;
 		}
@@ -320,9 +391,13 @@ export class TreeShell {
 		let delay = EXPORT_POLL_INITIAL_MS;
 		while (Date.now() < deadline) {
 			this.importStatus = 'Importing a large file in the background…';
+			if (this.gedzipSessionId) this.importProgressText ??= 'Waiting for the import to start…';
 			await sleep(delay + Math.random() * EXPORT_POLL_INITIAL_MS);
 			const job = await importStatusApi(jobId);
 			if (job.status === 'complete') return job.result ?? {};
+			if (job.progress) {
+				this.importProgressText = `Storing files: ${job.progress.done} of ${job.progress.total} handled.`;
+			}
 			if (job.status === 'failed') throw new Error(job.error || 'The import failed.');
 			delay = Math.min(delay * 2, EXPORT_POLL_MAX_MS);
 		}
@@ -332,6 +407,10 @@ export class TreeShell {
 	}
 
 	cancelImport = () => {
+		this.uploadAbort?.abort();
+		this.uploadAbort = null;
+		this.importUpload = null;
+		this.gedzipSessionId = null;
 		this.isImportConfirmModalOpen = false;
 		this.pendingImportFile = null;
 		this.importPreview = null;

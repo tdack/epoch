@@ -46,7 +46,11 @@
 	preview={shell.importPreview}
 	isLoadingPreview={shell.isLoadingPreview}
 	isConfirming={shell.isConfirmingImport}
+	upload={shell.importUpload}
+	progressText={shell.importProgressText}
 	error={shell.importConfirmError}
+	oncancelupload={shell.cancelImport}
+	onretryupload={shell.retryGedzipUpload}
 	onclose={shell.cancelImport}
 	onconfirm={shell.confirmImport}
 />

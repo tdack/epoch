@@ -4,18 +4,36 @@ import {
 	clearExportClientUuid,
 	exportStatusApi,
 	importStatusApi,
+	previewGedzipImport,
 	startGedcomExport,
+	startGedzipImport,
 	submitGedcomImport
 } from '#lib/api/files.js';
-import { isExpiredExportError } from '#lib/api/client.js';
+import { ApiError, isExpiredExportError } from '#lib/api/client.js';
+import { startUpload } from '#lib/api/uploader.js';
 import { TreeShell } from './tree-shell.svelte.js';
 
 vi.mock('#lib/api/client.js', () => ({
-	isExpiredExportError: vi.fn()
+	isExpiredExportError: vi.fn(),
+	ApiError: class ApiError extends Error {
+		constructor(
+			message: string,
+			readonly status: number
+		) {
+			super(message);
+		}
+	}
+}));
+
+vi.mock('#lib/api/uploader.js', () => ({
+	startUpload: vi.fn(),
+	isAbortError: (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 }));
 
 vi.mock('#lib/api/files.js', () => ({
 	previewGedcomImport: vi.fn(),
+	previewGedzipImport: vi.fn(),
+	startGedzipImport: vi.fn(),
 	submitGedcomImport: vi.fn(),
 	importStatusApi: vi.fn(),
 	startGedcomExport: vi.fn(),
@@ -263,5 +281,107 @@ describe('TreeShell.confirmImport for a queued import', () => {
 
 		expect(shell.importConfirmError).toBe('The file is too large to import.');
 		expect(shell.importStatus).toBeNull();
+	});
+});
+
+describe('TreeShell with an uploaded .gdz', () => {
+	const importStatus = vi.mocked(importStatusApi);
+	const MEDIA = {
+		resolved: 2,
+		unresolved: 3,
+		detachedAdded: 2,
+		skippedByType: 1,
+		overCap: 0,
+		overQuota: 0,
+		unreadable: 0
+	};
+
+	async function previewed() {
+		const ctx = setup();
+		vi.mocked(startUpload).mockResolvedValue({ sessionId: 's1', r2Key: 'k', totalBytes: 1 });
+		vi.mocked(previewGedzipImport).mockResolvedValue({
+			mode: 'replace',
+			incoming: { individuals: 1, families: 0, events: 0 },
+			duplicates: { exact: [], possible: [] },
+			retainedTags: []
+		});
+		ctx.shell.importFile(new File(['x'], 'tree.gdz'));
+		await vi.waitFor(() => expect(ctx.shell.importPreview).not.toBeNull());
+		return ctx;
+	}
+
+	it('uploads first, then previews the session', async () => {
+		const { shell } = await previewed();
+		expect(startUpload).toHaveBeenCalledWith(
+			expect.objectContaining({ treeId: 't1', purpose: 'gedzip_import' })
+		);
+		expect(previewGedzipImport).toHaveBeenCalledWith('s1');
+		expect(shell.importUpload).toBeNull();
+		expect(shell.isImportConfirmModalOpen).toBe(true);
+	});
+
+	it('reports batch progress, then the media counts in words', async () => {
+		vi.useFakeTimers();
+		const { shell } = await previewed();
+		vi.mocked(startGedzipImport).mockResolvedValue({ status: 'queued', treeId: 't1', jobId: 'j1' });
+		importStatus
+			.mockResolvedValueOnce({ status: 'running', progress: { done: 100, total: 250 } })
+			.mockResolvedValueOnce({
+				status: 'complete',
+				result: {
+					individualsCount: 7,
+					familiesCount: 3,
+					eventsCount: 0,
+					mergedFamiliesCount: 0,
+					media: MEDIA
+				}
+			});
+
+		const running = shell.confirmImport('replace', { shouldMergeDuplicateFamilies: false });
+		await vi.advanceTimersByTimeAsync(2_000);
+		expect(shell.importProgressText).toBe('Storing files: 100 of 250 handled.');
+		await vi.advanceTimersByTimeAsync(5_000);
+		await running;
+
+		expect(startGedzipImport).toHaveBeenCalledWith('s1', {
+			mode: 'replace',
+			shouldMergeDuplicateFamilies: false
+		});
+		expect(shell.importStatus).toBe(
+			'Import complete: 7 individuals, 3 families. Media: 4 files stored (2 not linked to any record); 3 files are still missing; 1 skipped as a type Epoch does not accept.'
+		);
+	});
+
+	it('says so when the upload was already imported', async () => {
+		const { shell } = await previewed();
+		vi.mocked(startGedzipImport).mockRejectedValue(
+			new ApiError('This upload has already been imported', 409, undefined, undefined)
+		);
+		await shell.confirmImport('replace', { shouldMergeDuplicateFamilies: false });
+		expect(shell.importConfirmError).toBe(
+			'This file has already been imported. Close this and choose it again to import it again.'
+		);
+	});
+
+	it('shows the failed job’s fixed message', async () => {
+		vi.useFakeTimers();
+		const { shell } = await previewed();
+		vi.mocked(startGedzipImport).mockResolvedValue({ status: 'queued', treeId: 't1', jobId: 'j1' });
+		importStatus.mockResolvedValue({
+			status: 'failed',
+			error: 'The file is not a valid .gdz archive.'
+		});
+		const running = shell.confirmImport('replace', { shouldMergeDuplicateFamilies: false });
+		await vi.advanceTimersByTimeAsync(2_000);
+		await running;
+		expect(shell.importConfirmError).toBe('The file is not a valid .gdz archive.');
+	});
+
+	it('keeps the failure on the upload so it can be retried', async () => {
+		const { shell } = setup();
+		vi.mocked(startUpload).mockRejectedValue(new Error('The connection dropped.'));
+		shell.importFile(new File(['x'], 'tree.gdz'));
+		await vi.waitFor(() => expect(shell.importUpload?.phase).toBe('failed'));
+		expect(shell.importUpload?.error).toBe('The connection dropped.');
 	});
 });
