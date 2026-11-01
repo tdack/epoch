@@ -12,14 +12,28 @@ const PNG = Buffer.from(
 	'base64'
 );
 
+/** Sends the file as an upload session, then files it on the person, as the Files page does. */
 async function uploadTo(request: APIRequestContext, api: Api, personId: string, title: string) {
-	const res = await request.post('/api/media/upload', {
-		multipart: {
+	const start = await request.post('/api/uploads', {
+		data: {
 			treeId: api.treeId,
-			entityId: personId,
-			title,
-			file: { name: title, mimeType: 'image/png', buffer: PNG }
+			purpose: 'media',
+			fileName: title,
+			contentType: 'image/png',
+			totalBytes: PNG.length
 		}
+	});
+	expect(start.status(), await start.text()).toBe(201);
+	const session = await start.json();
+	const part = await request.put(session.parts[0].url, {
+		data: PNG,
+		headers: { 'Content-Type': 'image/png' }
+	});
+	expect(part.ok(), await part.text()).toBeTruthy();
+	const done = await request.post(`/api/uploads/${session.sessionId}/complete`);
+	expect(done.ok(), await done.text()).toBeTruthy();
+	const res = await request.post('/api/media/from-upload', {
+		data: { sessionId: session.sessionId, entityId: personId, title }
 	});
 	expect(res.status(), await res.text()).toBe(201);
 	return (await res.json()).media.id as string;

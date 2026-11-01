@@ -10,12 +10,19 @@
 				// SvelteKit 3 reads typed env vars from this file.
 				"src/env.ts",
 				"scripts/*.mjs",
+				"scripts/gedcom-spec/*.mjs",
 				// Test support is consumed by specs; its own exports are not dead.
 				"e2e/support.ts",
 				"src/lib/server/testing/*.ts"
 			],
 			// CSS is included so `@import 'tailwindcss'` counts as a use of that package.
-			"project": ["src/**/*.{ts,svelte,css}", "e2e/**/*.ts", "workers/**/*.ts", "scripts/*.mjs"],
+			"project": [
+				"src/**/*.{ts,svelte,css}",
+				"e2e/**/*.ts",
+				"workers/**/*.ts",
+				"scripts/*.mjs",
+				"scripts/gedcom-spec/*.mjs"
+			],
 			// `cloudflare:workers` is a runtime module that looks like a package named `cloudflare`.
 			"ignoreDependencies": ["cloudflare"]
 		},

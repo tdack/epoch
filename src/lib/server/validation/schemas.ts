@@ -10,7 +10,13 @@
 
 import { MAX_BULK_DISMISSALS, MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
 import { isDateFormat } from '../../shared/date-display';
+import { UPLOAD_PURPOSES } from '../../shared/uploads';
 import { isValidTreeSlug } from '../../shared/tree-slug';
+import {
+	MAX_SUBMITTER_EMAIL_LENGTH,
+	MAX_SUBMITTER_NAME_LENGTH,
+	MAX_SUBMITTER_WWW_LENGTH
+} from '../../shared/tree-submitter';
 import { MAX_SUBTREE_NAME_LENGTH } from '../../shared/subtrees';
 import { MAX_DISPLAY_NAME_LENGTH } from '../../shared/profile';
 import { TREE_ROLES } from '../../shared/roles';
@@ -222,6 +228,9 @@ export const treeCreateSchema = z.object({
 	description: optionalText
 });
 
+const submitterField = (max: number) =>
+	z.string().max(max).refine(hasNoLineBreak, SINGLE_LINE_MESSAGE).nullable();
+
 export const treeRenameSchema = z.object({
 	name: z
 		.string()
@@ -243,6 +252,14 @@ export const treeRenameSchema = z.object({
 	isOnSubdomain: z.boolean().optional(),
 	/** How the tree's dates read as words (ADR-079). Omitted keeps the current setting. */
 	dateFormat: z.string().refine(isDateFormat, 'Not a date format').optional(),
+	/** Who a GEDCOM export names as its submitter (ADR-075). Omitted keeps it; empty text clears a field. */
+	submitter: z
+		.object({
+			name: submitterField(MAX_SUBMITTER_NAME_LENGTH),
+			email: submitterField(MAX_SUBMITTER_EMAIL_LENGTH),
+			www: submitterField(MAX_SUBMITTER_WWW_LENGTH)
+		})
+		.optional(),
 	version: versionSchema
 });
 
@@ -266,7 +283,9 @@ export const exportBodySchema = z.object({
 	/** Per click, so a retried async export reuses its instance instead of starting a second. */
 	clientUuid: z.string().uuid(),
 	format: z.enum(['gedcom551', 'gedcom7']).optional(),
-	shouldCompress: z.boolean().optional()
+	shouldCompress: z.boolean().optional(),
+	/** Put the tree's files in a `.gdz`; needs 7.0 and `shouldCompress`, and always runs as a workflow. */
+	includeMedia: z.boolean().optional()
 });
 
 /** The synchronous download's query. The tree id is validated here, so a non-UUID is a 400, never a 500. */
@@ -823,12 +842,31 @@ export const fileRenameSchema = z.object({
 export const fileLinkSchema = z.object({
 	treeId: idSchema,
 	entityId: idSchema,
+	/** The fact the pointer sits under; absent for a pointer on the record itself. */
+	factId: idSchema.nullable().optional(),
 	version: versionSchema.optional()
+});
+
+/** An edit of one pointer: the title that overrides the file's for this record (null or blank clears it). */
+export const fileLinkUpdateSchema = z.object({
+	treeId: idSchema,
+	factId: idSchema.nullable().optional(),
+	title: z.string().nullable(),
+	version: versionSchema.optional()
+});
+
+/** The new order of every object linked to one record or fact. */
+export const fileOrderSchema = z.object({
+	treeId: idSchema,
+	entityId: idSchema,
+	factId: idSchema.nullable().optional(),
+	orderedMediaIds: z.array(idSchema).min(1).max(500)
 });
 
 /** An unlink names its tree and the version read in the query: DELETE carries no body. */
 export const fileUnlinkQuerySchema = z.object({
 	treeId: idSchema,
+	factId: idSchema.optional(),
 	version: z.coerce.number().int().nonnegative().optional()
 });
 
@@ -929,4 +967,37 @@ export const subtreeUpdateSchema = z.object({
 /** Every sub-tree of the tree, once, in the order to keep. */
 export const subtreeReorderSchema = z.object({
 	order: z.array(z.object({ id: idSchema, version: versionSchema }))
+});
+
+/**
+ * Opens an upload session. The size caps per purpose are the service's call, since the quota
+ * check shares them; this only refuses what is not a size at all.
+ */
+export const uploadCreateSchema = z.object({
+	treeId: idSchema,
+	purpose: z.enum(UPLOAD_PURPOSES),
+	fileName: z.string().min(1).max(255),
+	contentType: z.string().max(255),
+	totalBytes: z.number().int().positive().safe()
+});
+
+/** Starts the import of a finished `.gdz` upload session; the tree and the archive come from the session. */
+export const gedzipImportSchema = z.object({
+	mode: z.enum(['replace', 'merge']).default('replace'),
+	shouldMergeDuplicateFamilies: z.boolean().default(false),
+	/** The client made this tree for this file, so the file's own `Tree:` name may replace its name. */
+	isNewTree: z.boolean().default(false)
+});
+
+/** Gives an unresolved file the bytes of a finished media upload session; the file comes from the path. */
+export const resolveFromUploadSchema = z.object({
+	sessionId: idSchema,
+	version: versionSchema.optional()
+});
+
+/** Turns a finished media upload session into a file on one record. The tree comes from the session. */
+export const mediaFromUploadSchema = z.object({
+	sessionId: idSchema,
+	entityId: idSchema,
+	title: z.string().trim().min(1).max(255)
 });

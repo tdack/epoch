@@ -12,7 +12,12 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '#lib/server/testing/d1.js';
-import { buildExportInstanceId } from '#lib/server/workflows/export-instance.js';
+import { FakeMediaBucket } from '#lib/server/testing/fake-bucket.js';
+import {
+	buildExportInstanceId,
+	exportObjectKey,
+	exportSegmentKey
+} from '#lib/server/workflows/export-instance.js';
 import { GET } from './+server.js';
 
 let t: TestDatabase;
@@ -69,6 +74,52 @@ const storedObject = () => ({
 });
 
 describe('GET /api/export/download/[instanceId]', () => {
+	it('streams a segmented export in order with Content-Length equal to the bytes', async () => {
+		const clientUuid = crypto.randomUUID();
+		const instanceId = buildExportInstanceId(treeId, 'gedcom7', true, clientUuid, true);
+		const bucket = new FakeMediaBucket();
+		const parts = [
+			new TextEncoder().encode('one-'),
+			new Uint8Array(0),
+			new TextEncoder().encode('three')
+		];
+		for (const [n, part] of parts.entries()) {
+			await bucket.put(exportSegmentKey(treeId, clientUuid, n), part);
+		}
+		await bucket.put(
+			exportObjectKey(treeId, 'g7m', clientUuid),
+			new TextEncoder().encode(JSON.stringify({ filename: 'Fox.gdz', lengths: [4, 0, 5] })),
+			{ customMetadata: { uploadedAt: new Date().toISOString() } }
+		);
+		const { workflow } = workflowAt('complete');
+		const response = await GET(
+			eventFor(instanceId, { GEDCOM_EXPORT_WORKFLOW: workflow, MEDIA_BUCKET: bucket })
+		);
+		expect(response.status).toBe(200);
+		expect(response.headers.get('Content-Type')).toBe('application/vnd.familysearch.gedcom+zip');
+		const bytes = new Uint8Array(await response.arrayBuffer());
+		expect(new TextDecoder().decode(bytes)).toBe('one-three');
+		expect(response.headers.get('Content-Length')).toBe(String(bytes.byteLength));
+	});
+
+	it('deletes every segment of an expired segmented export and answers 410', async () => {
+		const clientUuid = crypto.randomUUID();
+		const instanceId = buildExportInstanceId(treeId, 'gedcom7', true, clientUuid, true);
+		const bucket = new FakeMediaBucket();
+		await bucket.put(exportSegmentKey(treeId, clientUuid, 0), new Uint8Array(3));
+		await bucket.put(
+			exportObjectKey(treeId, 'g7m', clientUuid),
+			new TextEncoder().encode(JSON.stringify({ filename: 'Fox.gdz', lengths: [3] })),
+			{ customMetadata: { uploadedAt: new Date(Date.now() - 2 * 86_400_000).toISOString() } }
+		);
+		const { workflow } = workflowAt('complete');
+		const response = await GET(
+			eventFor(instanceId, { GEDCOM_EXPORT_WORKFLOW: workflow, MEDIA_BUCKET: bucket })
+		);
+		expect(response.status).toBe(410);
+		expect(bucket.objects.size).toBe(0);
+	});
+
 	it('answers the same 404 for an id it never minted', async () => {
 		const { workflow } = workflowAt('complete');
 		const { bucket } = bucketWithObject(storedObject());

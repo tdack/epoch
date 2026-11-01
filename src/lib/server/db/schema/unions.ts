@@ -29,8 +29,9 @@ export const unions = sqliteTable(
 	})
 );
 
-// Union participants, ordered and role-neutral. GEDCOM spouse-role metadata is
-// an interchange concern and is not stored here.
+// Union participants, ordered and role-neutral. `gedcom_role` is interchange metadata only: the
+// `HUSB`/`WIFE` line the partner came in on, kept so an export writes the file's own roles and order
+// back. It is not a domain role and is never read for anything but export.
 export const unionPartners = sqliteTable(
 	'union_partners',
 	{
@@ -48,6 +49,7 @@ export const unionPartners = sqliteTable(
 			.notNull()
 			.references(() => individuals.id, { onDelete: 'cascade' }),
 		order: integer('order').notNull().default(0),
+		gedcomRole: text('gedcom_role', { enum: ['HUSB', 'WIFE'] }),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
 	},
 	(table) => ({

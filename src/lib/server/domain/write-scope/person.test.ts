@@ -331,6 +331,9 @@ function commandsFor(rows: TreeRows, personId: string): RelationshipCommand[] {
 			{ kind: 'unlink_media', mediaId: m.id, entityId: personId },
 			{ kind: 'link_media', mediaId: m.id, entityId: personId },
 			{ kind: 'link_media', mediaId: m.id, entityId: 'no-such-record' },
+			{ kind: 'update_media_link', mediaId: m.id, entityId: personId, title: 'Under a title' },
+			{ kind: 'reorder_media_links', entityId: personId, orderedMediaIds: [m.id] },
+			{ kind: 'update_media_object', mediaId: m.id, privacy: 'private' },
 			{ kind: 'unlink_media', mediaId: m.id, entityId: personId, expectedVersion: 99 }
 		);
 		if (anyUnion) out.push({ kind: 'link_media', mediaId: m.id, entityId: anyUnion.id });

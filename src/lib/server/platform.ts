@@ -8,6 +8,7 @@ export interface PlatformBindings {
 	DB: D1Database;
 	MEDIA_BUCKET: R2Bucket;
 	GEDCOM_IMPORT_QUEUE?: Queue<ImportQueueMessage>;
+	GEDCOM_IMPORT_WORKFLOW?: Workflow<ImportQueueMessage>;
 	GEDCOM_EXPORT_WORKFLOW?: Workflow<GedcomExportPayload>;
 	PLACE_MATCH_WORKFLOW?: Workflow<PlaceMatchPayload>;
 	PUBLIC_READ_RATE_LIMIT?: RateLimit;

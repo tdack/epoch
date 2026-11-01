@@ -142,12 +142,37 @@ export interface PartnershipDto extends PrivacyFlag {
 	events: GraphUnionEvent[];
 }
 
-interface MediaDto extends PrivacyFlag {
+/** One file of a media object, as a record's media section lists it. */
+export interface MediaFileDto {
 	id: string;
 	title: string | null;
-	mimeType: string;
-	r2ObjectKey: string;
+	/** The row's version, sent back when the file is resolved. */
 	version: number;
+	mimeType: string;
+	/** The stored key for `/api/media/<key>`; null for an unresolved file, which has no bytes. */
+	r2ObjectKey: string | null;
+	isUnresolved: boolean;
+	/** The `FILE` text as written, or null for a file uploaded in Epoch. Plain text; never fetched. */
+	gedcomPath: string | null;
+}
+
+/**
+ * One pointer from the record to a media object (ADR-082): the first file stands for the object,
+ * and `extraFiles` are the rest. A photo linked to the person and to one of their facts appears
+ * twice, once for each pointer.
+ */
+export interface PersonMediaDto extends PrivacyFlag, MediaFileDto {
+	/** The object the pointer names; link, unlink and reorder send this. */
+	objectId: string;
+	/** The object's version, sent back on link edits. */
+	objectVersion: number;
+	/** The `TITL` that overrides the file's title here; null when there is none. Shown in its place when set. */
+	linkTitle: string | null;
+	/** The fact the pointer sits under, and its label ("Birth"); both null for a pointer on the record itself. */
+	factId: string | null;
+	factLabel: string | null;
+	/** The object's further files, in order. */
+	extraFiles: MediaFileDto[];
 	/** Linked to another record as well, so removing it here unlinks rather than deletes. */
 	isShared: boolean;
 	canUnlink: boolean;
@@ -214,7 +239,7 @@ export interface PersonPageDto extends PrivacyFlag {
 	stepChildren: Array<{ person: PersonSummaryDto; via: PersonSummaryDto; unionId: string }>;
 	/** Godparents, witnesses and the like, read from imported `ASSO` lines; never anyone hidden. */
 	associations: AssociationDto[];
-	media: MediaDto[];
+	media: PersonMediaDto[];
 	/** The notes on the person themself, in order (ADR-029). */
 	notes: NoteDto[];
 	/** The notes on the parent links the person is the child in, each link named by the parent. */

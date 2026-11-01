@@ -11,10 +11,18 @@
 	import SubtreeManager from '#lib/components/subtree/SubtreeManager.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { deleteTreeApi, renameTreeApi } from '#lib/api/trees.js';
-	import type { GedcomExportChoice } from '#lib/api/files.js';
+	import { fetchFileUsage, type GedcomExportChoice } from '#lib/api/files.js';
+	import type { TreeSubmitter } from '#lib/shared/tree-submitter.js';
 	import { DATE_FORMATS, DATE_FORMAT_LABELS, type DateFormat } from '#lib/shared/date-display.js';
 	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import { appHref } from '#lib/shared/tree-host.js';
+	import {
+		MAX_SUBMITTER_EMAIL_LENGTH,
+		MAX_SUBMITTER_NAME_LENGTH,
+		MAX_SUBMITTER_WWW_LENGTH,
+		cleanSubmitter,
+		submitterProblem
+	} from '#lib/shared/tree-submitter.js';
 	import { MAX_TREE_SLUG_LENGTH, isValidTreeSlug, treePath } from '#lib/shared/tree-slug.js';
 	import type { PageData } from './$types';
 
@@ -34,6 +42,7 @@
 		hashTab<'settings' | 'subtrees' | 'export'>(page.url.hash, ['settings', 'subtrees', 'export'], {
 			general: 'settings',
 			address: 'settings',
+			submitter: 'settings',
 			visibility: 'settings',
 			delete: 'settings'
 		})
@@ -44,6 +53,10 @@
 	let slug = $state(untrack(() => data.summary.tree.slug ?? ''));
 	let isOnSubdomain = $state(untrack(() => data.summary.tree.isOnSubdomain));
 	let dateFormat = $state<DateFormat>(untrack(() => data.summary.tree.dateFormat));
+	let submitterName = $state(untrack(() => data.submitter.name ?? ''));
+	let submitterEmail = $state(untrack(() => data.submitter.email ?? ''));
+	let submitterWww = $state(untrack(() => data.submitter.www ?? ''));
+	let submitterError = $state<string | null>(null);
 	let isSaving = $state(false);
 	let nameError = $state<string | null>(null);
 	let addressError = $state<string | null>(null);
@@ -54,7 +67,8 @@
 		nextName: string,
 		nextSlug: string | null,
 		isNextOnSubdomain?: boolean,
-		nextDateFormat?: DateFormat
+		nextDateFormat?: DateFormat,
+		nextSubmitter?: TreeSubmitter
 	) {
 		isSaving = true;
 		try {
@@ -64,7 +78,8 @@
 				nextSlug,
 				tree.version,
 				isNextOnSubdomain,
-				nextDateFormat
+				nextDateFormat,
+				nextSubmitter
 			);
 			toasts.push('Tree saved');
 			const isMoved = renamed.slug !== tree.slug || renamed.isOnSubdomain !== tree.isOnSubdomain;
@@ -95,6 +110,15 @@
 		void save(tree.name, tree.slug ?? null, zone ? tree.isOnSubdomain : undefined, dateFormat);
 	}
 
+	function saveSubmitter(event: SubmitEvent) {
+		event.preventDefault();
+		const next = cleanSubmitter({ name: submitterName, email: submitterEmail, www: submitterWww });
+		submitterError = submitterProblem(next);
+		if (submitterError || isSaving) return;
+		// Name and address go back as they stand, so this save changes only the submitter.
+		void save(tree.name, tree.slug ?? null, zone ? tree.isOnSubdomain : undefined, undefined, next);
+	}
+
 	function saveAddress(event: SubmitEvent) {
 		event.preventDefault();
 		const next = slug.trim() || null;
@@ -115,6 +139,22 @@
 	}
 
 	let isExporting = $state(false);
+	// The same stored-bytes figure the Files page's quota bar reads. Null when the caller may not see
+	// it, so the menu falls back to a plain note. The size is a hint: a failed read costs only the figure.
+	let storedBytes = $state<number | null>(null);
+	$effect(() => {
+		if (tab !== 'export' || !data.canExport) return;
+		let isCurrent = true;
+		fetchFileUsage(tree.id)
+			.then((usage) => {
+				if (isCurrent)
+					storedBytes = usage.trees.find((t) => t.treeId === tree.id)?.storedBytes ?? null;
+			})
+			.catch(() => {});
+		return () => {
+			isCurrent = false;
+		};
+	});
 	async function exportGedcom(choice: GedcomExportChoice) {
 		if (isExporting) return;
 		isExporting = true;
@@ -210,6 +250,56 @@
 				</div>
 			</fieldset>
 			<button type="submit" disabled={isSaving} class="btn-primary mt-3">Save</button>
+		</form>
+	</section>
+
+	<section id="submitter" class="mt-10 scroll-mt-20" aria-labelledby="submitter-heading">
+		<h2 id="submitter-heading" class={sectionHeadingClass}>GEDCOM submitter</h2>
+		<form onsubmit={saveSubmitter} class="mt-3 max-w-2xl space-y-4">
+			<p id="submitter-help" class="text-xs text-stone-600">
+				Who a GEDCOM export names as the person who made the file. Leave it empty and a GEDCOM 7
+				export names no one; a 5.5.1 export, which requires a submitter, says "Unknown".
+			</p>
+			<div>
+				<label for="submitter-name" class="field-label">Name</label>
+				<input
+					id="submitter-name"
+					type="text"
+					bind:value={submitterName}
+					maxlength={MAX_SUBMITTER_NAME_LENGTH}
+					disabled={isSaving}
+					autocomplete="off"
+					aria-describedby="submitter-help"
+					class="{inputClass} max-w-md"
+				/>
+			</div>
+			<div>
+				<label for="submitter-email" class="field-label">Email</label>
+				<input
+					id="submitter-email"
+					type="email"
+					bind:value={submitterEmail}
+					maxlength={MAX_SUBMITTER_EMAIL_LENGTH}
+					disabled={isSaving}
+					autocomplete="off"
+					class="{inputClass} max-w-md"
+				/>
+			</div>
+			<div>
+				<label for="submitter-www" class="field-label">Web address</label>
+				<input
+					id="submitter-www"
+					type="url"
+					bind:value={submitterWww}
+					maxlength={MAX_SUBMITTER_WWW_LENGTH}
+					disabled={isSaving}
+					autocomplete="off"
+					placeholder="https://"
+					class="{inputClass} max-w-md"
+				/>
+			</div>
+			{#if submitterError}<p class="text-xs text-red-700" role="alert">{submitterError}</p>{/if}
+			<button type="submit" disabled={isSaving} class="btn-primary">Save submitter</button>
 		</form>
 	</section>
 
@@ -334,7 +424,7 @@
 		<p class="max-w-prose text-sm text-stone-600">
 			Download the whole tree as a GEDCOM file. It includes living people.
 		</p>
-		<GedcomExportChoices {isExporting} onexport={exportGedcom} />
+		<GedcomExportChoices {isExporting} mediaBytes={storedBytes} onexport={exportGedcom} />
 	</section>
 {/if}
 

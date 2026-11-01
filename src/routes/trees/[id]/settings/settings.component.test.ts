@@ -59,6 +59,7 @@ function render({ can = {}, isInstallOwner = false, isTreePublic = false, ...res
 				hostTree: null,
 				...rest,
 				privacy: { maxAliveYears: 100, recentDeathYears: 0, shouldShowPrivateStructure: false },
+				submitter: { name: null, email: null, www: null },
 				subtrees: [],
 				rootNames: {},
 				canManageSubtrees: true,
@@ -97,7 +98,7 @@ async function submit(form: HTMLFormElement) {
 describe('tree settings page', () => {
 	it('shows the settings sections to an owner, each named by its heading', () => {
 		render({ can: { canDelete: true } });
-		expect(sections()).toEqual(['general', 'address', 'visibility', 'delete']);
+		expect(sections()).toEqual(['general', 'submitter', 'address', 'visibility', 'delete']);
 		expect(nameOf('delete')).toBe('Delete this tree');
 		expect(document.querySelector('h1')!.textContent).toBe('Manage Smiths');
 		expect(document.body.textContent).toContain('apply to everyone in Smiths');
@@ -107,7 +108,7 @@ describe('tree settings page', () => {
 		for (const [hash, expected] of [
 			['#subtrees', ['subtrees-tab']],
 			['#export', ['export-tab']],
-			['#visibility', ['general', 'address', 'visibility']]
+			['#visibility', ['general', 'submitter', 'address', 'visibility']]
 		] as const) {
 			state.page.url = new URL(`https://epoch.test/trees/smiths/settings${hash}`);
 			render();
@@ -132,7 +133,7 @@ describe('tree settings page', () => {
 
 	it('leaves out the sections the viewer cannot use', () => {
 		render({ can: { canManageSubtrees: false, canExport: false, canDelete: false } });
-		expect(sections()).toEqual(['general', 'address', 'visibility']);
+		expect(sections()).toEqual(['general', 'submitter', 'address', 'visibility']);
 	});
 
 	it('says whether the tree is public, and offers the install owner only the link to change it', () => {
@@ -166,7 +167,15 @@ describe('tree settings page', () => {
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		flushSync();
 		await submit(input.closest('form')!);
-		expect(rename).toHaveBeenCalledWith('t1', 'The Smiths', 'smiths', 3, undefined, undefined);
+		expect(rename).toHaveBeenCalledWith(
+			't1',
+			'The Smiths',
+			'smiths',
+			3,
+			undefined,
+			undefined,
+			undefined
+		);
 		expect(toasts.push).toHaveBeenCalledWith('Tree saved');
 		expect(navigation.invalidate).toHaveBeenCalled();
 	});
@@ -182,7 +191,15 @@ describe('tree settings page', () => {
 		other.click();
 		flushSync();
 		await submit(other.closest('form')!);
-		expect(rename).toHaveBeenCalledWith('t1', 'Smiths', 'smiths', 3, undefined, other.value);
+		expect(rename).toHaveBeenCalledWith(
+			't1',
+			'Smiths',
+			'smiths',
+			3,
+			undefined,
+			other.value,
+			undefined
+		);
 	});
 
 	it('sends nothing when the date format is unchanged', async () => {
@@ -212,12 +229,59 @@ describe('tree settings page', () => {
 		slug.dispatchEvent(new Event('input', { bubbles: true }));
 		flushSync();
 		await submit(slug.closest('form')!);
-		expect(rename).toHaveBeenCalledWith('t1', 'Smiths', 'the-smiths', 3, undefined, undefined);
+		expect(rename).toHaveBeenCalledWith(
+			't1',
+			'Smiths',
+			'the-smiths',
+			3,
+			undefined,
+			undefined,
+			undefined
+		);
 		expect(context.followAddress).toHaveBeenCalledWith({
 			id: 't1',
 			slug: 'the-smiths',
 			isOnSubdomain: false
 		});
+	});
+
+	it('saves the GEDCOM submitter with the name and address as they stand', async () => {
+		render();
+		const fill = (id: string, value: string) => {
+			const input = document.getElementById(id) as HTMLInputElement;
+			input.value = value;
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+		};
+		fill('submitter-name', ' Ada Smith ');
+		fill('submitter-email', 'ada@example.com');
+		flushSync();
+		await submit(document.getElementById('submitter-name')!.closest('form')!);
+		expect(rename).toHaveBeenCalledWith('t1', 'Smiths', 'smiths', 3, undefined, undefined, {
+			name: 'Ada Smith',
+			email: 'ada@example.com',
+			www: null
+		});
+	});
+
+	it('refuses a submitter email or address with no name, and a web address that is not http', async () => {
+		render();
+		const fill = (id: string, value: string) => {
+			const input = document.getElementById(id) as HTMLInputElement;
+			input.value = value;
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+		};
+		fill('submitter-email', 'ada@example.com');
+		flushSync();
+		const form = document.getElementById('submitter-email')!.closest('form')!;
+		await submit(form);
+		expect(rename).not.toHaveBeenCalled();
+		expect(form.querySelector('[role="alert"]')!.textContent).toContain('name');
+		fill('submitter-name', 'Ada');
+		fill('submitter-www', 'ftp://example.com');
+		flushSync();
+		await submit(form);
+		expect(rename).not.toHaveBeenCalled();
+		expect(form.querySelector('[role="alert"]')!.textContent).toContain('http');
 	});
 
 	it('saves the "Private" placeholder choice as soon as it is ticked', async () => {

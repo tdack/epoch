@@ -9,6 +9,7 @@ export const ENTITY_ORDER = [
 	'partner',
 	'link',
 	'event',
+	'media_object',
 	'media',
 	'media_link',
 	'source',

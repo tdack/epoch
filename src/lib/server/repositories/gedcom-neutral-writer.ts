@@ -22,6 +22,7 @@ import {
 	gedcomPreserved
 } from '../db/schema';
 import { dateColumnsFor } from '../domain/date-columns';
+import { nameMarkerLines } from '../gedcom/name-value';
 import type { ParsedGedcomData } from '../gedcom/parser';
 import { treeScopedId } from '../gedcom/import-preview';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
@@ -141,8 +142,10 @@ export async function importNeutralModel(
 						(f) => f.id === name.unionXref || f.aliases?.includes(name.unionXref!)
 					)
 				: undefined;
-			const extra =
-				!family && name.changeNoteLine ? [name.changeNoteLine, ...name.extra] : name.extra;
+			const extra = [
+				...nameMarkerLines(name),
+				...(!family && name.changeNoteLine ? [name.changeNoteLine, ...name.extra] : name.extra)
+			];
 			const key = nameContentKey(name.type, {
 				givenName: name.givenName,
 				surname: name.surname,
@@ -230,7 +233,7 @@ export async function importNeutralModel(
 	const linkRows: Array<typeof parentChild.$inferInsert> = [];
 	for (const fam of parsed.families) {
 		const unionId = scoped(fam.id);
-		const participants = [fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
+		const participants = fam.partners.map((p) => p.personId);
 
 		unionRows.push({
 			id: unionId,
@@ -245,7 +248,8 @@ export async function importNeutralModel(
 				treeId,
 				unionId,
 				personId: scoped(personId),
-				order: index
+				order: index,
+				gedcomRole: fam.partners[index].role
 			})
 		);
 
@@ -306,17 +310,21 @@ export async function importNeutralModel(
 
 	// 3. Preserve unmodeled GEDCOM structures verbatim for lossless export.
 	// A merge import meets structures it kept the last time; the same lines under the same owner are
-	// not kept twice, or a root record would be written twice and its XREF would repeat.
-	const kept = new Set(
-		(isTreeEmpty
-			? []
-			: await db
-					.select({ owner: gedcomPreserved.ownerXref, lines: gedcomPreserved.lines })
-					.from(gedcomPreserved)
-					.where(eq(gedcomPreserved.treeId, treeId))
-					.all()
-		).map((r) => JSON.stringify([r.owner, r.lines]))
-	);
+	// not kept twice. A root record is not kept twice within the file either, or its XREF would repeat.
+	// A repeated structure under a record (the file's five identical `SLGS`) is as many facts as it has
+	// lines, so it is counted against what is stored, not collapsed.
+	const stored = new Map<string, number>();
+	for (const r of isTreeEmpty
+		? []
+		: await db
+				.select({ owner: gedcomPreserved.ownerXref, lines: gedcomPreserved.lines })
+				.from(gedcomPreserved)
+				.where(eq(gedcomPreserved.treeId, treeId))
+				.all()) {
+		const key = JSON.stringify([r.owner, r.lines]);
+		stored.set(key, (stored.get(key) ?? 0) + 1);
+	}
+	const seenRoots = new Set<string>();
 	let order = isTreeEmpty
 		? 0
 		: ((
@@ -329,8 +337,16 @@ export async function importNeutralModel(
 	const preservedRows: Array<typeof gedcomPreserved.$inferInsert> = [];
 	for (const entry of parsed.preserved) {
 		const key = JSON.stringify([entry.xref, entry.lines]);
-		if (kept.has(key)) continue;
-		kept.add(key);
+		if (entry.lines[0]?.startsWith('0 ')) {
+			if (stored.has(key) || seenRoots.has(key)) continue;
+			seenRoots.add(key);
+		} else {
+			const left = stored.get(key) ?? 0;
+			if (left > 0) {
+				stored.set(key, left - 1);
+				continue;
+			}
+		}
 		preservedRows.push({
 			id: crypto.randomUUID(),
 			treeId,

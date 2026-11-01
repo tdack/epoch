@@ -1,0 +1,6 @@
+{
+	"repository": "https://github.com/FamilySearch/GEDCOM",
+	"tag": "v7.0.18",
+	"commit": "2f0b863b5a42275bd2b3ca315900cf779e42f28b",
+	"license": "Apache-2.0"
+}

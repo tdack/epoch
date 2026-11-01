@@ -1,0 +1,1 @@
+ALTER TABLE `union_partners` ADD `gedcom_role` text;

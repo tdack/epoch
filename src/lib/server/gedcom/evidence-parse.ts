@@ -9,6 +9,7 @@
 
 import { collectLines, type GedcomNode } from './node';
 import { fieldLayout, isContinuation, isPlainText, logicalText } from './evidence-lines';
+import type { ParsedMediaLink } from './media-parse';
 import { splitNotes, type ParsedNoteLink } from './note-parse';
 
 const POINTER = /^@[^@\s]+@$/;
@@ -53,6 +54,8 @@ export interface ParsedSource {
 	repositories: ParsedSourceRepository[];
 	notes: ParsedNoteLink[];
 	extra: string[];
+	/** Pointers to media records on the source, in file order (ADR-082). */
+	mediaLinks?: ParsedMediaLink[];
 }
 
 export interface ParsedRepository {

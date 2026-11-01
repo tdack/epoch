@@ -5,13 +5,14 @@
  * someone's family is.
  */
 
-import { isActionAllowed } from '../auth/authorization';
 import type { DbClient } from '../db';
 import { NotFoundError } from '../domain/errors';
 import { MediaRepository } from '../repositories/media-repository';
-import { canDeleteMedia, readableFileIds } from './media-service';
+import { readableFileIds } from './media-service';
+import { personMediaEntries } from './person-media';
+import { objectIdOf } from '../../shared/media';
 import type { AuthenticatedContext } from '../domain/identity';
-import type { EventRow, IndividualRow, MediaRow, PersonNameRow } from '../domain/change-log';
+import type { EventRow, IndividualRow, PersonNameRow } from '../domain/change-log';
 import { eventDateValue } from '../domain/date-columns';
 import type { NameType } from '../domain/genealogy-model';
 import { sortByBirth } from '../../shared/birth-order';
@@ -256,26 +257,26 @@ export class PersonPageService {
 		const { graph } = window;
 		const relatives = relativesOf(graph, personId);
 
-		const [[self], nameRows, factRows, linkedMedia] = await this.repo.run(
+		const [[self], nameRows, factRows, linkedMedia, mediaLinkRows] = await this.repo.run(
 			this.repo.individualsIn(treeId, [personId]),
 			this.repo.namesOf(treeId, [personId]),
 			this.repo.eventsOf(treeId, 'INDIVIDUAL', [personId]),
-			this.repo.mediaOf(treeId, [personId])
+			this.repo.mediaOf(treeId, [personId]),
+			this.repo.mediaLinksOf(treeId, [personId])
 		);
 		if (!self) throw new NotFoundError('Person', personId);
 		// A file also linked to someone the viewer cannot see is not shown on this page either.
 		const readable = await readableFileIds(
 			this.db,
 			treeId,
-			linkedMedia.map(({ row }) => row.id),
+			linkedMedia.map(({ row }) => row),
 			scope
 		);
 		const mediaRows = linkedMedia.filter(({ row }) => readable.has(row.id));
 		const uploaders = await this.media.uploadersOf(treeId, personId);
-		const fileLinks = await this.media.linksOf(
-			treeId,
-			mediaRows.map(({ row }) => row.id)
-		);
+		const objectIds = [...new Set(mediaRows.map(({ row }) => objectIdOf(row)))];
+		const fileLinks = await this.media.linksOf(treeId, objectIds);
+		const objects = await this.media.objectsOf(treeId, objectIds);
 
 		// Evidence: every citation of the person and of what they have, in one batch, then the sources
 		// those name. A fact or name that none cites is unsourced.
@@ -490,17 +491,15 @@ export class PersonPageService {
 				graph,
 				scope
 			),
-			media: mediaRows.map(({ row }: { row: MediaRow }) => ({
-				...privacyOf(row),
-				id: row.id,
-				title: row.title,
-				mimeType: row.mimeType,
-				r2ObjectKey: row.r2ObjectKey,
-				version: row.version,
-				isShared: (fileLinks.get(row.id)?.length ?? 0) > 1,
-				canUnlink: isActionAllowed(scope.role, 'media:manage'),
-				canDelete: canDeleteMedia(scope, uploaders.get(row.id) ?? null)
-			})),
+			media: personMediaEntries({
+				files: mediaRows.map(({ row }) => row),
+				links: mediaLinkRows,
+				facts: [...factRows].sort((a, b) => a.rid - b.rid).map((f) => f.row),
+				objects,
+				linkedRecords: fileLinks,
+				uploaders,
+				scope
+			}),
 			notes: notesOf(noteItems, NOTE_SUBJECT_KINDS.PERSON, personId),
 			linkNotes: links.flatMap((l) => {
 				const own = notesOf(noteItems, NOTE_SUBJECT_KINDS.PARENT_CHILD, l.id);

@@ -191,6 +191,8 @@ export function generateDeployConfig(tracked: Json, values: DeployValues): Json 
 	for (const entry of queues?.consumers ?? []) entry.queue = names.queue;
 
 	bindingEntry(config, 'workflows', 'binding', 'GEDCOM_EXPORT_WORKFLOW').name = names.workflow;
+	bindingEntry(config, 'workflows', 'binding', 'GEDCOM_IMPORT_WORKFLOW').name =
+		names.importWorkflow;
 	bindingEntry(config, 'workflows', 'binding', 'PLACE_MATCH_WORKFLOW').name =
 		names.placeMatchWorkflow;
 

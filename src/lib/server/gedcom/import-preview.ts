@@ -14,6 +14,11 @@ export interface ImportPreview {
 	mode: ImportMode;
 	/** replace mode: what gets deleted */
 	deleteCounts?: { individuals: number; families: number; events: number; childLinks: number };
+	/**
+	 * Media objects with at least one link to a record. A replace removes the links, not the files,
+	 * so this is how many files will become unlinked. Absent when none are linked.
+	 */
+	linkedMediaObjectCount?: number;
 	/** merge mode: what changes */
 	merge?: {
 		newIndividuals: number;
@@ -144,6 +149,8 @@ function eventKeyOfParsed(
 
 /** What the tree already holds, as much of it as the comparison needs. */
 export interface PreviewRows {
+	/** Media objects with at least one link; a replace unlinks them (ADR-082). */
+	linkedMediaObjectCount?: number;
 	individuals: Array<{ id: string; xrefId: string | null }>;
 	unions: Array<{ id: string }>;
 	parentChild: Array<{ unionId: string | null; childId: string }>;
@@ -303,5 +310,14 @@ export function previewAgainstTree(
 		}
 	}
 
-	return { mode: 'merge', deleteCounts, merge, incoming, duplicates, retainedTags };
+	const linkedMediaObjectCount = rows.linkedMediaObjectCount ?? 0;
+	return {
+		mode: 'merge',
+		deleteCounts,
+		...(linkedMediaObjectCount > 0 && { linkedMediaObjectCount }),
+		merge,
+		incoming,
+		duplicates,
+		retainedTags
+	};
 }

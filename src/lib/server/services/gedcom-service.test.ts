@@ -140,7 +140,7 @@ describe('importFile', () => {
 		const sent: ImportQueueMessage[] = [];
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
 		});
 		const outcome = await service.importFile(
 			fileOf({
@@ -152,7 +152,7 @@ describe('importFile', () => {
 			}),
 			s.owner.context
 		);
-		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
+		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
 		expect(sent).toHaveLength(1);
 		expect(sent[0]).toMatchObject({
 			treeId: s.treeId,
@@ -183,7 +183,7 @@ describe('importFile', () => {
 		});
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
 		});
 		await expect(
 			service.importFile(fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }), s.owner.context)
@@ -202,13 +202,13 @@ describe('importFile', () => {
 		});
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async () => {} }
+			importWorkflow: { create: async () => {} }
 		});
 		const outcome = await service.importFile(
 			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
 			s.owner.context
 		);
-		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
+		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
 	});
 
 	it('counts only this tree’s staged files against its cap', async () => {
@@ -222,16 +222,34 @@ describe('importFile', () => {
 		});
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
 		});
 		const outcome = await service.importFile(
 			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
 			s.owner.context
 		);
-		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
+		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
 	});
 
-	it('imports a large file in the request when the queue is not bound', async () => {
+	it('does not count a tree’s upload-session bytes against its staging cap', async () => {
+		const s = await tree();
+		const { objects, bucket } = fakeBucket();
+		objects.set(`staging/uploads/${s.treeId}/session-1`, {
+			value: '',
+			size: MAX_STAGED_BYTES_PER_TREE * 4
+		});
+		const service = new GedcomService(t.db, {
+			bucket,
+			importWorkflow: { create: async () => {} }
+		});
+		const outcome = await service.importFile(
+			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
+			s.owner.context
+		);
+		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
+	});
+
+	it('imports a large file in the request when the workflow is not bound', async () => {
 		const s = await tree();
 		const outcome = await new GedcomService(t.db, { bucket: fakeBucket().bucket }).importFile(
 			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
@@ -258,11 +276,17 @@ describe('runImport', () => {
 		const s = await tree();
 		const service = new GedcomService(t.db);
 		await service.runImport(s.treeId, FILE);
-		// The child the family names is not in the file, so its link fails its foreign key after the
-		// people and the partnership are already queued.
-		const broken =
-			'0 HEAD\n0 @I7@ INDI\n1 NAME Cy /Oak/\n0 @F1@ FAM\n1 HUSB @I7@\n1 CHIL @I99@\n0 TRLR';
-		await expect(service.runImport(s.treeId, broken, undefined, 'replace')).rejects.toThrow();
+		// A pointer at a record the file lacks is kept as a line now, so no file fails that way. A trigger
+		// stands in for the failure: it aborts the new person's insert after the old ones are queued to go.
+		const broken = '0 HEAD\n0 @I7@ INDI\n1 NAME Cy /Oak/\n0 TRLR';
+		await t.d1.exec(
+			"CREATE TRIGGER fail_import BEFORE INSERT ON individuals WHEN NEW.xref_id = '@I7@' BEGIN SELECT RAISE(ABORT, 'no'); END"
+		);
+		try {
+			await expect(service.runImport(s.treeId, broken, undefined, 'replace')).rejects.toThrow();
+		} finally {
+			await t.d1.exec('DROP TRIGGER fail_import');
+		}
 		const people = await t.db
 			.select({ xref: individuals.xrefId })
 			.from(individuals)
@@ -385,6 +409,23 @@ describe('previewImport', () => {
 	});
 });
 
+describe('previewImport and linked files', () => {
+	const WITH_PHOTO =
+		'0 HEAD\n0 @I1@ INDI\n1 NAME Ann /Fox/\n1 OBJE @O1@\n0 @O1@ OBJE\n1 FILE a.png\n2 FORM image/png\n0 TRLR';
+
+	it('counts the files a replace would unlink, once, and only when there are some', async () => {
+		const s = await tree();
+		const service = new GedcomService(t.db);
+		await service.runImport(s.treeId, FILE, 'T', 'replace');
+		expect(
+			(await service.previewImport(s.treeId, FILE, s.owner.context)).linkedMediaObjectCount
+		).toBeUndefined();
+		await service.runImport(s.treeId, WITH_PHOTO, 'T', 'replace');
+		const preview = await service.previewImport(s.treeId, FILE, s.owner.context);
+		expect(preview.linkedMediaObjectCount).toBe(1);
+	});
+});
+
 describe('export', () => {
 	it('keeps the children of a family whose XREF contains a bar', async () => {
 		const s = await tree();
@@ -398,7 +439,8 @@ describe('export', () => {
 			{ format: 'gedcom551' },
 			s.owner.context
 		);
-		expect(content).toMatch(/0 @F\|1@ FAM[^]*1 CHIL @I2@/);
+		// `|` is not a legal xref character, so the family is renumbered; its child must still follow.
+		expect(content).toMatch(/0 @F1@ FAM[^]*1 CHIL @I2@/);
 	});
 
 	it('names a download and the stored copy alike, by the tree', async () => {
@@ -646,7 +688,7 @@ describe('naming a tree from the file it imports', () => {
 		const sent: ImportQueueMessage[] = [];
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
 		});
 		const outcome = await service.importFile(
 			fileOf({ fileName: 'big.ged', text: NAMED_FILE, sizeBytes: 3 * 1024 * 1024 }),

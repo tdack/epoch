@@ -217,6 +217,14 @@ describe('what moves and what is kept once', () => {
 			treeId: TEST_TREE_ID,
 			mediaId: 'm1',
 			entityId: 'b',
+			factId: null,
+			sortOrder: null,
+			cropTop: null,
+			cropLeft: null,
+			cropHeight: null,
+			cropWidth: null,
+			title: null,
+			gedcomExtra: null,
 			createdAt: 1
 		});
 		rows.mediaItems.push({
@@ -413,5 +421,34 @@ describe('the result', () => {
 			...after.personNames.map((n) => n.personId)
 		];
 		expect(pointers).not.toContain('b');
+	});
+});
+
+describe('files under a fact follow a merge (ADR-082)', () => {
+	it('moves a pointer under a fact the survivor already states to that fact, and one under a moved fact with it', () => {
+		const rows = treeRows({
+			people: [{ id: 'a' }, { id: 'b' }],
+			events: [
+				{ id: 'ev-a', entityId: 'a', type: 'OCCU', value: 'Baker' },
+				{ id: 'ev-b-same', entityId: 'b', type: 'OCCU', value: 'Baker' },
+				{ id: 'ev-b-own', entityId: 'b', type: 'RESI', value: 'Leeds' }
+			],
+			media: [
+				{
+					id: 'm1',
+					factLinkedTo: [
+						['b', 'ev-b-same'],
+						['b', 'ev-b-own']
+					]
+				}
+			]
+		});
+		const ops = buildPersonMergeOps(rows, merge('a', 'b'), ctx());
+		expect(afterOf<{ factId: string }>(ops, 'media_links', 'm1:a:ev-a')!.factId).toBe('ev-a');
+		expect(afterOf<{ factId: string }>(ops, 'media_links', 'm1:a:ev-b-own')!.factId).toBe(
+			'ev-b-own'
+		);
+		expect(opFor(ops, 'media_links', 'm1:b:ev-b-same')?.after).toBeNull();
+		expect(opFor(ops, 'media_links', 'm1:b:ev-b-own')?.after).toBeNull();
 	});
 });

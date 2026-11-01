@@ -59,3 +59,18 @@ describe('sex X end to end (ADR-010)', () => {
 		expect(await sexesOf(treeId)).toEqual(['U']);
 	});
 });
+
+describe('a person the file gave no SEX or NAME', () => {
+	const bare = ['0 HEAD', '0 @I1@ INDI', '0 @I2@ INDI', '1 SEX U', '0 TRLR'].join('\n');
+
+	it('exports with neither, while an explicit SEX U stays', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, bare, 'Bare');
+		const data = await getTreeExportData(t.d1, treeId);
+		for (const build of [buildGedcom7String, buildGedcom551String]) {
+			const text = build(data);
+			expect(text).not.toContain('NAME //');
+			expect(text.match(/1 SEX U/g)).toHaveLength(1);
+		}
+	});
+});

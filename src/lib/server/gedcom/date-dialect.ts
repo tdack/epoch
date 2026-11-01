@@ -52,14 +52,20 @@ const ESCAPE_TO_CALENDAR: Record<string, string> = {
 	'FRENCH R': 'FRENCH_R'
 };
 
-/** One calendar date in 7.0 syntax: `[calendar] [[day] month] year [BCE]`. */
+/**
+ * One calendar date in 7.0 syntax: `[calendar] [[day] month] year [epoch]`. A calendar, month or
+ * epoch may be an extension tag (`_CAL`), which 7.0 allows when the header's `SCHMA` documents it.
+ * Such a date is the file's own words and is written as they came; Epoch cannot read it, but
+ * turning it into an empty `DATE` and a `PHRASE` would say less than the file did.
+ */
 function isDate7(text: string): boolean {
 	const m = text.match(
-		/^(?:(GREGORIAN|JULIAN|FRENCH_R|HEBREW) )?(?:(?:(\d{1,2}) )?([A-Z]{3,4}) )?(\d+)(?: BCE)?$/
+		/^(?:(GREGORIAN|JULIAN|FRENCH_R|HEBREW|_[A-Z0-9_]+) )?(?:(?:(\d{1,2}) )?(_[A-Z0-9_]+|[A-Z]{3,4}) )?(\d+)(?: (BCE|_[A-Z0-9_]+))?$/
 	);
 	if (!m) return false;
 	const [, calendar = 'GREGORIAN', , month] = m;
-	return !month || MONTHS[calendar].includes(month);
+	const months = MONTHS[calendar];
+	return !month || month.startsWith('_') || !months || months.includes(month);
 }
 
 /** A whole 7.0 `DATE` payload: a date, a range, a period or an approximation. */

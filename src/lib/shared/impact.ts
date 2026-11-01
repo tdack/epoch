@@ -11,6 +11,7 @@ export type EntityType =
 	| 'partner'
 	| 'link'
 	| 'event'
+	| 'media_object'
 	| 'media'
 	| 'media_link'
 	| 'source'

@@ -35,6 +35,7 @@
  */
 
 import type { TreeRows } from './change-log';
+import { objectIdOf } from '../../shared/media';
 
 /** The records a command reads, by id. An id that does not exist in the tree selects nothing. */
 export interface ScopeSeed {
@@ -358,6 +359,10 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 	for (const l of whole.mediaLinks)
 		if (fileLinkIds.has(l.id) && mediaById.has(l.mediaId)) loadedMedia.add(l.mediaId);
 
+	const loadedObjectIds = new Set(
+		whole.mediaItems.filter((m) => loadedMedia.has(m.id)).map((m) => objectIdOf(m))
+	);
+
 	// What is attached to everything loaded so far. Names, events and links are now final.
 	const loadedNames = new Set(nameRows.map((n) => n.id));
 	const loadedEvents = new Set(eventRows.map((e) => e.id));
@@ -423,6 +428,8 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 		unionPartners: pick('unionPartners', whole.unionPartners, (r) => unions.has(r.unionId)),
 		parentChild: pick('parentChild', whole.parentChild, (r) => links.has(r.id)),
 		events: pick('events', whole.events, (r) => loadedEvents.has(r.id)),
+		// The object of every file loaded, as the loader reads them (a file not yet backfilled has none).
+		mediaObjects: pick('mediaObjects', whole.mediaObjects, (r) => loadedObjectIds.has(r.id)),
 		mediaItems: pick('mediaItems', whole.mediaItems, (r) => loadedMedia.has(r.id)),
 		mediaLinks: pick('mediaLinks', whole.mediaLinks, (r) => fileLinkIds.has(r.id)),
 		sources: pick('sources', whole.sources, (r) => sources.has(r.id)),

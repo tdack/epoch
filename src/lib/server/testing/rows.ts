@@ -1,6 +1,12 @@
 /** Builds `TreeRows` snapshots for pure tests of planning and ops, without a database. */
 
-import type { EventRow, MediaRow, PersonNameRow, TreeRows } from '../domain/change-log';
+import type {
+	EventRow,
+	MediaObjectRow,
+	MediaRow,
+	PersonNameRow,
+	TreeRows
+} from '../domain/change-log';
 import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import type { Sex } from '../../shared/sex';
 import { mediaLinkId } from '../../shared/media';
@@ -35,7 +41,16 @@ export interface RowsSpec {
 	events?: Array<Partial<EventRow> & { id: string; entityId: string; type: string }>;
 	names?: Array<Partial<PersonNameRow> & { id: string; personId: string }>;
 	/** `linkedTo` is the records the file is linked to; a file with none is detached. */
-	media?: Array<Partial<MediaRow> & { id: string; linkedTo?: string[] }>;
+	media?: Array<
+		Partial<MediaRow> & {
+			id: string;
+			linkedTo?: string[];
+			/** Pointers under a fact: `[ownerId, factId]`. */
+			factLinkedTo?: Array<[string, string]>;
+		}
+	>;
+	/** Object records (ADR-082). A file with none stands for its own object, as before the backfill. */
+	objects?: Array<Partial<MediaObjectRow> & { id: string }>;
 	/** Citations of the facts, names, people or partnerships above, by what they support. */
 	citations?: Array<{
 		subjectKind: 'person' | 'name' | 'event' | 'union' | 'parent_child';
@@ -51,6 +66,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		unionPartners: [],
 		parentChild: [],
 		events: [],
+		mediaObjects: [],
 		mediaItems: [],
 		mediaLinks: [],
 		sources: [],
@@ -63,13 +79,49 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		subtrees: [],
 		placeLocations: []
 	};
-	for (const { linkedTo = [], ...m } of spec.media ?? []) {
+	for (const o of spec.objects ?? [])
+		rows.mediaObjects.push({
+			treeId: TEST_TREE_ID,
+			xref: null,
+			privacy: 'auto',
+			gedcomExtra: null,
+			createdBy: null,
+			version: 1,
+			createdAt: 1_000,
+			updatedAt: 1_000,
+			...o
+		});
+	for (const { linkedTo = [], factLinkedTo = [], ...m } of spec.media ?? []) {
+		for (const [entityId, factId] of factLinkedTo)
+			rows.mediaLinks.push({
+				id: mediaLinkId(m.objectId ?? m.id, entityId, factId),
+				treeId: TEST_TREE_ID,
+				mediaId: m.objectId ?? m.id,
+				entityId,
+				factId,
+				sortOrder: null,
+				cropTop: null,
+				cropLeft: null,
+				cropHeight: null,
+				cropWidth: null,
+				title: null,
+				gedcomExtra: null,
+				createdAt: 1_000
+			});
 		for (const entityId of linkedTo)
 			rows.mediaLinks.push({
-				id: mediaLinkId(m.id, entityId),
+				id: mediaLinkId(m.objectId ?? m.id, entityId),
 				treeId: TEST_TREE_ID,
-				mediaId: m.id,
+				mediaId: m.objectId ?? m.id,
 				entityId,
+				factId: null,
+				sortOrder: null,
+				cropTop: null,
+				cropLeft: null,
+				cropHeight: null,
+				cropWidth: null,
+				title: null,
+				gedcomExtra: null,
 				createdAt: 1_000
 			});
 		rows.mediaItems.push({
@@ -81,6 +133,12 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			version: 1,
 			createdAt: 1_000,
 			updatedAt: 1_000,
+			objectId: null,
+			sortOrder: null,
+			gedcomPath: null,
+			status: null,
+			medium: null,
+			gedcomExtra: null,
 			...m
 		});
 	}
@@ -196,6 +254,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 				unionId: u.id,
 				personId,
 				order,
+				gedcomRole: null,
 				createdAt: T0
 			})
 		);

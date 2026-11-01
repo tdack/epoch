@@ -1,10 +1,11 @@
 import { apiHandler } from '#lib/server/http/handler.js';
-import type { R2Bucket, R2Object, WorkflowInstance } from '@cloudflare/workers-types';
+import type { R2Object, WorkflowInstance } from '@cloudflare/workers-types';
 import {
 	ExportExpiredError,
 	ExportUnavailableError,
 	NotFoundError
 } from '#lib/server/domain/errors.js';
+import { deleteExport } from '#lib/server/http/export-storage.js';
 import { GedcomService } from '#lib/server/services/gedcom-service.js';
 import {
 	EXPORT_CODES,
@@ -13,35 +14,10 @@ import {
 	exportWriteTime,
 	isExportExpired,
 	mapWorkflowStatus,
-	type ExportState,
-	type ParsedExportInstance
+	type ExportState
 } from '#lib/server/workflows/export-instance.js';
 
 const options = { failure: 'Export failed' };
-
-/** Best-effort delete of an expired object: the lifecycle rule is the backstop if it fails. */
-async function discard(bucket: R2Bucket, fileKey: string): Promise<void> {
-	try {
-		await bucket.delete(fileKey);
-	} catch {
-		// The object is past its window whether or not the delete lands, so the answer is unchanged.
-	}
-}
-
-/**
- * Remove an object whose instance is gone. An instance can be purged independently of its file
- * (an operator, a deployment, a shorter retention than this app asks for), which would otherwise
- * strand the object until the lifecycle rule runs. Best effort, and the key comes from the parsed
- * id, never the client. The lifecycle rule is the backstop if the head or delete fails.
- */
-async function discardOrphan(bucket: R2Bucket, parsed: ParsedExportInstance): Promise<void> {
-	try {
-		const fileKey = exportObjectKey(parsed.treeId, parsed.token, parsed.clientUuid);
-		if (await bucket.head(fileKey)) await bucket.delete(fileKey);
-	} catch {
-		// The lifecycle rule is the backstop if the head or delete fails.
-	}
-}
 
 /**
  * An asynchronous export's progress, for the client to poll. It answers a closed `{ status, code }`
@@ -68,7 +44,7 @@ export const GET = apiHandler(
 		} catch {
 			// The runtime no longer knows the instance: it has been purged. Its file, if the workflow
 			// wrote one, is now an orphan, so clear it before answering the same 404.
-			await discardOrphan(bucket, parsed);
+			await deleteExport(bucket, parsed);
 			throw new NotFoundError('Export');
 		}
 
@@ -90,7 +66,7 @@ export const GET = apiHandler(
 			if (!object) {
 				state = EXPORT_STATES.errored;
 			} else if (isExportExpired(exportWriteTime(object))) {
-				await discard(bucket, fileKey);
+				await deleteExport(bucket, parsed, true);
 				throw new ExportExpiredError();
 			}
 		}

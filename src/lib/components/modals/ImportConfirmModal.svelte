@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Upload, RefreshCw } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
+	import UploadProgress from '#lib/components/forms/UploadProgress.svelte';
+	import { formatMediaSize, MAX_MEDIA_FILE_BYTES } from '#lib/shared/media.js';
 	import type { ImportPreviewData, PossibleDuplicateGroup } from '#lib/types/genealogy.js';
 
 	interface Props {
@@ -10,7 +12,19 @@
 		preview: ImportPreviewData | null;
 		isLoadingPreview?: boolean;
 		isConfirming?: boolean;
+		/** A `.gdz` being sent before it can be previewed; shown instead of the loading line. */
+		upload?: {
+			fileName: string;
+			uploadedBytes: number;
+			totalBytes: number;
+			phase: 'uploading' | 'failed';
+			error: string | null;
+		} | null;
+		/** Where a running `.gdz` import is up to, in words; shown while confirming. */
+		progressText?: string | null;
 		error?: string | null;
+		oncancelupload?: () => void;
+		onretryupload?: () => void;
 		onclose: () => void;
 		/** `shouldMergeDuplicateFamilies` is the state of the "merge duplicate families" checkbox. */
 		onconfirm: (
@@ -26,7 +40,11 @@
 		preview,
 		isLoadingPreview = false,
 		isConfirming = false,
+		upload = null,
+		progressText = null,
 		error = null,
+		oncancelupload = () => {},
+		onretryupload = () => {},
 		onclose,
 		onconfirm
 	}: Props = $props();
@@ -69,6 +87,60 @@
 
 	const confirm = (mode: 'replace' | 'merge') => onconfirm(mode, { shouldMergeDuplicateFamilies });
 </script>
+
+{#snippet unlinkNotice()}
+	{#if preview?.linkedMediaObjectCount}
+		{@const count = preview.linkedMediaObjectCount}
+		<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-stone-800">
+			<p class="font-semibold text-amber-950">Files will be unlinked</p>
+			<p>
+				{count}
+				{count === 1 ? 'file is' : 'files are'} linked to people, families or sources. A replace removes
+				{count === 1 ? 'that link' : 'those links'}; the {count === 1 ? 'file stays' : 'files stay'}
+				in Files as unlinked, where you can link {count === 1 ? 'it' : 'them'} again or delete
+				{count === 1 ? 'it' : 'them'}.
+			</p>
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet mediaBlock()}
+	{#if preview?.media}
+		{@const m = preview.media}
+		<div class="space-y-1 rounded-lg border border-stone-300 bg-stone-100 p-3">
+			<p class="font-semibold text-stone-900">Files in this archive</p>
+			<ul class="list-inside list-disc space-y-0.5 text-stone-800">
+				<li>
+					{m.entryCount}
+					{m.entryCount === 1 ? 'file' : 'files'} to store ({formatMediaSize(m.totalBytes)}); this
+					tree has {formatMediaSize(m.quotaRemainingBytes)} of space left{m.totalBytes >
+					m.quotaRemainingBytes
+						? ', so some will be skipped'
+						: ''}.
+				</li>
+				<li>
+					{m.resolvableFiles}
+					{m.resolvableFiles === 1 ? 'file reference' : 'file references'} will be filled from the archive;
+					{m.unresolvedFiles} will stay without a file (no matching entry, a web address or a path on
+					another computer).
+				</li>
+				{#if m.extraEntries > 0}
+					<li>
+						{m.extraEntries}
+						{m.extraEntries === 1 ? 'file' : 'files'} that no record mentions will be added to Files,
+						unlinked.
+					</li>
+				{/if}
+				{#if m.skippedByType > 0}
+					<li>{m.skippedByType} skipped because Epoch does not accept that type of file.</li>
+				{/if}
+				{#if m.overCap > 0}
+					<li>{m.overCap} skipped for being over {formatMediaSize(MAX_MEDIA_FILE_BYTES)}.</li>
+				{/if}
+			</ul>
+		</div>
+	{/if}
+{/snippet}
 
 {#snippet duplicatesBlock()}
 	{#if preview && (preview.duplicates.exact.length > 0 || preview.duplicates.possible.length > 0)}
@@ -123,7 +195,17 @@
 	{error}
 	{onclose}
 >
-	{#if isLoadingPreview}
+	{#if upload}
+		<UploadProgress
+			fileName={upload.fileName}
+			uploadedBytes={upload.uploadedBytes}
+			totalBytes={upload.totalBytes}
+			phase={upload.phase}
+			error={upload.error}
+			oncancel={oncancelupload}
+			onretry={onretryupload}
+		/>
+	{:else if isLoadingPreview}
 		<div class="flex items-center space-x-2 py-4 text-xs text-stone-600">
 			<RefreshCw class="h-4 w-4 animate-spin" />
 			<span>Analysing GEDCOM file against the selected tree...</span>
@@ -144,6 +226,13 @@
 					Kept as-is and not editable yet: {preview.retainedTags
 						.map((r) => `${r.tag} × ${r.count}`)
 						.join(', ')}.
+				</p>
+			{/if}
+
+			{@render mediaBlock()}
+			{#if isConfirming && progressText}
+				<p role="status" class="font-medium text-stone-900" data-testid="import-progress">
+					{progressText}
 				</p>
 			{/if}
 
@@ -191,6 +280,7 @@
 						{familiesToWrite} families from the file.
 					</p>
 				</div>
+				{@render unlinkNotice()}
 				{@render duplicatesBlock()}
 				<div class="flex space-x-2 border-t border-stone-200 pt-2">
 					<button
@@ -251,6 +341,7 @@
 						</p>
 					{/if}
 				</div>
+				{#if preview.deleteCounts}{@render unlinkNotice()}{/if}
 				{@render duplicatesBlock()}
 				<div class="flex space-x-2 border-t border-stone-200 pt-2">
 					<button

@@ -22,6 +22,19 @@ export const STAGING_LIFECYCLE_PREFIX = 'staging/';
 /** The identifier of our staging rule; it is the only destructive rule allowed over `staging/`. */
 const STAGING_LIFECYCLE_RULE_ID = 'epoch-staging-expiry';
 
+/** Resumable uploads (ADR-074) stage their parts under this prefix, inside `staging/`. */
+export const UPLOAD_LIFECYCLE_PREFIX = 'staging/uploads/';
+
+/** The identifier of our abort rule; it only aborts incomplete multipart uploads, deleting nothing. */
+const UPLOAD_ABORT_RULE_ID = 'epoch-upload-abort';
+
+/**
+ * One day, the upload session lifetime. A session past its expiry is closed by the sweep; this rule
+ * drops the R2 parts the sweep could not abort. It is set to the lifetime, not longer, so it never
+ * aborts a session that is still open.
+ */
+export const UPLOAD_ABORT_MAX_AGE_SECONDS = 24 * 60 * 60;
+
 /**
  * Seven days. The app stops counting a staged object after `STAGED_IMPORT_MAX_AGE_MS` (four days,
  * the queue's default message retention, so no live message outlives it), and the consumer sets no
@@ -77,6 +90,18 @@ export function stagingLifecycleRule(): R2LifecycleRule {
 	};
 }
 
+/** The rule this tool writes: abort incomplete multipart uploads under `staging/uploads/` after a day. */
+export function uploadAbortLifecycleRule(): R2LifecycleRule {
+	return {
+		id: UPLOAD_ABORT_RULE_ID,
+		enabled: true,
+		conditions: { prefix: UPLOAD_LIFECYCLE_PREFIX },
+		abortMultipartUploadsTransition: {
+			condition: { type: 'Age', maxAge: UPLOAD_ABORT_MAX_AGE_SECONDS }
+		}
+	};
+}
+
 /**
  * Whether a rule is our staging rule: our id, exactly `staging/`, in effect, and a plain age-based
  * delete no sooner than the app's cap. Recognised by id and prefix together so a foreign rule over
@@ -111,8 +136,8 @@ export function isExportOnlyRule(
 }
 
 /**
- * Read-merge-write: keep every unrelated rule, and replace any existing export or staging rule
- * with ours.
+ * Read-merge-write: keep every unrelated rule, and replace any existing export, staging or upload
+ * abort rule with ours.
  *
  * Refuses to run beside a destructive rule — one that deletes or transitions objects — with no
  * prefix (it would expire the whole bucket) or one overlapping `media/`/`staging/`, which hold live
@@ -125,19 +150,25 @@ export function isExportOnlyRule(
  * @throws SetupError - If a destructive rule with no prefix, or one covering `media/`/`staging/`, already exists.
  */
 export function mergeLifecycleRules(existing: R2LifecycleRule[]): R2LifecycleRule[] {
-	const others = existing.filter((rule) => !isStagingRuleSlot(rule));
+	const others = existing.filter((rule) => !isOwnRuleSlot(rule));
 	for (const rule of others) assertSafeToCoexist(rule);
 	return [
 		...others.filter((rule) => rule.conditions?.prefix !== EXPORT_LIFECYCLE_PREFIX),
 		exportLifecycleRule(),
-		stagingLifecycleRule()
+		stagingLifecycleRule(),
+		uploadAbortLifecycleRule()
 	];
 }
 
-/** Our rule's id on exactly `staging/`, whatever its age: the slot we overwrite, not a foreign rule. */
-function isStagingRuleSlot(rule: R2LifecycleRule): boolean {
+/**
+ * Our rule's id on its own prefix, whatever its age: the slot we overwrite, not a foreign rule.
+ * Matched by id and prefix together, so an owner's rule that reuses one of our ids is kept.
+ */
+function isOwnRuleSlot(rule: R2LifecycleRule): boolean {
 	return (
-		rule.id === STAGING_LIFECYCLE_RULE_ID && rule.conditions?.prefix === STAGING_LIFECYCLE_PREFIX
+		(rule.id === STAGING_LIFECYCLE_RULE_ID &&
+			rule.conditions?.prefix === STAGING_LIFECYCLE_PREFIX) ||
+		(rule.id === UPLOAD_ABORT_RULE_ID && rule.conditions?.prefix === UPLOAD_LIFECYCLE_PREFIX)
 	);
 }
 

@@ -17,6 +17,7 @@ import type { DbClient } from '../db';
 import type { TreeRows } from '../domain/change-log';
 import type { ScopeSeed } from '../domain/write-scope';
 import { SUBJECT } from '../domain/write-scope';
+import { objectIdOf } from '../../shared/media';
 import { ChangeStore } from './change-store';
 import type { Ranked, Read } from './graph-window-repository';
 import { ScopedReads } from './scoped-reads';
@@ -64,6 +65,7 @@ export class ScopedRowLoader {
 			unionPartners: new Map(),
 			parentChild: new Map(),
 			events: new Map(),
+			mediaObjects: new Map(),
 			mediaItems: new Map(),
 			mediaLinks: new Map(),
 			sources: new Map(),
@@ -289,6 +291,12 @@ export class ScopedRowLoader {
 				...[...maps.mediaLinks.values()].map(({ row }) => row.mediaId)
 			]);
 			if (mediaIds.length > 0) add('mediaItems', reads.mediaIn(treeId, mediaIds));
+			// The object of every file loaded, which is the file's own id until the backfill gives it one.
+			const objectIds = fresh(
+				'mediaObjectsIn',
+				[...maps.mediaItems.values()].map(({ row }) => objectIdOf(row))
+			);
+			if (objectIds.length > 0) add('mediaObjects', reads.mediaObjectsIn(treeId, objectIds));
 			const citationIds = fresh('citationsIn', rCitations);
 			if (citationIds.length > 0) add('citations', reads.citationsIn(treeId, citationIds));
 			const pulledSources = fresh('citationsOfSources', seed.sources);
@@ -442,6 +450,7 @@ export class ScopedRowLoader {
 			unionPartners: table('unionPartners'),
 			parentChild: table('parentChild'),
 			events: table('events'),
+			mediaObjects: table('mediaObjects'),
 			mediaItems: table('mediaItems'),
 			mediaLinks: table('mediaLinks'),
 			sources: table('sources'),

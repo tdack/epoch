@@ -365,6 +365,41 @@
       "when": 1793132837209,
       "tag": "0051_tree_date_format",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1793416997007,
+      "tag": "0052_import_job",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1793417448001,
+      "tag": "0053_upload_session",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1793478659716,
+      "tag": "0054_tree_submitter",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1793486687754,
+      "tag": "0055_media_records_expand",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1793502030769,
+      "tag": "0056_union_partner_gedcom_role",
+      "breakpoints": true
     }
   ]
 }

@@ -49,3 +49,6 @@ vite.config.ts.timestamp-*
 # Install manifest, logs and spike responses written by `npm run setup`
 /.epoch/
 docs/archive/
+
+# GEDCOM 7 conformance files are fetched, not committed (no upstream licence).
+/src/lib/server/gedcom/fixtures/conformance/files/

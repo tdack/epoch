@@ -14,9 +14,44 @@ export interface FileLinkDto {
 	href: string;
 }
 
+/** A further file of an object that has more than one, listed in the row's details. */
+export interface ExtraFileDto {
+	id: string;
+	title: string | null;
+	/** The row's version, sent back when the file is resolved. */
+	version: number;
+	mimeType: string;
+	sizeBytes: number | null;
+	isUnresolved: boolean;
+	/** The `FILE` text as written; shown as plain text, never fetched. */
+	gedcomPath: string | null;
+	/** As `FileRowDto.previewKey`: null when unresolved or when the caller may not preview. */
+	previewKey: string | null;
+}
+
+/** What the record a list was narrowed to says about an object: its pointer's title and place. */
+export interface HostLinkDto {
+	/** The `TITL` that overrides the file's title on this record; null when there is none. */
+	title: string | null;
+	/** The pointer's place among its siblings; null in the row means 0, read here as 0. */
+	sortOrder: number;
+}
+
 /** One file as the caller may see it. */
 export interface FileRowDto {
 	id: string;
+	/** The object (ADR-082) link, unlink and privacy ops name. Equals `id` for the first file until the contract migrations. */
+	objectId: string;
+	/** The object's version, sent back on link and unlink; the file's own `version` is for rename. */
+	objectVersion: number;
+	/** The file's bytes are not in Epoch: no preview, no download, no size. */
+	isUnresolved: boolean;
+	/** The `FILE` text as written, or null for a file uploaded in Epoch. Plain text; a link only when it is http(s). */
+	gedcomPath: string | null;
+	/** The object's other files, in order; the row stands for the first. Empty for the usual one-file object. */
+	extraFiles: ExtraFileDto[];
+	/** Set only when the list was narrowed to one record (`entityId`) and the object has a pointer from the record itself. */
+	hostLink: HostLinkDto | null;
 	title: string | null;
 	/** The row's version, sent back on rename, link and unlink so a stale edit is refused. */
 	version: number;

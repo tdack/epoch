@@ -99,6 +99,7 @@ export class OverviewService {
 			unionPartners,
 			parentChild,
 			events,
+			mediaObjects: [],
 			mediaItems: [],
 			mediaLinks: [],
 			sources: [],

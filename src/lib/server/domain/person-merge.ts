@@ -280,11 +280,14 @@ export function buildPersonMergeOps(
 		(e) => e.entityType === 'INDIVIDUAL' && e.entityId === survivor.id
 	);
 	const stated = new Map(survivorFacts.map((e) => [factKey(e), e.id] as const));
+	// Where a fact that is deleted here went, so the files pointed at it follow (as its citations do).
+	const factMoves = new Map<string, string | null>();
 	for (const fact of rows.events.filter(
 		(e) => e.entityType === 'INDIVIDUAL' && e.entityId === merged.id
 	)) {
 		if (stated.has(factKey(fact))) {
 			ops.push({ table: 'events', id: fact.id, before: fact, after: null });
+			factMoves.set(fact.id, stated.get(factKey(fact))!);
 			ops.push(
 				...citations.move(
 					{ kind: cited.EVENT, id: fact.id },
@@ -307,6 +310,7 @@ export function buildPersonMergeOps(
 				updatedAt: ctx.now
 			};
 			ops.push({ table: 'events', id: moved.id, before: null, after: moved });
+			factMoves.set(fact.id, moved.id);
 			ops.push(
 				...citations.move({ kind: cited.EVENT, id: fact.id }, { kind: cited.EVENT, id: moved.id })
 			);
@@ -372,7 +376,7 @@ export function buildPersonMergeOps(
 	);
 
 	// ---- Media ----
-	ops.push(...relinkFiles(rows, ctx, new Set([merged.id]), survivor.id));
+	ops.push(...relinkFiles(rows, ctx, new Set([merged.id]), survivor.id, factMoves));
 
 	// ---- Sub-trees rooted at the person folded away follow the survivor ----
 	ops.push(...subtreeRepointOps(rows, merged.id, survivor.id, ctx));

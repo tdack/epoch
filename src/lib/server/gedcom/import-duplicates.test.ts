@@ -74,14 +74,19 @@ describe('importing The Simpsons duplicate families.ged', () => {
 		});
 		const text = buildGedcom551String(await getTreeExportData(t.d1, treeId));
 
-		expect(text.match(/^0 @F_[0-9a-f]+@ FAM/gm)).toHaveLength(7);
+		// The file's lower-case xrefs are not legal in 7.0, so the families are renumbered; the aliases
+		// stay the merged-away copies' own names, which is what a re-import matches them by.
+		expect(text.match(/^0 @\S+@ FAM/gm)).toHaveLength(7);
 		expect(text).toContain('1 REFN F_ac5bd259\r\n2 TYPE epoch-merged-family');
 		const again = parseGedcom(text);
-		expect(again.families.find((f) => f.id === '@F_d9d0076c@')!.aliases).toEqual([
+		expect(again.families.flatMap((f) => f.aliases ?? []).sort()).toEqual([
 			'@F_ac5bd259@',
+			'@F_ba9969ea@',
 			'@F_d88ca04a@'
 		]);
-		expect(again.families.find((f) => f.id === '@F_87948dab@')!.aliases).toEqual(['@F_ba9969ea@']);
+		expect(again.families.find((f) => f.aliases?.includes('@F_ba9969ea@'))!.aliases).toEqual([
+			'@F_ba9969ea@'
+		]);
 	});
 });
 

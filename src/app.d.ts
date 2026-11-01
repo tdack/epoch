@@ -31,6 +31,7 @@ declare global {
 				DB: D1Database;
 				MEDIA_BUCKET: R2Bucket;
 				GEDCOM_IMPORT_QUEUE?: Queue<ImportQueueMessage>;
+				GEDCOM_IMPORT_WORKFLOW?: Workflow<ImportQueueMessage>;
 				GEDCOM_EXPORT_WORKFLOW?: Workflow<GedcomExportPayload>;
 				PLACE_MATCH_WORKFLOW?: Workflow<PlaceMatchPayload>;
 				/** The four below are absent in unit tests and bare previews; a missing one allows the request (ADR-066). */

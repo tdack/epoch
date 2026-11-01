@@ -203,3 +203,122 @@ describe('opsTouchPrivate on a file', () => {
 		expect(opsTouchPrivate([rename], rows, CUTOFF)).toBe(false);
 	});
 });
+
+describe('maskRows on objects (ADR-082)', () => {
+	/** Gran is visible, Liv is living; each object below hangs off one or both of them. */
+	function withObjects() {
+		const r = rows();
+		const objects = treeRows({
+			objects: [
+				{ id: 'plain' },
+				{ id: 'hushed', privacy: 'private' },
+				{ id: 'open', privacy: 'public' },
+				{ id: 'loose' }
+			],
+			media: [
+				{ id: 'plain', objectId: 'plain', linkedTo: ['gran'] },
+				{ id: 'plain-2', objectId: 'plain' },
+				{ id: 'hushed', objectId: 'hushed', linkedTo: ['gran'] },
+				{ id: 'open', objectId: 'open', linkedTo: ['liv'], factLinkedTo: [['gran', 'b-gran']] },
+				{ id: 'loose', objectId: 'loose' }
+			]
+		});
+		return {
+			...r,
+			mediaObjects: objects.mediaObjects,
+			mediaItems: objects.mediaItems,
+			mediaLinks: objects.mediaLinks
+		};
+	}
+	const seen = (snapshot: ReturnType<typeof withObjects>) => {
+		const out = maskRows(snapshot, CUTOFF, false).rows;
+		return {
+			objects: out.mediaObjects.map((o) => o.id),
+			files: out.mediaItems.map((m) => m.id),
+			links: out.mediaLinks.map((l) => l.id)
+		};
+	};
+
+	it('hides a private object from a restricted viewer even though its owner is visible', () => {
+		expect(seen(withObjects()).objects).not.toContain('hushed');
+		expect(seen(withObjects()).files).not.toContain('hushed');
+	});
+
+	it('does not let a public object past a private person', () => {
+		// "open" is public but one of its links is Liv, who is living.
+		expect(seen(withObjects()).objects).not.toContain('open');
+	});
+
+	it('shows a secondary file exactly when its object is shown', () => {
+		expect(seen(withObjects()).files).toEqual(expect.arrayContaining(['plain', 'plain-2']));
+	});
+
+	it('hides a detached object from a restricted viewer', () => {
+		expect(seen(withObjects()).objects).not.toContain('loose');
+		expect(seen(withObjects()).files).not.toContain('loose');
+	});
+
+	it('judges a fact link by the fact’s owner', () => {
+		const snapshot = withObjects();
+		// Take Liv away from "open"; its remaining link is a fact of Gran, who is visible.
+		snapshot.mediaLinks = snapshot.mediaLinks.filter((l) => l.id !== 'open:liv');
+		expect(seen(snapshot).objects).toContain('open');
+		// A fact link of the living person hides it.
+		snapshot.mediaLinks.push({
+			...snapshot.mediaLinks[0]!,
+			id: 'open:liv:b-liv',
+			mediaId: 'open',
+			entityId: 'liv',
+			factId: 'b-liv'
+		});
+		expect(seen(snapshot).objects).not.toContain('open');
+	});
+
+	it('hands a role that sees everyone every object', () => {
+		const snapshot = withObjects();
+		const all = maskForScope(snapshot, scopeOf({ isRestricted: false })).rows;
+		expect(all.mediaObjects).toHaveLength(snapshot.mediaObjects.length);
+	});
+});
+
+describe('opsTouchPrivate on an object', () => {
+	const build = () =>
+		treeRows({
+			people: [{ id: 'gran', givenName: 'Gran', surname: 'Old' }],
+			events: [
+				{ id: 'b-gran', entityId: 'gran', type: 'BIRT', dateRaw: '1850', dateSortEnd: '1850-12-31' }
+			],
+			objects: [{ id: 'plain' }, { id: 'hushed', privacy: 'private' }],
+			media: [
+				{ id: 'plain', objectId: 'plain', linkedTo: ['gran'] },
+				{ id: 'hushed', objectId: 'hushed', linkedTo: ['gran'] }
+			]
+		});
+
+	it('refuses an edit of a private object’s links, which a restricted viewer cannot see', () => {
+		const snapshot = build();
+		const link = snapshot.mediaLinks.find((l) => l.mediaId === 'hushed')!;
+		expect(opsTouchPrivate([rowOp('media_links', link.id, link, null)], snapshot, CUTOFF)).toBe(
+			true
+		);
+	});
+
+	it('refuses making an object private, and allows a plain edit of a plain one', () => {
+		const snapshot = build();
+		const plain = snapshot.mediaObjects.find((o) => o.id === 'plain')!;
+		expect(
+			opsTouchPrivate(
+				[rowOp('media_object', 'plain', plain, { ...plain, privacy: 'private' })],
+				snapshot,
+				CUTOFF
+			)
+		).toBe(true);
+		expect(
+			opsTouchPrivate(
+				[rowOp('media_object', 'plain', plain, { ...plain, version: 2 })],
+				snapshot,
+				CUTOFF
+			)
+		).toBe(false);
+	});
+});

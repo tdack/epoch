@@ -6,6 +6,7 @@ import type {
 } from '#lib/shared/api-contracts.js';
 import type { FocusGraphDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
 import type { DateFormat } from '#lib/shared/date-display.js';
+import type { TreeSubmitter } from '#lib/shared/tree-submitter.js';
 import { call, json, path } from './client.js';
 
 export async function createTreeApi(payload: {
@@ -27,7 +28,8 @@ export async function renameTreeApi(
 	slug: string | null,
 	version: number,
 	isOnSubdomain?: boolean,
-	dateFormat?: DateFormat
+	dateFormat?: DateFormat,
+	submitter?: TreeSubmitter
 ): Promise<RenameTreeResponse['tree']> {
 	return call<RenameTreeResponse>(
 		path`/api/trees/${treeId}`,
@@ -36,7 +38,8 @@ export async function renameTreeApi(
 			slug,
 			version,
 			...(isOnSubdomain !== undefined && { isOnSubdomain }),
-			...(dateFormat !== undefined && { dateFormat })
+			...(dateFormat !== undefined && { dateFormat }),
+			...(submitter !== undefined && { submitter })
 		}),
 		'Failed to rename tree'
 	).then((d) => d.tree);

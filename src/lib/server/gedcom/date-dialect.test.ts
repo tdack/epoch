@@ -17,9 +17,24 @@ describe('toGedcom7Date', () => {
 		['circa 1937', 'ABT 1937'],
 		['3 RD DECEMBER 1996', '3 DEC 1996'],
 		['29 JANUAY 1959', '29 JAN 1959'],
-		['JULIAN 1 JAN 1700', 'JULIAN 1 JAN 1700']
+		['JULIAN 1 JAN 1700', 'JULIAN 1 JAN 1700'],
+		// An extension calendar, month or epoch is the file's own word and stays in the DATE.
+		['_UNKNOWN 87', '_UNKNOWN 87'],
+		['FROM _UNKNOWN 21 _MONTH 77', 'FROM _UNKNOWN 21 _MONTH 77'],
+		[
+			'BET FRENCH_R 2 _JOUR 8 AND _CALENDRIER 4 COMP 8',
+			'BET FRENCH_R 2 _JOUR 8 AND _CALENDRIER 4 COMP 8'
+		],
+		['_CAL2 23 _MON2 88 _EP2', '_CAL2 23 _MON2 88 _EP2']
 	])('writes %s as %s', (stored, value) => {
 		expect(toGedcom7Date(stored)).toEqual({ value });
+	});
+
+	it('still writes a month a standard calendar does not have as a phrase', () => {
+		expect(toGedcom7Date('GREGORIAN 1 NOP 1900')).toEqual({
+			value: '',
+			phrase: 'GREGORIAN 1 NOP 1900'
+		});
 	});
 
 	it('writes a dual year as its later year, with the original as the phrase', () => {

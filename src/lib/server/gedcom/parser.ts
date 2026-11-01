@@ -3,13 +3,16 @@ import type { Sex } from '../../shared/sex';
 import { NAME_TYPES, type NameType } from '../domain/genealogy-model';
 import {
 	FAMILY_ALIAS_REFN_TYPE,
+	FAMC_CITATION_TAG,
 	PARENT_PEDIGREE_TAG,
 	PRIVACY_PUBLIC_TAG,
+	RESTRICTING_RESN_WORDS,
 	LEGACY_MARRIED_NAME_TAG,
 	NAME_CHANGE_NOTE,
 	SEX_X_TAG
 } from './tags';
 import { fromGedcom7Date } from './date-dialect';
+import { canonicalNameValue } from './name-value';
 import { buildGedcomTree, collectLines, type GedcomNode } from './node';
 import { extractFactDetails, type FactDetails } from './fact-details';
 import { LINE_BREAK, logicalText, normalizedNodeText } from './evidence-lines';
@@ -24,6 +27,16 @@ import {
 } from './evidence-parse';
 
 import {
+	embeddedContentKey,
+	linkTitleFor,
+	normalisedFilePath,
+	parseMediaBody,
+	parseMediaPointer,
+	parseMediaRecord,
+	type ParsedMediaLink,
+	type ParsedMediaObject
+} from './media-parse';
+import {
 	isNoteNode,
 	mergeNoteLinks,
 	parseNoteLink,
@@ -34,6 +47,7 @@ import {
 } from './note-parse';
 
 export type { ParsedCitation } from './evidence-parse';
+export type { ParsedMediaLink } from './media-parse';
 export { mergeCitations, mergeNoteLinks };
 
 /** The dialects an import reads. 5.5 is read as 5.5.1, of which it is very nearly a subset. */
@@ -55,10 +69,12 @@ interface ParsedFamcLink {
 	citations: ParsedCitation[];
 	/** The notes under this `FAMC`. */
 	notes: ParsedNoteLink[];
+	/** The `FAMC` and everything under it as the file wrote it, for a link the model cannot hold. */
+	raw: string[];
 }
 
-/** `RESN` words that mean "keep this person from viewers": they become the private override. */
-const RESTRICTING_RESN_WORDS = new Set(['privacy', 'confidential']);
+/** The 7.0 pointer to a record that is not in this file. */
+const VOID_POINTER = '@VOID@';
 
 /** One `NAME` record of an individual, in file order. The first is the primary name. */
 interface ParsedName {
@@ -77,6 +93,14 @@ interface ParsedName {
 	unionXref?: string;
 	/** That note's own line, kept so a family the file does not have leaves the note in place. */
 	changeNoteLine?: string;
+	/** The `NAME` payload as the file wrote it, when the parts do not rebuild it exactly (name-value.ts). */
+	rawValue?: string;
+	/** What the parts build on import; the raw payload is written back only while they still do. */
+	canonValue?: string;
+	/** The `NAME` had no `TYPE` and is not the first, so it reads as `aka` without ever saying so. */
+	isUntyped?: boolean;
+	/** The name was on the `NAME` line alone: no `GIVN`, `SURN`, `NPFX`, `NSFX` or `SPFX` beneath it. */
+	isLineOnly?: boolean;
 	/** Sub-structures with no column (NOTE, SOUR, FONE, ROMN, custom tags), verbatim, written back inside this NAME. */
 	extra: string[];
 	/** The `SOUR` citations under this `NAME`, in file order. */
@@ -102,12 +126,17 @@ interface ParsedIndividual {
 	citations: ParsedCitation[];
 	/** The notes on the person themself, in file order. */
 	notes: ParsedNoteLink[];
+	/** Pointers to media records on the person themself, in file order. */
+	mediaLinks?: ParsedMediaLink[];
 }
 
 export interface ParsedFamily {
 	id: string; // e.g. @F1@ or F1
+	/** The first `HUSB` and the first `WIFE`; `partners` is the whole list. */
 	husbandId?: string;
 	wifeId?: string;
+	/** Every resolved `HUSB` and `WIFE`, in the order the file listed them, with the role it used. */
+	partners: { personId: string; role: 'HUSB' | 'WIFE' }[];
 	children: {
 		childId: string;
 		pedigree?: Pedigree;
@@ -122,6 +151,8 @@ export interface ParsedFamily {
 	citations: ParsedCitation[];
 	/** The notes on the family record. */
 	notes: ParsedNoteLink[];
+	/** Pointers to media records on the family record, in file order. */
+	mediaLinks?: ParsedMediaLink[];
 	/** XREFs of families merged into this one, from `REFN` records typed `epoch-merged-family`. */
 	aliases?: string[];
 }
@@ -133,7 +164,7 @@ export interface ParsedEvent extends FactDetails {
 	dateSort?: string;
 	dateSortEnd?: string | null;
 	place?: string;
-	/** Pre-fact-field text (CAUS, NOTE or line value in one). Family events still use it. */
+	/** Pre-fact-field text (CAUS, NOTE or line value in one). Rows imported before a family event's payload was its `value` still hold it here. */
 	description?: string;
 	/** Individual events only: the text on the event's own line (`1 OCCU Carpenter`). */
 	value?: string;
@@ -149,7 +180,33 @@ export interface ParsedEvent extends FactDetails {
 	extra?: string[];
 	/** The `SOUR` citations under the event, in file order. */
 	citations?: ParsedCitation[];
+	/** Pointers to media records under the event, in file order. */
+	mediaLinks?: ParsedMediaLink[];
 }
+
+/** The submitter record a `HEAD.SUBM` names. */
+interface ParsedSubmitter {
+	name: string;
+	email?: string;
+	www?: string;
+	/** The whole record as the file wrote it. */
+	record: { xref: string | null; lines: string[] };
+	/**
+	 * Whether the setting holds all of it: the record has only a name, an email and a web address, and
+	 * nothing else in the file points at it. If not, the import keeps the record as well, so its
+	 * address, notes and the pointers to it are not lost.
+	 */
+	isPlain: boolean;
+}
+
+/**
+ * The owner of the header structures kept verbatim (`LANG`, `PLAC`, `SCHMA`). It has no `@`, so no
+ * record's XREF can be it.
+ */
+export const HEADER_OWNER = 'HEAD';
+
+/** The `HEAD` children Epoch cannot rebuild and so keeps as they were. `LANG` and `SCHMA` are 7.0 only. */
+const KEPT_HEADER_TAGS: ReadonlySet<string> = new Set(['LANG', 'PLAC', 'SCHMA']);
 
 export interface ParsedGedcomData {
 	version: GedcomVersion;
@@ -165,12 +222,31 @@ export interface ParsedGedcomData {
 	 * tree/header-level records).
 	 */
 	preserved: Array<{ xref: string | null; lines: string[] }>;
+	/**
+	 * The record `HEAD.SUBM` points at, read as the tree's submitter (ADR-075). It is not in
+	 * `preserved`: the import decides whether it fills the tree's setting, and keeps it as a root
+	 * record only when it does not, so it is never exported twice.
+	 */
+	submitter?: ParsedSubmitter;
+	/** The XREF `HEAD.SUBM` points at, so an import that keeps that record can keep the pointer too. */
+	headerSubmitterXref?: string;
 	/** Root `SOUR` records (ADR-028). Empty when the file is read with `isEvidenceModelled` off. */
 	sources: ParsedSource[];
 	/** Root `REPO` records. */
 	repositories: ParsedRepository[];
 	/** Root `NOTE`/`SNOTE` records (ADR-029). Empty when the file is read with `isNotesModelled` off. */
 	notes: ParsedSharedNote[];
+	/**
+	 * Media records (ADR-082): every `0 @x@ OBJE`, then each distinct embedded 5.5.1 `OBJE`. A
+	 * pointer under a person, family, source or fact names one by `key`.
+	 */
+	media: ParsedMediaObject[];
+	/**
+	 * Pointers the file makes to a record it does not have, kept as retained lines instead of links.
+	 * `void` is the 7.0 `@VOID@`, a legal pointer meaning "a record that is not in this file"; `absent`
+	 * names an XREF no record of the file carries, which is a broken file but not a reason to fail.
+	 */
+	unresolved: { void: number; absent: number };
 }
 
 export interface ParseOptions {
@@ -400,6 +476,8 @@ function parseNameType(
 
 const MODELLED_NAME_TAGS = new Set(['TYPE', 'NPFX', 'GIVN', 'NICK', 'SPFX', 'SURN', 'NSFX']);
 
+const NAME_PART_TAGS: ReadonlySet<string> = new Set(['GIVN', 'SURN', 'NPFX', 'NSFX', 'SPFX']);
+
 /**
  * Read one `NAME` record. The line's value supplies what the sub-tags do not; the sub-tags win.
  * A suffix on the line is kept in the given name when there is no `NSFX`, as it always was. An
@@ -440,16 +518,23 @@ function parseNameNode(
 	const change = changeNode ? NAME_CHANGE_NOTE.exec(changeNode.value!.trim()) : null;
 	// Epoch's own name-change note (ADR-013) is never a user's note; any other note is.
 	const { notes, others } = splitNotes(node.children, isNotesModelled, (c) => c === changeNode);
-	return {
-		...(typeNode
-			? parseNameType(typeNode.value, typeNode.children.find((c) => c.tag === 'PHRASE')?.value)
-			: { type: isPrimary ? NAME_TYPES.BIRTH : NAME_TYPES.AKA }),
+	const parts = {
 		givenName: sub('GIVN') ?? givenName,
 		surname: surn ?? surname,
 		prefix,
 		suffix: sub('NSFX') ?? undefined,
+		surnamePrefix: spfx
+	};
+	const canonValue = canonicalNameValue(parts);
+	return {
+		...(typeNode
+			? parseNameType(typeNode.value, typeNode.children.find((c) => c.tag === 'PHRASE')?.value)
+			: { type: isPrimary ? NAME_TYPES.BIRTH : NAME_TYPES.AKA }),
+		...parts,
 		nickname: sub('NICK'),
-		surnamePrefix: spfx,
+		...(value && value !== canonValue ? { rawValue: value, canonValue } : {}),
+		...(!typeNode && !isPrimary ? { isUntyped: true } : {}),
+		...(!node.children.some((c) => NAME_PART_TAGS.has(c.tag)) ? { isLineOnly: true } : {}),
 		...(change?.[1] ? { dateText: change[1] } : {}),
 		...(change?.[2] ? { unionXref: change[2] } : {}),
 		...(changeNode ? { changeNoteLine: changeNode.rawLine } : {}),
@@ -503,6 +588,86 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const preserved: ParsedGedcomData['preserved'] = [];
 	let treeName: string | undefined;
 	let fileTreeName: string | undefined;
+	let submitter: ParsedSubmitter | undefined;
+	const headSubmitterXref = rootNodes
+		.find((n) => n.tag === 'HEAD')
+		?.children.find((c) => c.tag === 'SUBM')
+		?.value?.trim();
+
+	// A link in the model needs both ends to be rows, so a pointer is only followed when the file has the
+	// record. Anything else (`@VOID@`, a record that was never there) is kept as the line it was.
+	const personXrefs = new Set(
+		rootNodes.filter((n) => n.tag === 'INDI' && n.xref).map((n) => n.xref)
+	);
+	const familyXrefs = new Set(
+		rootNodes.filter((n) => n.tag === 'FAM' && n.xref).map((n) => n.xref)
+	);
+	/** The retained lines of a `FAMC` link's extras, so a link the model cannot hold can swap in the whole block. */
+	const keptFamcExtras = new Map<ParsedFamcLink, { xref: string | null; lines: string[] }>();
+	const unresolved = { void: 0, absent: 0 };
+	/** Whether `pointer` names a record in `known`; if not, counts it for the report. */
+	const isResolved = (pointer: string, known: Set<string | undefined>) => {
+		if (known.has(pointer)) return true;
+		unresolved[pointer === VOID_POINTER ? 'void' : 'absent']++;
+		return false;
+	};
+
+	// Media records are read first, so a pointer can tell a record of the file from a missing one.
+	const media: ParsedMediaObject[] = [];
+	const mediaRecords = new Map<string, ParsedMediaObject>();
+	const mediaRecordNodes = new Set<GedcomNode>();
+	for (const node of rootNodes) {
+		if (node.tag !== 'OBJE' || !node.xref || mediaRecords.has(node.xref)) continue;
+		const record = parseMediaRecord(node);
+		mediaRecords.set(node.xref, record);
+		mediaRecordNodes.add(node);
+		media.push(record);
+	}
+	/** Embedded copies by their first path, with what else they say, so a repeat joins the first. */
+	const embeddedByPath = new Map<string, { object: ParsedMediaObject; content: string }>();
+	/** Which object each host and fact has a pointer to already; a second one stays a kept line. */
+	const pointedAt = new Set<string>();
+	/**
+	 * The link a pointer or an embedded `OBJE` under `scope` (a host, or a fact of it) becomes, or
+	 * null when it stays a retained line: it names a record the file lacks, or `@VOID@`, or this
+	 * scope has a link to that object already (ADR-082).
+	 */
+	const mediaLinkOf = (node: GedcomNode, scope: string): ParsedMediaLink | null => {
+		if (node.tag !== 'OBJE') return null;
+		const pointer = node.rawValue?.trim();
+		let link: ParsedMediaLink;
+		if (pointer) {
+			const record = mediaRecords.get(pointer);
+			if (node.isAtEscaped || !record || pointedAt.has(`${scope}|${record.key}`)) return null;
+			link = parseMediaPointer(node, record.key);
+		} else {
+			if (node.children.length === 0) return null;
+			const body = parseMediaBody(node);
+			const first = body.files[0];
+			const content = embeddedContentKey(body);
+			const known = first ? embeddedByPath.get(normalisedFilePath(first.path)) : undefined;
+			let object: ParsedMediaObject;
+			if (known && known.content === content) {
+				object = known.object;
+			} else {
+				object = { key: `embedded:${media.length}`, ...body };
+				media.push(object);
+				if (first) embeddedByPath.set(normalisedFilePath(first.path), { object, content });
+			}
+			if (pointedAt.has(`${scope}|${object.key}`)) return null;
+			const title = linkTitleFor(first?.title, object);
+			link = { objectKey: object.key, ...(title !== undefined ? { title } : {}), extra: [] };
+		}
+		pointedAt.add(`${scope}|${link.objectKey}`);
+		return link;
+	};
+	/** The nodes left after the media pointers among them are taken into `into`. */
+	const takeMediaLinks = (nodes: GedcomNode[], scope: string, into: ParsedMediaLink[]) =>
+		nodes.filter((n) => {
+			const link = mediaLinkOf(n, scope);
+			if (link) into.push(link);
+			return !link;
+		});
 
 	/** The citations among these nodes, or none when the file is read the retained way. */
 	const citationsOf = (nodes: GedcomNode[]) =>
@@ -516,11 +681,17 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const fileNode = node.children.find((c) => c.tag === 'FILE');
 			if (fileNode?.value) fileTreeName = fileNode.value.trim();
 			treeName = headTreeName(node);
+			for (const child of node.children) {
+				if (!KEPT_HEADER_TAGS.has(child.tag)) continue;
+				if (version !== '7.0' && (child.tag === 'LANG' || child.tag === 'SCHMA')) continue;
+				preserved.push({ xref: HEADER_OWNER, lines: collectLines(child) });
+			}
 		} else if (node.tag === 'INDI') {
 			const id = node.xref || crypto.randomUUID();
 			const names: ParsedName[] = [];
 			const legacyMarried: string[] = [];
-			let sex: Sex = 'U';
+			// Absent until a SEX line is read: a person the file gave none stays without one on export.
+			let sex: Sex | undefined;
 			let isSexXFallback = false;
 			let privacy: 'private' | 'public' | undefined;
 			const famc: string[] = [];
@@ -529,6 +700,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const events: ParsedEvent[] = [];
 			const citations: ParsedCitation[] = [];
 			const notes: ParsedNoteLink[] = [];
+			const personMedia: ParsedMediaLink[] = [];
 
 			for (const child of node.children) {
 				if (child.tag === 'NAME') {
@@ -553,25 +725,35 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					child.tag === 'RESN' &&
 					child.value?.split(',').some((w) => RESTRICTING_RESN_WORDS.has(w.trim().toLowerCase()))
 				) {
-					// The restriction becomes the override, so there is one source of truth. A `LOCKED` beside it
-					// has no meaning to Epoch and is kept under its own `RESN` line.
+					// The restriction becomes the override, so there is one source of truth. The whole list is
+					// kept (`CONFIDENTIAL, LOCKED`): export writes it back as one line, and uses its
+					// restricting word only while the person is still private.
 					privacy = 'private';
-					const rest = child.value
-						.split(',')
-						.map((w) => w.trim())
-						.filter((w) => w && !RESTRICTING_RESN_WORDS.has(w.toLowerCase()));
-					if (rest.length > 0)
-						preserved.push({ xref: id, lines: [`${child.level} RESN ${rest.join(', ')}`] });
+					// A bare `privacy` is exactly what the override writes, so it needs no line of its own.
+					if (child.value.trim().toUpperCase() !== 'PRIVACY')
+						preserved.push({ xref: id, lines: [`${child.level} RESN ${child.value.trim()}`] });
 				} else if (
 					child.tag === PRIVACY_PUBLIC_TAG &&
 					child.value?.trim().toLowerCase() === 'public'
 				) {
 					privacy = 'public';
+				} else if (
+					(child.tag === 'FAMC' || child.tag === 'FAMS') &&
+					child.value &&
+					!isResolved(child.value.trim(), familyXrefs)
+				) {
+					// Family links are rebuilt from the families on export, so a link to no family of the
+					// file would vanish with its PEDI, STAT, NOTE and the rest. It stays as the line it was.
+					preserved.push({ xref: id, lines: collectLines(child) });
 				} else if (child.tag === 'FAMC' && child.value) {
 					const familyId = child.value.trim();
 					famc.push(familyId);
 					const parentPedigrees: Record<string, Pedigree> = {};
-					for (const sub of child.children) {
+					// A 7.0 export writes a citation here as `_SOUR`, which 7.0 has no `SOUR` for.
+					const famcSubs = child.children.map((sub) =>
+						sub.tag === FAMC_CITATION_TAG ? { ...sub, tag: 'SOUR' } : sub
+					);
+					for (const sub of famcSubs) {
 						const parentPedigree =
 							sub.tag === PARENT_PEDIGREE_TAG && sub.value
 								? parsePedigree(sub.children.find((c) => c.tag === 'PEDI')?.value)
@@ -580,25 +762,30 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					}
 					// STAT, NOTE and the like under FAMC have no model. Keep them, headed by their FAMC line,
 					// so export writes them back under the same link (ADR-009).
-					const { notes: linkNotes, others: linkOthers } = splitNotes(
-						child.children,
-						isNotesModelled
-					);
+					const { notes: linkNotes, others: linkOthers } = splitNotes(famcSubs, isNotesModelled);
 					const extras = linkOthers.filter(
 						(sub) => sub.tag !== 'PEDI' && sub.tag !== PARENT_PEDIGREE_TAG && !isCitation(sub)
 					);
-					if (extras.length > 0)
-						preserved.push({ xref: id, lines: [child.rawLine, ...extras.flatMap(collectLines)] });
-					famcLinks.push({
+					const kept =
+						extras.length > 0
+							? { xref: id, lines: [child.rawLine, ...extras.flatMap(collectLines)] }
+							: null;
+					if (kept) preserved.push(kept);
+					const link: ParsedFamcLink = {
 						familyId,
 						pedigree: parsePedigree(child.children.find((c) => c.tag === 'PEDI')?.value),
 						...(Object.keys(parentPedigrees).length > 0 ? { parentPedigrees } : {}),
-						citations: citationsOf(child.children),
-						notes: linkNotes
-					});
+						citations: citationsOf(famcSubs),
+						notes: linkNotes,
+						raw: collectLines(child)
+					};
+					famcLinks.push(link);
+					if (kept) keptFamcExtras.set(link, kept);
 				} else if (child.tag === 'FAMS' && child.value) {
 					fams.push(child.value.trim());
 				} else if (INDIVIDUAL_EVENT_TAGS.has(child.tag)) {
+					const factMedia: ParsedMediaLink[] = [];
+					child.children = takeMediaLinks(child.children, `${id}#${events.length}`, factMedia);
 					const dateNode = child.children.find((c) => c.tag === 'DATE');
 					const placNode = child.children.find((c) => c.tag === 'PLAC');
 					const textOf = (tag: string) =>
@@ -662,12 +849,15 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
 						...(details ? details.details : {}),
-						citations: citationsOf(child.children)
+						citations: citationsOf(child.children),
+						...(factMedia.length > 0 ? { mediaLinks: factMedia } : {})
 					});
 				} else if (isCitation(child)) {
 					citations.push(parseCitation(child, isNotesModelled));
 				} else if (isNotesModelled && isNoteNode(child) && parseNoteLink(child)) {
 					notes.push(parseNoteLink(child)!);
+				} else if (takeMediaLinks([child], id, personMedia).length === 0) {
+					// A pointer to a media record of the file is a link, not a kept line.
 				} else {
 					// Preserve unmodeled individual-level structures (CHAN, NOTE, OBJE, REFN, ASSO, custom
 					// tags, etc.) verbatim. A citation is one only while evidence is read the retained way.
@@ -683,31 +873,59 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				surname: names[0]?.surname,
 				names,
 				// A 5.5.1 export cannot say X, so it writes U and `_EPOCH_SEX X`; put the X back.
-				sex: sex === 'U' && isSexXFallback ? 'X' : sex,
+				sex: (sex === 'U' || sex === undefined) && isSexXFallback ? 'X' : sex,
 				...(privacy ? { privacy } : {}),
 				famc,
 				famcLinks,
 				fams,
 				events,
 				citations,
-				notes
+				notes,
+				...(personMedia.length > 0 ? { mediaLinks: personMedia } : {})
 			});
 		} else if (node.tag === 'FAM') {
 			const id = node.xref || crypto.randomUUID();
 			let husbandId: string | undefined;
 			let wifeId: string | undefined;
+			const partners: ParsedFamily['partners'] = [];
 			const children: ParsedFamily['children'] = [];
 			const aliases: string[] = [];
 			const events: ParsedEvent[] = [];
 			const citations: ParsedCitation[] = [];
 			const notes: ParsedNoteLink[] = [];
+			const familyMedia: ParsedMediaLink[] = [];
+			// What hangs under a partner or child link (`PHRASE`, a custom tag) has no column. It is kept
+			// headed by its own line, as a `FAMC`'s is, and written back inside the same link.
+			const linkLines: { key: string; lines: string[] }[] = [];
+			const keepLinkLines = (link: GedcomNode) => {
+				const subs = link.children.filter((c) => !(link.tag === 'CHIL' && c.tag === 'PEDI'));
+				if (subs.length > 0)
+					linkLines.push({
+						key: `${link.tag} ${link.value!.trim()}`,
+						lines: [link.rawLine, ...subs.flatMap(collectLines)]
+					});
+			};
 
 			for (const child of node.children) {
-				if (child.tag === 'HUSB' && child.value) {
-					husbandId = child.value.trim();
+				if (
+					(child.tag === 'HUSB' || child.tag === 'WIFE' || child.tag === 'CHIL') &&
+					child.value &&
+					!isResolved(child.value.trim(), personXrefs)
+				) {
+					// A partner or child who is not a person of this file cannot be a row; the line, with its
+					// PHRASE or any other sub-line, is written back as it came.
+					preserved.push({ xref: id, lines: collectLines(child) });
+				} else if (child.tag === 'HUSB' && child.value) {
+					// A same-sex family may carry two `HUSB`; the first stays the one `husbandId` names.
+					husbandId ??= child.value.trim();
+					partners.push({ personId: child.value.trim(), role: 'HUSB' });
+					keepLinkLines(child);
 				} else if (child.tag === 'WIFE' && child.value) {
-					wifeId = child.value.trim();
+					wifeId ??= child.value.trim();
+					partners.push({ personId: child.value.trim(), role: 'WIFE' });
+					keepLinkLines(child);
 				} else if (child.tag === 'CHIL' && child.value) {
+					keepLinkLines(child);
 					// `PEDI` under `CHIL` is not standard; files Epoch used to export carry it there, so it is
 					// still read, but the child's own `FAMC` takes precedence below.
 					const pedigree =
@@ -721,6 +939,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					const alias = child.value.trim();
 					aliases.push(alias.startsWith('@') ? alias : `@${alias}@`);
 				} else if (FAMILY_EVENT_TAGS.has(child.tag)) {
+					const factMedia: ParsedMediaLink[] = [];
+					child.children = takeMediaLinks(child.children, `${id}#${events.length}`, factMedia);
 					const dateNode = child.children.find((c) => c.tag === 'DATE');
 					const placNode = child.children.find((c) => c.tag === 'PLAC');
 					const { raw, sort, sortEnd } = normalizeGedcomDate(dateTextOf(dateNode, version));
@@ -740,42 +960,83 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						dateSort: sort,
 						dateSortEnd: sortEnd,
 						place: placNode?.value?.trim(),
-						description: child.value?.trim(),
+						// The payload (`Y`, or text in 5.5.1) is the fact's own value, written back as the payload
+						// and not as a note.
+						value: child.value?.trim() || undefined,
 						...(areFactDetailsModelled
 							? subLinesOf('dateExtra', dateNode, version === '7.0' ? 'PHRASE' : undefined)
 							: {}),
 						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
 						...(details ? details.details : {}),
-						citations: citationsOf(child.children)
+						citations: citationsOf(child.children),
+						...(factMedia.length > 0 ? { mediaLinks: factMedia } : {})
 					});
 				} else if (isCitation(child)) {
 					citations.push(parseCitation(child, isNotesModelled));
 				} else if (isNotesModelled && isNoteNode(child) && parseNoteLink(child)) {
 					notes.push(parseNoteLink(child)!);
+				} else if (takeMediaLinks([child], id, familyMedia).length === 0) {
+					// A pointer to a media record of the file is a link, not a kept line.
 				} else {
 					// Preserve unmodeled family-level structures verbatim.
 					preserved.push({ xref: id, lines: collectLines(child) });
 				}
 			}
 
+			// A child is held by a link to a parent, so a family with no partner has nowhere to keep one.
+			// The CHIL lines stay as written rather than the children vanishing from the family.
+			if (partners.length === 0 && children.length > 0) {
+				for (const child of children.splice(0)) {
+					const kept = linkLines.find((l) => l.key === `CHIL ${child.childId}`);
+					preserved.push({ xref: id, lines: kept?.lines ?? [`1 CHIL ${child.childId}`] });
+				}
+			} else {
+				for (const link of linkLines) preserved.push({ xref: id, lines: link.lines });
+			}
+
 			families.push({
 				id,
 				husbandId,
 				wifeId,
+				partners,
 				children,
 				events,
 				citations,
 				notes,
+				...(familyMedia.length > 0 ? { mediaLinks: familyMedia } : {}),
 				...(aliases.length > 0 ? { aliases } : {})
 			});
 		} else if (isEvidenceModelled && node.tag === 'SOUR' && node.xref) {
-			sources.push(parseSourceRecord(node, isNotesModelled));
+			const sourceMedia: ParsedMediaLink[] = [];
+			const kept = takeMediaLinks(node.children, node.xref, sourceMedia);
+			sources.push({
+				...parseSourceRecord({ ...node, children: kept }, isNotesModelled),
+				...(sourceMedia.length > 0 ? { mediaLinks: sourceMedia } : {})
+			});
 		} else if (isEvidenceModelled && node.tag === 'REPO' && node.xref) {
 			repositories.push(parseRepositoryRecord(node, isNotesModelled));
 		} else if (isNotesModelled && isNoteNode(node) && node.xref) {
 			sharedNotes.push(parseNoteRecord(node));
-		} else if (node.tag !== 'TRLR') {
+		} else if (
+			node.tag === 'SUBM' &&
+			node.xref &&
+			node.xref === headSubmitterXref &&
+			!submitter &&
+			node.children.find((c) => c.tag === 'NAME')?.value?.trim()
+		) {
+			const text = (tag: string) => node.children.find((c) => c.tag === tag)?.value?.trim();
+			submitter = {
+				name: text('NAME')!,
+				...(text('EMAIL') ? { email: text('EMAIL') } : {}),
+				...(text('WWW') ? { www: text('WWW') } : {}),
+				record: { xref: node.xref, lines: collectLines(node) },
+				isPlain:
+					node.children.every(
+						(c) => ['NAME', 'EMAIL', 'WWW'].includes(c.tag) && c.children.length === 0
+					) && rawContent.split(node.xref).length - 1 === 2
+			};
+		} else if (node.tag !== 'TRLR' && !mediaRecordNodes.has(node)) {
 			// Preserve unrecognized root-level records (NOTE, SUBM, OBJE, custom records) so they are
 			// retained for export. A root SOUR or REPO without an XREF cannot be pointed at, so it stays too.
 			preserved.push({ xref: node.xref ?? null, lines: collectLines(node) });
@@ -786,35 +1047,30 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const linkOf = new Map<string, ParsedFamcLink>();
 	for (const ind of individuals)
 		for (const link of ind.famcLinks ?? []) linkOf.set(`${ind.id}|${link.familyId}`, link);
-	const attached = new Set<ParsedFamcLink>();
 	for (const fam of families) {
 		for (const child of fam.children) {
 			const link = linkOf.get(`${child.childId}|${fam.id}`);
 			if (link?.pedigree) child.pedigree = link.pedigree;
 			if (link?.parentPedigrees) child.parentPedigrees = link.parentPedigrees;
-			if (link && link.citations.length > 0) {
-				child.citations = link.citations;
-				attached.add(link);
-			}
-			if (link && link.notes.length > 0) {
-				child.notes = link.notes;
-				attached.add(link);
-			}
+			if (link && link.citations.length > 0) child.citations = link.citations;
+			if (link && link.notes.length > 0) child.notes = link.notes;
 		}
 	}
-	// A `FAMC` whose family does not list the child has nowhere to hang its citations in the model.
-	// They stay under the link as retained lines, as a link's other extras always have (ADR-009).
+	// A link is held by a family that has a partner and lists the child. Any other `FAMC` (to a family
+	// with no partner, whose children stay as `CHIL` lines, or to one that does not list the child)
+	// has nowhere to keep its pedigree, citations and notes, so the whole block stays as the file
+	// wrote it, under the person (ADR-009). Its extras, retained as it was read, are the same lines.
+	const holdsChildren = new Map(
+		families
+			.filter((f) => f.partners.length > 0)
+			.map((f) => [f.id, new Set(f.children.map((c) => c.childId))] as const)
+	);
 	for (const ind of individuals) {
 		for (const link of ind.famcLinks ?? []) {
-			if ((link.citations.length === 0 && link.notes.length === 0) || attached.has(link)) continue;
-			preserved.push({
-				xref: ind.id,
-				lines: [
-					`1 FAMC ${link.familyId}`,
-					...link.citations.flatMap((c) => c.raw),
-					...link.notes.flatMap((n) => n.raw)
-				]
-			});
+			if (holdsChildren.get(link.familyId)?.has(ind.id)) continue;
+			const entry = keptFamcExtras.get(link);
+			if (entry) entry.lines = link.raw;
+			else preserved.push({ xref: ind.id, lines: link.raw });
 		}
 	}
 
@@ -825,8 +1081,12 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 		treeName,
 		fileTreeName,
 		preserved,
+		...(submitter ? { submitter } : {}),
+		...(headSubmitterXref ? { headerSubmitterXref: headSubmitterXref } : {}),
 		sources,
 		repositories,
-		notes: sharedNotes
+		notes: sharedNotes,
+		media,
+		unresolved
 	};
 }

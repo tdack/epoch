@@ -265,3 +265,24 @@ describe('media ownership in the serve path', () => {
 		expect(response.status).toBe(404);
 	});
 });
+
+describe('an unresolved file (ADR-082)', () => {
+	it('answers 404 for its placeholder key, whoever asks and whatever the bucket holds', async () => {
+		const id = crypto.randomUUID();
+		const key = `unresolved/${id}`;
+		await t.db.insert(mediaItems).values({
+			id,
+			treeId,
+			r2ObjectKey: key,
+			status: 'unresolved',
+			gedcomPath: 'a.jpg',
+			mimeType: 'image/jpeg'
+		});
+		await t.db
+			.insert(mediaLinks)
+			.values({ id: mediaLinkId(id, personId), treeId, mediaId: id, entityId: personId });
+		rowedKeys.add(key);
+		const response = await fetchMedia(key, PNG_OBJECT, { actor: owner });
+		expect(response.status).toBe(404);
+	});
+});

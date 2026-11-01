@@ -23,7 +23,8 @@ import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import {
 	getTreeExportData,
 	importGedcomAsRetainedNotes,
-	importGedcomToDb
+	importGedcomToDb,
+	withoutStamps
 } from '../testing/gedcom';
 import {
 	NOTE_BACKFILL_QUERIES,
@@ -42,7 +43,7 @@ afterAll(async () => {
 
 const lines = (text: string) => text.replace(/\r\n/g, '\n').split('\n').filter(Boolean);
 const withoutHeader = (all: string[]) =>
-	all.slice(all.findIndex((line, i) => i > 0 && line.startsWith('0 ')));
+	withoutStamps(all.slice(all.findIndex((line, i) => i > 0 && line.startsWith('0 '))));
 const exportOf = async (treeId: string, format: '551' | '7') => {
 	const data = await getTreeExportData(t.d1, treeId);
 	return withoutHeader(

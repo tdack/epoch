@@ -59,29 +59,22 @@ export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
 	const env = event.platform?.env;
 	const outcome = await new GedcomService(db, {
 		bucket: env?.MEDIA_BUCKET,
-		queue: env?.GEDCOM_IMPORT_QUEUE
+		importWorkflow: env?.GEDCOM_IMPORT_WORKFLOW
 	}).importFile(
 		{
 			treeId: formText(formData, 'treeId'),
 			treeName: formText(formData, 'treeName'),
 			fileName: file.name,
 			text,
-			// A .gdz is compressed, so its file size understates the import; the text decides the queue.
+			// A .gdz is compressed, so its file size understates the import; the text decides whether it is a workflow.
 			sizeBytes: Math.max(file.size, text.length),
 			mode: formText(formData, 'mode') === 'merge' ? 'merge' : 'replace',
 			shouldMergeDuplicateFamilies: formData.get('mergeDuplicates') === 'true'
 		},
 		ctx
 	);
-	if (outcome.status === 'queued') {
-		return Response.json(
-			{
-				...outcome,
-				message: 'Large GEDCOM file queued for asynchronous background processing'
-			},
-			{ status: 202 }
-		);
-	}
+	// Not `message`: the client polls the job at /api/import/<jobId> rather than showing this text.
+	if (outcome.status === 'queued') return Response.json(outcome, { status: 202 });
 	return outcome;
 });
 

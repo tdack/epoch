@@ -141,6 +141,7 @@ export async function loadKinWindow(
 				(l) => existing.has(l.parentId) && existing.has(l.childId)
 			),
 			events: rowsOf<EventRow>(events),
+			mediaObjects: [],
 			mediaItems: [],
 			mediaLinks: [],
 			sources: [],

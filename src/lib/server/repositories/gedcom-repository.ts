@@ -12,6 +12,9 @@ import {
 	events,
 	gedcomPreserved,
 	individuals,
+	mediaItems,
+	mediaLinks,
+	mediaObjects,
 	noteAttachments,
 	notes,
 	parentChild,
@@ -36,7 +39,12 @@ import {
 	type PreviewRows
 } from '../gedcom/import-preview';
 import { factDetailColumns } from '../gedcom/fact-details';
-import type { ParsedCitation, ParsedGedcomData } from '../gedcom/parser';
+import {
+	HEADER_OWNER,
+	type ParsedCitation,
+	type ParsedGedcomData,
+	type ParsedMediaLink
+} from '../gedcom/parser';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import {
 	importCitations,
@@ -52,6 +60,7 @@ import {
 } from './gedcom-note-writer';
 import type { ParsedNoteLink } from '../gedcom/note-parse';
 import { importNeutralModel } from './gedcom-neutral-writer';
+import { importMedia, type MediaTarget } from './gedcom-media-writer';
 import { chunkByParamLimit } from './param-chunks';
 import { pointFactsAtPlaces, seedLocationsFromFacts } from './place-repository';
 import type { ImportBatch } from './import-batch';
@@ -147,13 +156,19 @@ export class GedcomRepository {
 
 	/** What an import preview compares the file against. */
 	async previewRows(treeId: string): Promise<PreviewRows> {
-		const [individualRows, unionRows, links, eventRows] = await Promise.all([
+		const [individualRows, unionRows, links, eventRows, linkedMedia] = await Promise.all([
 			this.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
 			this.db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
 			this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
-			this.db.select().from(events).where(eq(events.treeId, treeId)).all()
+			this.db.select().from(events).where(eq(events.treeId, treeId)).all(),
+			this.db
+				.select({ count: sql<number>`count(distinct ${mediaLinks.mediaId})` })
+				.from(mediaLinks)
+				.where(eq(mediaLinks.treeId, treeId))
+				.get()
 		]);
 		return {
+			linkedMediaObjectCount: linkedMedia?.count ?? 0,
 			individuals: individualRows,
 			unions: unionRows,
 			parentChild: links,
@@ -172,13 +187,48 @@ export class GedcomRepository {
 	async writeImport({
 		treeId,
 		treeName,
-		parsed,
+		parsed: file,
 		mode,
 		isExistingTree
 	}: ImportWrite): Promise<ImportWritten> {
 		const db = this.db;
-		const batch: ImportBatch = { writes: [], isTreeEmpty: !isExistingTree || mode === 'replace' };
+		const batch: ImportBatch = {
+			writes: [],
+			isTreeEmpty: !isExistingTree || mode === 'replace',
+			isNewTree: !isExistingTree
+		};
 		const { writes } = batch;
+		// The submitter the header names becomes the tree's setting when it has none (ADR-075). Then the
+		// record is not kept, or an export would write it twice; otherwise it stays a root record
+		// unless it says what the setting already says.
+		let parsed = file;
+		let fill: { name: string; email: string | null; www: string | null } | null = null;
+		if (file.submitter) {
+			const { record, ...incoming } = file.submitter;
+			const current = isExistingTree
+				? await db.select().from(trees).where(eq(trees.id, treeId)).get()
+				: undefined;
+			const isUnset = !current?.submitterName && !current?.submitterEmail && !current?.submitterWww;
+			const isSame =
+				current?.submitterName === incoming.name &&
+				(current.submitterEmail ?? undefined) === incoming.email &&
+				(current.submitterWww ?? undefined) === incoming.www;
+			if (isUnset)
+				fill = { name: incoming.name, email: incoming.email ?? null, www: incoming.www ?? null };
+			if (!incoming.isPlain || !(isUnset || isSame))
+				parsed = { ...file, preserved: [...file.preserved, record] };
+		}
+		// A header that points at a record this import keeps keeps the pointer, so export points `HEAD.SUBM`
+		// at that record and does not write a second one beside it (until the setting is edited).
+		const keptSubmitter = parsed.headerSubmitterXref;
+		if (
+			keptSubmitter &&
+			parsed.preserved.some((p) => p.xref === keptSubmitter && p.lines[0]?.startsWith('0 '))
+		)
+			parsed = {
+				...parsed,
+				preserved: [...parsed.preserved, { xref: HEADER_OWNER, lines: [`1 SUBM ${keptSubmitter}`] }]
+			};
 		if (!isExistingTree) {
 			const name = treeName || parsed.treeName || 'Imported Tree';
 			writes.push(
@@ -188,11 +238,30 @@ export class GedcomRepository {
 					position: await nextTreePosition(db),
 					name,
 					description: `Imported with ${parsed.individuals.length} individuals and ${parsed.families.length} families`,
+					...(fill && {
+						submitterName: fill.name,
+						submitterEmail: fill.email,
+						submitterWww: fill.www
+					}),
 					createdAt: new Date(),
 					updatedAt: new Date()
 				})
 			);
-		} else if (mode === 'replace') {
+		} else if (fill) {
+			writes.push(
+				db
+					.update(trees)
+					.set({
+						submitterName: fill.name,
+						submitterEmail: fill.email,
+						submitterWww: fill.www,
+						version: sql`${trees.version} + 1`,
+						updatedAt: new Date()
+					})
+					.where(eq(trees.id, treeId))
+			);
+		}
+		if (isExistingTree && mode === 'replace') {
 			// Wipe all existing tree data, in the same batch as the writes that follow. Notes first, then citations: attachments point
 			// at shared notes and citations at sources, and the links between sources and repositories go
 			// with their source.
@@ -205,6 +274,10 @@ export class GedcomRepository {
 					.set({ linkClearedKind: 'event', subjectKind: null, subjectId: null })
 					.where(and(eq(researchTasks.treeId, treeId), eq(researchTasks.subjectKind, 'event')))
 			);
+			// Only the links go, because their hosts do. The objects and their files stay with their
+			// bytes, so photos someone uploaded survive a replace; the import relinks the ones the file
+			// names, and the rest are unlinked files the owner can link again or delete (ADR-082).
+			writes.push(db.delete(mediaLinks).where(eq(mediaLinks.treeId, treeId)));
 			writes.push(db.delete(noteAttachments).where(eq(noteAttachments.treeId, treeId)));
 			writes.push(db.delete(notes).where(eq(notes.treeId, treeId)));
 			writes.push(db.delete(citations).where(eq(citations.treeId, treeId)));
@@ -232,7 +305,8 @@ export class GedcomRepository {
 			xrefId: ind.id,
 			givenName: ind.givenName || null,
 			surname: ind.surname || null,
-			sex: ind.sex || 'U',
+			// No SEX line is stored as none, not as U, so the export does not invent one.
+			sex: ind.sex ?? null,
 			privacy: ind.privacy ?? ('auto' as const),
 			createdAt: new Date()
 		}));
@@ -263,12 +337,15 @@ export class GedcomRepository {
 		// What each new event cites, by the id it is about to be given.
 		const eventCitations = new Map<string, ParsedCitation[]>();
 		const eventNotes = new Map<string, ParsedNoteLink[]>();
+		const mediaTargets: MediaTarget[] = [];
+		const eventMedia = new Map<string, ParsedMediaLink[]>();
 		for (const ind of parsed.individuals) {
 			const scopedIndId = treeScopedId(treeId, ind.id);
 			for (const ev of ind.events) {
 				const id = crypto.randomUUID();
 				eventCitations.set(id, ev.citations ?? []);
 				eventNotes.set(id, ev.noteLinks ?? []);
+				eventMedia.set(id, ev.mediaLinks ?? []);
 				eventValues.push({
 					id,
 					treeId,
@@ -295,6 +372,7 @@ export class GedcomRepository {
 				const id = crypto.randomUUID();
 				eventCitations.set(id, ev.citations ?? []);
 				eventNotes.set(id, ev.noteLinks ?? []);
+				eventMedia.set(id, ev.mediaLinks ?? []);
 				eventValues.push({
 					id,
 					treeId,
@@ -305,7 +383,7 @@ export class GedcomRepository {
 					...dateColumnsFor(ev.dateRaw),
 					place: ev.place || null,
 					description: ev.description || null,
-					value: null,
+					value: ev.value || null,
 					cause: null,
 					age: null,
 					notes: null,
@@ -335,6 +413,11 @@ export class GedcomRepository {
 						citations: eventCitations.get(ev.id!) ?? [],
 						notes: eventNotes.get(ev.id!) ?? []
 					});
+					mediaTargets.push({
+						entityId: ev.entityId!,
+						factId: sameFactId,
+						links: eventMedia.get(ev.id!) ?? []
+					});
 					continue;
 				}
 				idByKey.set(key, ev.id!);
@@ -349,6 +432,11 @@ export class GedcomRepository {
 				id: ev.id!,
 				citations: eventCitations.get(ev.id!) ?? [],
 				notes: eventNotes.get(ev.id!) ?? []
+			});
+			mediaTargets.push({
+				entityId: ev.entityId!,
+				factId: ev.id!,
+				links: eventMedia.get(ev.id!) ?? []
 			});
 		}
 
@@ -372,6 +460,21 @@ export class GedcomRepository {
 				...targets.map((t) => ({ kind: t.kind, id: t.id, notes: t.notes ?? [] }))
 			],
 			noteOf,
+			batch
+		);
+		await importMedia(
+			db,
+			treeId,
+			parsed,
+			[
+				...parsed.individuals.map((i) => ({ entityId: scoped(i.id), links: i.mediaLinks ?? [] })),
+				...parsed.families.map((f) => ({ entityId: scoped(f.id), links: f.mediaLinks ?? [] })),
+				...parsed.sources.flatMap((s) => {
+					const entityId = sourceOf(s.id);
+					return entityId ? [{ entityId, links: s.mediaLinks ?? [] }] : [];
+				}),
+				...mediaTargets
+			],
 			batch
 		);
 		const [first, ...rest] = writes;
@@ -461,6 +564,24 @@ export class GedcomRepository {
 			.where(eq(noteAttachments.treeId, treeId))
 			.orderBy(sql`${noteAttachments}.rowid`)
 			.all();
+		const treeMediaObjects = await db
+			.select()
+			.from(mediaObjects)
+			.where(eq(mediaObjects.treeId, treeId))
+			.orderBy(sql`${mediaObjects}.rowid`)
+			.all();
+		const treeMediaFiles = await db
+			.select()
+			.from(mediaItems)
+			.where(eq(mediaItems.treeId, treeId))
+			.orderBy(sql`${mediaItems}.rowid`)
+			.all();
+		const treeMediaLinks = await db
+			.select()
+			.from(mediaLinks)
+			.where(eq(mediaLinks.treeId, treeId))
+			.orderBy(sql`${mediaLinks}.rowid`)
+			.all();
 		return {
 			tree,
 			individuals: treeInds,
@@ -475,7 +596,10 @@ export class GedcomRepository {
 			sourceRepositories: treeSourceLinks,
 			citations: treeCitations,
 			notes: treeNotes,
-			noteAttachments: treeNoteAttachments
+			noteAttachments: treeNoteAttachments,
+			mediaObjects: treeMediaObjects,
+			mediaFiles: treeMediaFiles,
+			mediaLinks: treeMediaLinks
 		};
 	}
 }

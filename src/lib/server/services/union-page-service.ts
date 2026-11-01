@@ -283,8 +283,9 @@ export class UnionPageService {
 				dateText: row.dateRaw,
 				sortStart: eventDateValue(row).sortStart,
 				place: row.place,
-				// A family event's line value is kept in `description` and is not a note of its own (ADR-029).
-				notes: row.description,
+				// A family event's line value is not a note of its own (ADR-029). `Y` only says it happened; other
+				// text, and a payload imported before it had its own column (`description`), shows as before.
+				notes: row.description ?? (row.value && row.value !== 'Y' ? row.value : null),
 				isEditable: isUnionEventType(row.type),
 				version: row.version,
 				citationCount: citationCounts.get(row.id) ?? 0,

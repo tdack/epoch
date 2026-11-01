@@ -13,6 +13,7 @@ import {
 	events,
 	individuals,
 	mediaItems,
+	mediaObjects,
 	noteAttachments,
 	notes,
 	parentChild,
@@ -29,6 +30,7 @@ import {
 import type {
 	CitationRow,
 	EventRow,
+	MediaObjectRow,
 	MediaRow,
 	NoteAttachmentRow,
 	NoteRow,
@@ -98,6 +100,16 @@ export class ScopedReads extends GraphWindowRepository {
 				.select({ ...getTableColumns(mediaItems), rid: sql<number>`${mediaItems}.rowid` })
 				.from(mediaItems)
 				.where(and(inTree(mediaItems.treeId, treeId), inArray(mediaItems.id, chunk)))
+		);
+	}
+
+	/** The object records of these ids; an id that names none (a file not yet backfilled) returns nothing. */
+	mediaObjectsIn(treeId: string, ids: readonly string[]): Reads<MediaObjectRow> {
+		return this.readIn(mediaObjects, ids, (chunk) =>
+			this.client
+				.select({ ...getTableColumns(mediaObjects), rid: sql<number>`${mediaObjects}.rowid` })
+				.from(mediaObjects)
+				.where(and(inTree(mediaObjects.treeId, treeId), inArray(mediaObjects.id, chunk)))
 		);
 	}
 

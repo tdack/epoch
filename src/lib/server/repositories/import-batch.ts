@@ -12,4 +12,9 @@ export interface ImportBatch {
 	 * same batch. Its rows are not read then, because the clearing has not run yet.
 	 */
 	isTreeEmpty: boolean;
+	/**
+	 * The tree did not exist before this import. Narrower than `isTreeEmpty`: a replace clears the
+	 * tree's records but keeps its media objects, which an imported object is matched against.
+	 */
+	isNewTree: boolean;
 }

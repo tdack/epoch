@@ -1,5 +1,7 @@
 import { toGedcom551Lines, toGedcom7Lines } from './dialect';
 import { escapedSingleLine, fieldLines, keptLines, LINE_BREAK, singleLine } from './evidence-lines';
+import { canonicalNameValue } from './name-value';
+import { splitFileExtras } from './media-lines';
 import { levelOfLine } from './node';
 import { ValidationError } from '../domain/errors';
 import {
@@ -8,9 +10,11 @@ import {
 	FAMILY_ALIAS_REFN_TYPE,
 	type GedcomFormat,
 	LEGACY_MARRIED_NAME_TAG,
+	NAME_CHANGE_NOTE,
 	nameChangeNote,
 	PARENT_PEDIGREE_TAG,
 	PRIVACY_PUBLIC_TAG,
+	RESTRICTING_RESN_WORDS,
 	SEX_X_TAG
 } from './tags';
 
@@ -31,6 +35,13 @@ interface ExportName {
 	/** The family the name came from, as its export XREF. */
 	unionXref?: string | null;
 	extra?: string[] | null;
+	/** The `NAME` payload as imported, written while the parts still build `canonValue` (name-value.ts). */
+	rawValue?: string;
+	canonValue?: string;
+	/** Imported with no `TYPE`: an `aka` that is not the first is then written without one. */
+	isUntyped?: boolean;
+	/** Imported with the name on the `NAME` line alone, so its parts are not written beneath it. */
+	isLineOnly?: boolean;
 	citations?: ExportCitation[];
 	notes?: ExportNote[];
 }
@@ -49,8 +60,18 @@ export interface ExportNote {
 	extra?: string[] | null;
 }
 
+/**
+ * When Epoch's own row was last changed and first made. Written as `CHAN` and (7.0 only) `CREA`,
+ * and they take the place of any `CHAN`/`CREA` the file brought, which would only say when someone
+ * else's copy was edited.
+ */
+interface RecordStamps {
+	changedAt?: Date | null;
+	createdAt?: Date | null;
+}
+
 /** A shared note record as written. */
-interface ExportSharedNote {
+interface ExportSharedNote extends RecordStamps {
 	xref: string;
 	/** The root tag a 7.0 file writes the record with; 5.5.1 always writes `NOTE`. */
 	tag: 'NOTE' | 'SNOTE';
@@ -76,7 +97,7 @@ export interface ExportCitation {
 }
 
 /** A source record as written. */
-interface ExportSource {
+interface ExportSource extends RecordStamps {
 	xref: string;
 	title?: string | null;
 	author?: string | null;
@@ -86,6 +107,8 @@ interface ExportSource {
 	layout?: Record<string, string[]> | null;
 	extra?: string[] | null;
 	notes?: ExportNote[];
+	/** Pointers to media records on the source. */
+	media?: ExportMediaLink[];
 	/** `REPO` links in order: the pointer (or none), the call number, and the lines kept under the link. */
 	repositories: Array<{
 		pointer: string | null;
@@ -95,13 +118,51 @@ interface ExportSource {
 }
 
 /** A repository record as written. */
-interface ExportRepository {
+interface ExportRepository extends RecordStamps {
 	xref: string;
 	name?: string | null;
 	address?: string | null;
 	layout?: Record<string, string[]> | null;
 	extra?: string[] | null;
 	notes?: ExportNote[];
+}
+
+/** One `FILE` of a media record as written (ADR-082). */
+interface ExportMediaFile {
+	/** The `FILE` text before the dialect converts it: the stored path, or a relative one made up for it. */
+	path: string;
+	/** `FORM`: a media type. 5.5.1 gets the format word for the common ones. */
+	mimeType: string;
+	/** `MEDI`, as the file wrote it. */
+	medium?: string | null;
+	title?: string | null;
+	/** The lines kept under the `FILE`, `FORM` and `MEDI`, in the order `media-lines.ts` splits. */
+	extra?: string[] | null;
+}
+
+/** A media record (`OBJE`) as written: its files, its privacy, and the lines it keeps. */
+export interface ExportMediaObject extends RecordStamps {
+	xref: string;
+	/** The object's privacy; `auto` (or absent) writes nothing. */
+	privacy?: string | null;
+	files: ExportMediaFile[];
+	extra?: string[] | null;
+}
+
+/**
+ * A pointer to a media record under a person, family, source or fact. `crop` holds only the sides
+ * the file gave; 5.5.1 has no place for it or for `title`, so that dialect drops both.
+ */
+export interface ExportMediaLink {
+	pointer: string;
+	crop?: {
+		top: number | null;
+		left: number | null;
+		height: number | null;
+		width: number | null;
+	} | null;
+	title?: string | null;
+	extra?: string[] | null;
 }
 
 /**
@@ -156,19 +217,29 @@ export interface GedcomExportPayload {
 				citations?: ExportCitation[];
 				/** The notes under the fact, written before its citations. */
 				noteLinks?: ExportNote[];
+				/** Pointers to media records under the fact. */
+				media?: ExportMediaLink[];
 			}
 		>;
 		/** Citations of the person themself. */
 		citations?: ExportCitation[];
 		/** Notes on the person themself. */
 		notes?: ExportNote[];
+		/** Pointers to media records on the person themself. */
+		media?: ExportMediaLink[];
 		famc?: string[];
 		fams?: string[];
+		changedAt?: Date | null;
+		createdAt?: Date | null;
 	}>;
 	families: Array<{
+		changedAt?: Date | null;
+		createdAt?: Date | null;
 		id: string;
 		husbandId: string | null;
 		wifeId: string | null;
+		/** The partners in the order and with the roles to write; absent means `husbandId` then `wifeId`. */
+		partners?: Array<{ personId: string; role: 'HUSB' | 'WIFE' }>;
 		children?: Array<{
 			childId: string;
 			pedigree: string | null;
@@ -187,31 +258,159 @@ export interface GedcomExportPayload {
 				dateRaw: string | null;
 				place: string | null;
 				description: string | null;
+				/** The payload on the event's own line: `Y`, or text in 5.5.1. */
+				value?: string | null;
 				gedcomExtra?: string[] | null;
 				citations?: ExportCitation[];
 				noteLinks?: ExportNote[];
+				media?: ExportMediaLink[];
 			}
 		>;
 		/** Citations of the family record. */
 		citations?: ExportCitation[];
 		/** Notes on the family record. */
 		notes?: ExportNote[];
+		/** Pointers to media records on the family record. */
+		media?: ExportMediaLink[];
 	}>;
 	/** Root `SOUR`, `REPO` and shared note records, written after the last family. */
 	sources?: ExportSource[];
 	repositories?: ExportRepository[];
 	notes?: ExportSharedNote[];
+	/** Media records, written as `OBJE` after the shared notes (ADR-082). */
+	media?: ExportMediaObject[];
 	/** Unmodeled GEDCOM structures to re-emit verbatim, keyed by owner XREF. */
 	preserved?: Array<{ xref: string | null; lines: string[] }>;
+	/** The tree's submitter (ADR-075). A 7.0 file names one only when `name` is set; 5.5.1 always does. */
+	submitter?: { name?: string | null; email?: string | null; www?: string | null } | null;
+	/** When the export was made, for `HEAD.DATE`; now when absent. */
+	exportedAt?: Date;
+	/**
+	 * Header structures an import kept (`LANG`, `PLAC`, `SCHMA`), one block each, verbatim with their
+	 * levels. Only the first `LANG` and `PLAC` are written; the `SCHMA` blocks merge with Epoch's own.
+	 */
+	headerBlocks?: string[][];
+}
+
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+/** The `HEAD.DATE` structure, in UTC. 7.0 marks the time as UTC with `Z`; 5.5.1 has no such mark. */
+function headerDateLines(at: Date, format: GedcomFormat): string[] {
+	const pad = (n: number) => String(n).padStart(2, '0');
+	const time = `${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())}:${pad(at.getUTCSeconds())}`;
+	return [
+		`1 DATE ${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()}`,
+		`2 TIME ${time}${format === 'gedcom7' ? 'Z' : ''}`
+	];
 }
 
 /**
- * `RESN` for a private person and the custom line for an explicit public one; nothing for `auto`.
+ * The tag it is written under in the file, with a name no kept record can hold, so the numbering in
+ * `renumberXrefs` gives it the next free `@U1@`.
  */
-function privacyLines(privacy: string | null | undefined, restrictionWord: string): string[] {
-	if (privacy === 'private') return [`1 RESN ${restrictionWord}`];
-	if (privacy === 'public') return [`1 ${PRIVACY_PUBLIC_TAG} public`];
-	return [];
+const SUBMITTER_PLACEHOLDER_XREF = '@epoch-submitter@';
+
+/** The submitter's name, or null for a 7.0 file with none; 5.5.1 requires one and says `Unknown`. */
+function submitterName(data: GedcomExportPayload, format: GedcomFormat): string | null {
+	return data.submitter?.name?.trim() || (format === 'gedcom551' ? 'Unknown' : null);
+}
+
+/**
+ * The kept `SUBM` record that `HEAD.SUBM` pointed at on import, while the tree's submitter still says
+ * what that record says. Export then points the header at it and writes no second record. Once the
+ * setting is edited the two differ, so Epoch's own record is written and the kept one is a plain
+ * record again.
+ */
+function keptSubmitterXref(data: GedcomExportPayload): string | null {
+	const pointer = (data.headerBlocks ?? [])
+		.find((b) => /^1 SUBM\s/.test(b[0] ?? ''))?.[0]
+		?.replace(/^1 SUBM\s+/, '')
+		.trim();
+	if (!pointer) return null;
+	const record = (data.preserved ?? []).find(
+		(p) =>
+			p.xref !== null &&
+			asXref(p.xref) === asXref(pointer) &&
+			/^0 \S+ SUBM\b/.test(p.lines[0] ?? '')
+	);
+	if (!record) return null;
+	const field = (tag: string) =>
+		record.lines
+			.find((l) => l.startsWith(`1 ${tag} `))
+			?.slice(`1 ${tag} `.length)
+			.trim() ?? '';
+	const setting = data.submitter;
+	const isSame =
+		(setting?.name?.trim() ?? '') === field('NAME') &&
+		(setting?.email?.trim() ?? '') === field('EMAIL') &&
+		(setting?.www?.trim() ?? '') === field('WWW');
+	return isSame ? asXref(pointer) : null;
+}
+
+/** The `HEAD.SUBM` line: the kept record when it still stands for the setting, else Epoch's own. */
+function headerSubmitterLine(data: GedcomExportPayload, format: GedcomFormat): string[] {
+	const kept = keptSubmitterXref(data);
+	if (kept) return [`1 SUBM ${kept}`];
+	return submitterName(data, format) ? [`1 SUBM ${SUBMITTER_PLACEHOLDER_XREF}`] : [];
+}
+
+function submitterRecord(data: GedcomExportPayload, format: GedcomFormat): string[] {
+	if (keptSubmitterXref(data)) return [];
+	const name = submitterName(data, format);
+	if (!name) return [];
+	const lines = [`0 ${SUBMITTER_PLACEHOLDER_XREF} SUBM`, `1 NAME ${escapedSingleLine(name)}`];
+	if (data.submitter?.name?.trim()) {
+		if (data.submitter.email) lines.push(`1 EMAIL ${escapedSingleLine(data.submitter.email)}`);
+		if (data.submitter.www) lines.push(`1 WWW ${escapedSingleLine(data.submitter.www)}`);
+	}
+	return lines;
+}
+
+/** The first kept header block that starts with `tag`, folded to single lines. */
+function keptHeaderBlock(data: GedcomExportPayload, tag: string): string[] {
+	const block = (data.headerBlocks ?? []).find((b) => new RegExp(`^1 ${tag}\\b`).test(b[0] ?? ''));
+	return foldLines(block);
+}
+
+/**
+ * The `RESN` line of a person. 7.0's is one line holding a list (`CONFIDENTIAL, LOCKED`), so the
+ * restriction Epoch models and a word it only keeps (`LOCKED`) go out together; two lines would break
+ * the cardinality. The import keeps the file's whole list, and the restricting word in it is used
+ * only while the person is still private, so an edit to the override is not undone by a stale word.
+ * 5.5.1's `RESN` is a single value, so there the kept words go on a line of their own.
+ * `merged` holds the kept lines read here, to be left out of the ones written after.
+ */
+function resnLines(
+	privacy: string | null | undefined,
+	owned: readonly { lines: string[] }[] | undefined,
+	format: GedcomFormat
+): { lines: string[]; merged: Set<object> } {
+	const merged = new Set<object>();
+	const words: string[] = [];
+	for (const entry of owned ?? []) {
+		const m = entry.lines.length === 1 ? /^1 RESN (.+)$/.exec(entry.lines[0]) : null;
+		if (!m) continue;
+		merged.add(entry);
+		words.push(
+			...m[1]
+				.split(',')
+				.map((w) => w.trim())
+				.filter(Boolean)
+		);
+	}
+	const isRestricting = (w: string) => RESTRICTING_RESN_WORDS.has(w.toLowerCase());
+	const rest = words.filter((w) => !isRestricting(w));
+	const lines: string[] = [];
+	if (format === 'gedcom7') {
+		const list =
+			privacy === 'private' ? (words.some(isRestricting) ? words : ['PRIVACY', ...words]) : rest;
+		if (list.length > 0) lines.push(`1 RESN ${list.join(', ')}`);
+	} else {
+		if (privacy === 'private') lines.push('1 RESN privacy');
+		if (rest.length > 0) lines.push(`1 RESN ${rest.join(', ')}`);
+	}
+	if (privacy === 'public') lines.push(`1 ${PRIVACY_PUBLIC_TAG} public`);
+	return { lines, merged };
 }
 
 /**
@@ -309,9 +508,17 @@ function individualEventLines(
 	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`, ...keptUnder(3, 3, ev.dateExtra));
 	lines.push(...placeLines(ev));
 	lines.push(...addressAndContactLines(ev));
-	if (ev.cause)
-		lines.push(`2 CAUS ${escapedSingleLine(ev.cause)}`, ...keptUnder(3, 3, ev.causeExtra));
-	if (ev.age) lines.push(`2 AGE ${escapedSingleLine(ev.age)}`, ...keptUnder(3, 3, ev.ageExtra));
+	// A payload-less AGE or CAUS can still carry a PHRASE, which is then all it says.
+	if (ev.cause || ev.causeExtra?.length)
+		lines.push(
+			ev.cause ? `2 CAUS ${escapedSingleLine(ev.cause)}` : '2 CAUS',
+			...keptUnder(3, 3, ev.causeExtra)
+		);
+	if (ev.age || ev.ageExtra?.length)
+		lines.push(
+			ev.age ? `2 AGE ${escapedSingleLine(ev.age)}` : '2 AGE',
+			...keptUnder(3, 3, ev.ageExtra)
+		);
 	// A tree that has not had its notes backfilled still holds a fact's note in `notes`; it stays
 	// written until the backfill moves it, so no export loses it. The legacy description stands in for
 	// a note only when the fact has none of its own. Both are text and may span lines.
@@ -319,6 +526,7 @@ function individualEventLines(
 	const note = ev.notes ?? (hasNoteRecords ? null : ev.description);
 	if (note) lines.push(...fieldLines(2, 'NOTE', note));
 	lines.push(...citationLines(2, ev.citations, format));
+	lines.push(...mediaPointerLines(2, ev.media, format));
 	lines.push(...foldLines(ev.gedcomExtra));
 	lines.push(...noteLines(2, ev.noteLinks, format));
 	return lines;
@@ -332,13 +540,15 @@ function familyEventLines(
 	ev: NonNullable<GedcomExportPayload['families'][number]['events']>[number],
 	format: GedcomFormat
 ): string[] {
-	const lines = [`1 ${requireSingleLineToken(ev.type, 'An event type')}`];
+	const tag = requireSingleLineToken(ev.type, 'An event type');
+	const lines = [ev.value ? `1 ${tag} ${escapedSingleLine(ev.value)}` : `1 ${tag}`];
 	if (ev.classification) lines.push(`2 TYPE ${escapedSingleLine(ev.classification)}`);
 	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`, ...keptUnder(3, 3, ev.dateExtra));
 	lines.push(...placeLines(ev));
 	lines.push(...addressAndContactLines(ev));
 	if (ev.description) lines.push(...fieldLines(2, 'NOTE', ev.description));
 	lines.push(...citationLines(2, ev.citations, format));
+	lines.push(...mediaPointerLines(2, ev.media, format));
 	lines.push(...foldLines(ev.gedcomExtra));
 	lines.push(...noteLines(2, ev.noteLinks, format));
 	return lines;
@@ -380,7 +590,8 @@ function sharedNoteLines(note: ExportSharedNote, format: GedcomFormat): string[]
 		...body.slice(1),
 		...(note.mime ? [`1 MIME ${escapedSingleLine(note.mime)}`] : []),
 		...(note.language ? [`1 LANG ${escapedSingleLine(note.language)}`] : []),
-		...keptLines(1, foldLines(note.extra))
+		...keptLines(1, foldLines(withoutSupersededStamps(note.extra, note, format))),
+		...stampLines(note, format)
 	];
 }
 
@@ -415,6 +626,84 @@ function citationLines(
 	return lines;
 }
 
+/** The sides of a crop in the order 7.0 lists them. */
+const CROP_SIDES = [
+	['TOP', 'top'],
+	['LEFT', 'left'],
+	['HEIGHT', 'height'],
+	['WIDTH', 'width']
+] as const;
+
+/**
+ * Pointers to media records at `level`, in order. 5.5.1 has no `CROP` and no title on a pointer, so
+ * that dialect writes the bare pointer, and a bare `CROP` the file kept goes with the rest.
+ */
+function mediaPointerLines(
+	level: number,
+	links: ExportMediaLink[] | undefined,
+	format: GedcomFormat
+): string[] {
+	const lines: string[] = [];
+	for (const link of links ?? []) {
+		lines.push(`${level} OBJE ${asXref(link.pointer)}`);
+		let kept = foldLines(link.extra);
+		if (format === 'gedcom7') {
+			if (link.crop) {
+				lines.push(`${level + 1} CROP`);
+				for (const [tag, side] of CROP_SIDES) {
+					const value = link.crop[side];
+					if (value !== null && value !== undefined) lines.push(`${level + 2} ${tag} ${value}`);
+				}
+			}
+			lines.push(...fieldLines(level + 1, 'TITL', link.title));
+		} else {
+			kept = kept.filter((line) => !/^\d+ CROP$/.test(line));
+		}
+		lines.push(...keptUnder(level + 1, level + 1, kept));
+	}
+	return lines;
+}
+
+/** `FORM` and `MEDI`/`TYPE` under a `FILE`: 5.5.1 says the kind of source with `TYPE` and has no `PHRASE`. */
+function mediaFileLines(file: ExportMediaFile, format: GedcomFormat): string[] {
+	const extras = splitFileExtras(file.extra);
+	const lines = [file.path ? `1 FILE ${escapedSingleLine(file.path)}` : '1 FILE'];
+	lines.push(`2 FORM ${escapedSingleLine(file.mimeType)}`);
+	if (file.medium) {
+		if (format === 'gedcom7') {
+			lines.push(`3 MEDI ${escapedSingleLine(file.medium)}`, ...keptUnder(4, 4, extras.medi));
+		} else {
+			// 5.5.1 has no `PHRASE`, so the words it stood for are the `TYPE`.
+			const phrase = extras.medi
+				.map((line) => /^4 PHRASE (.*)$/.exec(line)?.[1])
+				.find((text) => text !== undefined);
+			const isOther = file.medium.toUpperCase() === 'OTHER';
+			lines.push(`3 TYPE ${escapedSingleLine(isOther && phrase ? phrase : file.medium)}`);
+		}
+	}
+	lines.push(...keptUnder(3, 3, extras.form));
+	lines.push(...fieldLines(2, 'TITL', file.title));
+	lines.push(...keptUnder(2, 2, extras.file));
+	return lines;
+}
+
+/**
+ * A media record: its files, then its restriction, the lines it keeps (notes, citations, `EXID`,
+ * `UID`, `REFN`) and Epoch's own `CHAN`/`CREA`.
+ */
+function mediaRecordLines(object: ExportMediaObject, format: GedcomFormat): string[] {
+	const lines = [`0 ${singleLine(object.xref)} OBJE`];
+	for (const file of object.files) lines.push(...mediaFileLines(file, format));
+	// The restriction is one line holding a list, so the kept words and the privacy go out together.
+	const owned = foldLines(object.extra).map((line) => ({ lines: [line] }));
+	const resn = resnLines(object.privacy, owned, format);
+	lines.push(...resn.lines);
+	const rest = owned.filter((entry) => !resn.merged.has(entry)).map((entry) => entry.lines[0]);
+	lines.push(...keptUnder(1, 1, withoutSupersededStamps(rest, object, format)));
+	lines.push(...stampLines(object, format));
+	return lines;
+}
+
 /** A source record: its fields, its `REPO` links, then every line kept beside them. */
 function sourceRecordLines(source: ExportSource, format: GedcomFormat): string[] {
 	const lines = [`0 ${singleLine(source.xref)} SOUR`];
@@ -428,8 +717,10 @@ function sourceRecordLines(source: ExportSource, format: GedcomFormat): string[]
 		if (link.callNumber) lines.push(`2 CALN ${escapedSingleLine(link.callNumber)}`);
 		lines.push(...foldLines(link.extra));
 	}
-	lines.push(...foldLines(source.extra));
+	lines.push(...mediaPointerLines(1, source.media, format));
+	lines.push(...foldLines(withoutSupersededStamps(source.extra, source, format)));
 	lines.push(...noteLines(1, source.notes, format));
+	lines.push(...stampLines(source, format));
 	return lines;
 }
 
@@ -438,8 +729,9 @@ function repositoryRecordLines(repository: ExportRepository, format: GedcomForma
 		`0 ${singleLine(repository.xref)} REPO`,
 		...fieldLines(1, 'NAME', repository.name, repository.layout?.NAME),
 		...fieldLines(1, 'ADDR', repository.address, repository.layout?.ADDR),
-		...foldLines(repository.extra),
-		...noteLines(1, repository.notes, format)
+		...foldLines(withoutSupersededStamps(repository.extra, repository, format)),
+		...noteLines(1, repository.notes, format),
+		...stampLines(repository, format)
 	];
 }
 
@@ -465,15 +757,17 @@ function nameLines(
 	ind: GedcomExportPayload['individuals'][number],
 	format: GedcomFormat
 ): string[] {
+	// A person with no name at all is written with none; `NAME //` would be a name nobody gave.
 	const names: ExportName[] =
 		ind.names && ind.names.length > 0
 			? ind.names
-			: [{ type: 'birth', givenName: ind.givenName, surname: ind.surname }];
+			: ind.givenName || ind.surname
+				? [{ type: 'birth', givenName: ind.givenName, surname: ind.surname }]
+				: [];
 	const lines: string[] = [];
 	const line = (name: ExportName) => {
-		const given = [name.prefix, name.givenName].filter(Boolean).join(' ');
-		const surname = [name.surnamePrefix, name.surname].filter(Boolean).join(' ');
-		return `${given} /${surname}/${name.suffix ? ` ${name.suffix}` : ''}`.trim();
+		const canonical = canonicalNameValue(name);
+		return name.rawValue !== undefined && name.canonValue === canonical ? name.rawValue : canonical;
 	};
 	let isFirst = true;
 	for (const name of names) {
@@ -485,18 +779,24 @@ function nameLines(
 			);
 			continue;
 		}
-		lines.push(`1 NAME ${escapedSingleLine(line(name))}`);
-		if (!(isFirst && name.type === 'birth')) {
+		const value = line(name);
+		// A name the file gave on its line alone has no part sub-lines to put back, while its line is kept.
+		const isLineOnly = name.isLineOnly && value === name.rawValue;
+		lines.push(`1 NAME ${escapedSingleLine(value)}`);
+		const isDefaultType =
+			(isFirst && name.type === 'birth') || (!isFirst && name.isUntyped && name.type === 'aka');
+		if (!isDefaultType) {
 			const { token, phrase } = nameTypeTokens(name, format);
 			lines.push(`2 TYPE ${escapedSingleLine(token)}`);
 			if (phrase) lines.push(`3 PHRASE ${escapedSingleLine(phrase)}`);
 		}
-		if (name.prefix) lines.push(`2 NPFX ${escapedSingleLine(name.prefix)}`);
-		if (name.givenName) lines.push(`2 GIVN ${escapedSingleLine(name.givenName)}`);
+		if (name.prefix && !isLineOnly) lines.push(`2 NPFX ${escapedSingleLine(name.prefix)}`);
+		if (name.givenName && !isLineOnly) lines.push(`2 GIVN ${escapedSingleLine(name.givenName)}`);
 		if (name.nickname) lines.push(`2 NICK ${escapedSingleLine(name.nickname)}`);
-		if (name.surnamePrefix) lines.push(`2 SPFX ${escapedSingleLine(name.surnamePrefix)}`);
-		if (name.surname) lines.push(`2 SURN ${escapedSingleLine(name.surname)}`);
-		if (name.suffix) lines.push(`2 NSFX ${escapedSingleLine(name.suffix)}`);
+		if (name.surnamePrefix && !isLineOnly)
+			lines.push(`2 SPFX ${escapedSingleLine(name.surnamePrefix)}`);
+		if (name.surname && !isLineOnly) lines.push(`2 SURN ${escapedSingleLine(name.surname)}`);
+		if (name.suffix && !isLineOnly) lines.push(`2 NSFX ${escapedSingleLine(name.suffix)}`);
 		// A family made in Epoch has a bare id; unwrapped, the note's pointer could not be read back.
 		const note = nameChangeNote(name.dateText, name.unionXref ? asXref(name.unionXref) : null);
 		if (note) lines.push(`2 NOTE ${escapedSingleLine(note)}`);
@@ -549,7 +849,8 @@ function famcLines(
 	childId: string,
 	index: ReturnType<typeof pedigreeIndex>,
 	format: GedcomFormat,
-	preserved: PreservedByOwner
+	preserved: PreservedByOwner,
+	written: Set<object>
 ): string[] {
 	const lines = [`1 FAMC ${asXref(familyId)}`];
 	const link = index.get(`${familyId}|${childId}`);
@@ -562,13 +863,14 @@ function famcLines(
 	}
 	lines.push(...citationLines(2, link?.citations, format));
 	// A child linked to a merged family once per copy has several blocks for one link; write each line once.
-	const written = new Set<string>();
-	for (const entry of preserved.get(childId) ?? []) {
+	const seen = new Set<string>();
+	for (const entry of preserved.get(asXref(childId)) ?? []) {
 		if (!isFamcExtra(entry) || asXref(famcTarget(entry)) !== asXref(familyId)) continue;
+		written.add(entry);
 		for (const line of entry.lines.slice(1)) {
 			const folded = singleLine(line) ?? '';
-			if (written.has(folded)) continue;
-			written.add(folded);
+			if (seen.has(folded)) continue;
+			seen.add(folded);
 			lines.push(folded);
 		}
 	}
@@ -579,6 +881,50 @@ function famcLines(
 /** Preserved lines under a `FAMC`, headed by that `FAMC` line; written inside the link, not after the record. */
 function isFamcExtra(entry: { lines: string[] }): boolean {
 	return /^1 FAMC\s+\S+/.test(entry.lines[0] ?? '');
+}
+
+/** The same, for any of the four links a record's retained lines can hang under. */
+function isLinkExtra(entry: { lines: string[] }): boolean {
+	return /^1 (FAMC|HUSB|WIFE|CHIL)\s+\S+/.test(entry.lines[0] ?? '');
+}
+
+/** The lines the file kept under the link `tag` to `target`, once each, marked as written. */
+function linkSubLines(
+	tag: 'HUSB' | 'WIFE' | 'CHIL',
+	target: string,
+	owned: readonly { lines: string[] }[] | undefined,
+	written: Set<object>
+): string[] {
+	const out: string[] = [];
+	const seen = new Set<string>();
+	for (const entry of owned ?? []) {
+		const head = /^1 (\S+)\s+(\S+)/.exec(entry.lines[0] ?? '');
+		if (head?.[1] !== tag || asXref(head[2]) !== asXref(target)) continue;
+		written.add(entry);
+		for (const line of entry.lines.slice(1)) {
+			const folded = singleLine(line) ?? '';
+			if (seen.has(folded)) continue;
+			seen.add(folded);
+			out.push(folded);
+		}
+	}
+	return out;
+}
+
+/** `HUSB`/`WIFE` lines in the order the partners are held, each with the lines the file kept under it. */
+function partnerLines(
+	fam: GedcomExportPayload['families'][number],
+	owned: readonly { lines: string[] }[] | undefined,
+	written: Set<object>
+): string[] {
+	const partners = fam.partners ?? [
+		...(fam.husbandId ? [{ personId: fam.husbandId, role: 'HUSB' as const }] : []),
+		...(fam.wifeId ? [{ personId: fam.wifeId, role: 'WIFE' as const }] : [])
+	];
+	return partners.flatMap(({ personId, role }) => [
+		`1 ${role} ${asXref(personId)}`,
+		...linkSubLines(role, personId, owned, written)
+	]);
 }
 
 function famcTarget(entry: { lines: string[] }): string {
@@ -593,15 +939,59 @@ function aliasLines(aliases: string[] | undefined): string[] {
 	]);
 }
 
+/**
+ * `CHAN` (and, in 7.0, `CREA`) from Epoch's own timestamps, in UTC. 7.0 marks the time as UTC with
+ * `Z`; 5.5.1 has no `CREA` and no such mark.
+ */
+function stampLines(stamps: RecordStamps, format: GedcomFormat): string[] {
+	const lines: string[] = [];
+	const block = (tag: 'CHAN' | 'CREA', at: Date) => {
+		const [date, time] = headerDateLines(at, format);
+		lines.push(`1 ${tag}`, `2 ${date.slice(2)}`, `3 ${time.slice(2)}`);
+	};
+	if (stamps.changedAt) block('CHAN', stamps.changedAt);
+	if (stamps.createdAt && format === 'gedcom7') block('CREA', stamps.createdAt);
+	return lines;
+}
+
+/**
+ * The retained lines without the `CHAN`/`CREA` blocks Epoch's own timestamps supersede. An imported
+ * stamp must never overwrite Epoch's: it says when another program last saw the record, and Epoch's
+ * export must say when Epoch did. Where the row has no timestamp (rows from before the column) the
+ * imported block is the only date there is, so it stays as a retained line.
+ */
+function withoutSupersededStamps(
+	lines: readonly string[] | null | undefined,
+	stamps: RecordStamps,
+	format: GedcomFormat
+): string[] {
+	const drop = new Set<string>();
+	if (stamps.changedAt) drop.add('CHAN');
+	// 5.5.1 has no `CREA`, so a retained one would be an invalid line there whether or not Epoch has a date.
+	if (stamps.createdAt || format === 'gedcom551') drop.add('CREA');
+	if (drop.size === 0) return [...(lines ?? [])];
+	const out: string[] = [];
+	let isSkipping = false;
+	for (const line of lines ?? []) {
+		const level = levelOfLine(line);
+		if (level !== null && level <= 1) isSkipping = level === 1 && drop.has(line.split(/\s/)[1]);
+		if (!isSkipping) out.push(line);
+	}
+	return out;
+}
+
 type PreservedByOwner = Map<string | null, NonNullable<GedcomExportPayload['preserved']>>;
 
 /** Grouped once per export: scanning the whole list per record is quadratic on a large import. */
 function indexPreserved(preserved: GedcomExportPayload['preserved']): PreservedByOwner {
 	const byOwner: PreservedByOwner = new Map();
 	for (const entry of preserved ?? []) {
-		const group = byOwner.get(entry.xref);
+		// A record the file gave no XREF is owned by the id import made up, which has no `@`; the record's
+		// own XREF is written with them, so the key has to be too.
+		const owner = entry.xref === null ? null : asXref(entry.xref);
+		const group = byOwner.get(owner);
 		if (group) group.push(entry);
-		else byOwner.set(entry.xref, [entry]);
+		else byOwner.set(owner, [entry]);
 	}
 	return byOwner;
 }
@@ -610,15 +1000,27 @@ function indexPreserved(preserved: GedcomExportPayload['preserved']): PreservedB
  * Append preserved (unmodeled) GEDCOM structures to the output.
  * Structures owned by a specific record are emitted immediately after that
  * record; tree/header-level records are emitted before the trailer.
+ *
+ * A retained `FAMC` is written inside its link by `famcLines` when the person has one. The rest
+ * (a `FAMC @VOID@`, a `FAMC` at a family that is not there or lists no parent) have no link to sit
+ * in, so they are written here, under their person, as the file had them.
  */
 function appendPreserved(
 	lines: string[],
 	preserved: PreservedByOwner,
-	ownerXref: string | null
+	ownerXref: string | null,
+	written: ReadonlySet<object>,
+	skipped: ReadonlySet<object> = new Set(),
+	own?: { stamps: RecordStamps; format: GedcomFormat }
 ): void {
 	for (const entry of preserved.get(ownerXref) ?? []) {
-		if (!(ownerXref !== null && isFamcExtra(entry))) {
-			lines.push(...foldLines(entry.lines));
+		if (skipped.has(entry)) continue;
+		if (!(ownerXref !== null && isLinkExtra(entry) && written.has(entry))) {
+			lines.push(
+				...foldLines(
+					own ? withoutSupersededStamps(entry.lines, own.stamps, own.format) : entry.lines
+				)
+			);
 		}
 	}
 }
@@ -633,10 +1035,96 @@ function appendRootRecords(lines: string[], data: GedcomExportPayload, format: G
 	for (const repository of data.repositories ?? [])
 		lines.push(...repositoryRecordLines(repository, format));
 	for (const note of data.notes ?? []) lines.push(...sharedNoteLines(note, format));
+	for (const object of data.media ?? []) lines.push(...mediaRecordLines(object, format));
 	for (const entry of data.preserved ?? []) {
 		if (entry.xref !== null && entry.lines[0]?.startsWith('0 '))
 			lines.push(...foldLines(entry.lines));
 	}
+}
+
+/** The letter an exported record's xref starts with, by its tag; any other record kind takes `X`. */
+const XREF_LETTER_BY_TAG: Readonly<Record<string, string>> = {
+	INDI: 'I',
+	FAM: 'F',
+	SOUR: 'S',
+	REPO: 'R',
+	NOTE: 'N',
+	SNOTE: 'N',
+	SUBM: 'U',
+	OBJE: 'O'
+};
+
+/**
+ * What both dialects accept as an xref: upper-case letters, digits and `_` (7.0), at most 20
+ * characters (5.5.1). `VOID` is reserved for a pointer at nothing.
+ */
+const LEGAL_XREF = /^@(?!VOID@)[A-Z0-9_]{1,20}@$/;
+
+const POINTER_PAYLOAD = /^@[^@\s#][^@\s]*@$/;
+const RECORD_LINE = /^0 (@[^@\s]+@) (\S+)/;
+
+/**
+ * Rewrites every xref in `lines` to one both dialects accept, and every pointer through the same map.
+ *
+ * It runs over the finished lines, which is the one place that sees all of them: the ids the
+ * payload names (a UUID for a record made in Epoch), the pointers inside lines kept verbatim, and
+ * a record the file wrote with no xref at all. An xref that is already legal is kept, so a tree
+ * imported from `@I500@` exports as `@I500@`; the rest are numbered per record kind (`@I1@`,
+ * `@F1@`, `@S1@` ...) in the order the records are written, skipping any number a kept xref holds,
+ * so the same tree always exports the same way.
+ *
+ * A pointer at a record this file does not have is `@VOID@` in 7.0. 5.5.1 has no such value, so it
+ * is left as it was. A pointer is told from text by its being the whole payload: model text that
+ * begins with `@` is escaped to `@@`, so it can never look like one (ADR-042).
+ */
+function renumberXrefs(lines: readonly string[], format: GedcomFormat): string[] {
+	const defined: Array<{ index: number; xref: string; tag: string }> = [];
+	lines.forEach((line, index) => {
+		const m = RECORD_LINE.exec(line);
+		if (m) defined.push({ index, xref: m[1], tag: m[2] });
+	});
+	const map = new Map<string, string>();
+	const assigned = new Map<number, string>();
+	const used = new Set<string>();
+	for (const { index, xref } of defined) {
+		if (!LEGAL_XREF.test(xref) || used.has(xref)) continue;
+		used.add(xref);
+		assigned.set(index, xref);
+		map.set(xref, xref);
+	}
+	const counters = new Map<string, number>();
+	for (const { index, xref, tag } of defined) {
+		if (assigned.has(index)) continue;
+		const letter = XREF_LETTER_BY_TAG[tag] ?? 'X';
+		let next = counters.get(letter) ?? 0;
+		let candidate: string;
+		do candidate = `@${letter}${++next}@`;
+		while (used.has(candidate));
+		counters.set(letter, next);
+		used.add(candidate);
+		assigned.set(index, candidate);
+		// The first record to carry an xref is the one a pointer means.
+		if (!map.has(xref)) map.set(xref, candidate);
+	}
+	// An extension tag's pointer is left as the file wrote it even when nothing here answers to it: the
+	// extension may mean a record this file does not carry, and `@VOID@` would change what it says.
+	const target = (pointer: string, tag: string) =>
+		pointer === '@VOID@' || tag.startsWith('_')
+			? (map.get(pointer) ?? pointer)
+			: (map.get(pointer) ?? (format === 'gedcom7' ? '@VOID@' : pointer));
+	return lines.map((line, index) => {
+		const own = assigned.get(index);
+		if (own) return line.replace(RECORD_LINE, (_, __, tag) => `0 ${own} ${tag}`);
+		const m = /^(\d+) (\S+) (.*)$/.exec(line);
+		if (!m || m[2] === 'CONT' || m[2] === 'CONC') return line;
+		if (POINTER_PAYLOAD.test(m[3])) return `${m[1]} ${m[2]} ${target(m[3], m[2])}`;
+		// The note under a name that says which family it came through names it by its xref.
+		if (m[2] === 'NOTE') {
+			const change = NAME_CHANGE_NOTE.exec(m[3]);
+			if (change?.[2] && map.has(change[2])) return line.replace(change[2], map.get(change[2])!);
+		}
+		return line;
+	});
 }
 
 /**
@@ -646,6 +1134,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 	const lines: string[] = [];
 	const pedigrees = pedigreeIndex(data);
 	const preserved = indexPreserved(data.preserved);
+	const written = new Set<object>();
 
 	// Header
 	lines.push('0 HEAD');
@@ -655,10 +1144,14 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 	lines.push('1 GEDC');
 	lines.push('2 VERS 5.5.1');
 	lines.push('2 FORM LINEAGE-LINKED');
+	lines.push(...headerDateLines(data.exportedAt ?? new Date(), 'gedcom551'));
+	lines.push(...headerSubmitterLine(data, 'gedcom551'));
 	lines.push('1 CHAR UTF-8');
+	lines.push(...keptHeaderBlock(data, 'PLAC'));
 	if (data.treeName) {
 		lines.push(...fieldLines(1, 'NOTE', `Tree: ${data.treeName}`));
 	}
+	lines.push(...submitterRecord(data, 'gedcom551'));
 
 	// Individuals
 	for (const ind of data.individuals) {
@@ -671,16 +1164,18 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			lines.push('1 SEX U');
 			lines.push(`1 ${SEX_X_TAG} X`);
 		} else if (ind.sex) lines.push(`1 SEX ${singleLine(ind.sex)}`);
-		lines.push(...privacyLines(ind.privacy, 'privacy'));
+		const resn = resnLines(ind.privacy, preserved.get(xref), 'gedcom551');
+		lines.push(...resn.lines);
 
 		if (ind.events) {
 			for (const ev of ind.events) lines.push(...individualEventLines(ev, 'gedcom551'));
 		}
 		lines.push(...citationLines(1, ind.citations, 'gedcom551'));
+		lines.push(...mediaPointerLines(1, ind.media, 'gedcom551'));
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
-				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551', preserved));
+				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551', preserved, written));
 			}
 		}
 
@@ -689,23 +1184,24 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, preserved, xref);
+		appendPreserved(lines, preserved, xref, written, resn.merged, {
+			stamps: ind,
+			format: 'gedcom551'
+		});
 		lines.push(...noteLines(1, ind.notes, 'gedcom551'));
+		lines.push(...stampLines(ind, 'gedcom551'));
 	}
 
 	// Families
 	for (const fam of data.families) {
 		const xref = asXref(fam.id);
 		lines.push(`0 ${xref} FAM`);
-		if (fam.husbandId) {
-			lines.push(`1 HUSB ${asXref(fam.husbandId)}`);
-		}
-		if (fam.wifeId) {
-			lines.push(`1 WIFE ${asXref(fam.wifeId)}`);
-		}
+		const owned = preserved.get(xref);
+		lines.push(...partnerLines(fam, owned, written));
 		if (fam.children) {
 			for (const child of fam.children) {
 				lines.push(`1 CHIL ${asXref(child.childId)}`);
+				lines.push(...linkSubLines('CHIL', child.childId, owned, written));
 			}
 		}
 		lines.push(...aliasLines(fam.aliases));
@@ -713,16 +1209,21 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom551'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom551'));
-		appendPreserved(lines, preserved, xref);
+		lines.push(...mediaPointerLines(1, fam.media, 'gedcom551'));
+		appendPreserved(lines, preserved, xref, written, undefined, {
+			stamps: fam,
+			format: 'gedcom551'
+		});
 		lines.push(...noteLines(1, fam.notes, 'gedcom551'));
+		lines.push(...stampLines(fam, 'gedcom551'));
 	}
 
-	appendPreserved(lines, preserved, null);
+	appendPreserved(lines, preserved, null, written);
 	appendRootRecords(lines, data, 'gedcom551');
 
 	// Trailer
 	lines.push('0 TRLR');
-	return toGedcom551Lines(lines).join('\r\n') + '\r\n';
+	return toGedcom551Lines(renumberXrefs(lines, 'gedcom551')).join('\r\n') + '\r\n';
 }
 
 /**
@@ -738,6 +1239,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 	const lines: string[] = [];
 	const pedigrees = pedigreeIndex(data);
 	const preserved = indexPreserved(data.preserved);
+	const written = new Set<object>();
 
 	// Header
 	lines.push('0 HEAD');
@@ -745,9 +1247,15 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 	lines.push('2 VERS 7.0');
 	lines.push('1 SOUR EPOCH_GENEALOGY');
 	lines.push('2 VERS 1.0');
+	lines.push('2 NAME Epoch Family Genealogy Repository');
+	lines.push(...headerDateLines(data.exportedAt ?? new Date(), 'gedcom7'));
+	lines.push(...headerSubmitterLine(data, 'gedcom7'));
+	lines.push(...keptHeaderBlock(data, 'LANG'));
+	lines.push(...keptHeaderBlock(data, 'PLAC'));
 	if (data.treeName) {
 		lines.push(...fieldLines(1, 'NOTE', `Tree: ${data.treeName}`));
 	}
+	lines.push(...submitterRecord(data, 'gedcom7'));
 
 	// Individuals
 	for (const ind of data.individuals) {
@@ -756,16 +1264,18 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 
 		lines.push(...nameLines(ind, 'gedcom7'));
 		if (ind.sex) lines.push(`1 SEX ${singleLine(ind.sex)}`);
-		lines.push(...privacyLines(ind.privacy, 'PRIVACY'));
+		const resn = resnLines(ind.privacy, preserved.get(xref), 'gedcom7');
+		lines.push(...resn.lines);
 
 		if (ind.events) {
 			for (const ev of ind.events) lines.push(...individualEventLines(ev, 'gedcom7'));
 		}
 		lines.push(...citationLines(1, ind.citations, 'gedcom7'));
+		lines.push(...mediaPointerLines(1, ind.media, 'gedcom7'));
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
-				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7', preserved));
+				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7', preserved, written));
 			}
 		}
 
@@ -774,23 +1284,24 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, preserved, xref);
+		appendPreserved(lines, preserved, xref, written, resn.merged, {
+			stamps: ind,
+			format: 'gedcom7'
+		});
 		lines.push(...noteLines(1, ind.notes, 'gedcom7'));
+		lines.push(...stampLines(ind, 'gedcom7'));
 	}
 
 	// Families
 	for (const fam of data.families) {
 		const xref = asXref(fam.id);
 		lines.push(`0 ${xref} FAM`);
-		if (fam.husbandId) {
-			lines.push(`1 HUSB ${asXref(fam.husbandId)}`);
-		}
-		if (fam.wifeId) {
-			lines.push(`1 WIFE ${asXref(fam.wifeId)}`);
-		}
+		const owned = preserved.get(xref);
+		lines.push(...partnerLines(fam, owned, written));
 		if (fam.children) {
 			for (const child of fam.children) {
 				lines.push(`1 CHIL ${asXref(child.childId)}`);
+				lines.push(...linkSubLines('CHIL', child.childId, owned, written));
 			}
 		}
 		lines.push(...aliasLines(fam.aliases));
@@ -798,30 +1309,49 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom7'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom7'));
-		appendPreserved(lines, preserved, xref);
+		lines.push(...mediaPointerLines(1, fam.media, 'gedcom7'));
+		appendPreserved(lines, preserved, xref, written, undefined, { stamps: fam, format: 'gedcom7' });
 		lines.push(...noteLines(1, fam.notes, 'gedcom7'));
+		lines.push(...stampLines(fam, 'gedcom7'));
 	}
 
-	appendPreserved(lines, preserved, null);
+	appendPreserved(lines, preserved, null, written);
 	appendRootRecords(lines, data, 'gedcom7');
 
 	// Trailer
 	lines.push('0 TRLR');
-	const converted = toGedcom7Lines(lines);
+	const converted = renumberXrefs(toGedcom7Lines(lines), 'gedcom7');
 	// After `GEDC`, which is lines 1 and 2.
-	converted.splice(3, 0, ...schemaLines(converted));
+	converted.splice(3, 0, ...schemaLines(converted, data.headerBlocks));
 	return converted.join('\r\n') + '\r\n';
 }
 
-/** `SCHMA` for the extension tags Epoch defines that these lines use; none when they use none. */
-function schemaLines(lines: readonly string[]): string[] {
+/**
+ * `SCHMA` for the extension tags the file defines: the ones an import kept, in the order it had
+ * them, then the Epoch tags these lines use. Epoch's URI wins for its own tag. None when there are
+ * none.
+ */
+function schemaLines(lines: readonly string[], kept: readonly string[][] = []): string[] {
+	// A tag may be documented at several URIs, so every pair is kept, not one per tag.
+	const entries = new Map<string, [string, string]>();
+	for (const block of kept) {
+		if (!/^1 SCHMA\b/.test(block[0] ?? '')) continue;
+		for (const line of block) {
+			const m = /^2 TAG (\S+) (\S.*)$/.exec(singleLine(line) ?? '');
+			if (m) entries.set(`${m[1]} ${m[2]}`, [m[1], m[2]]);
+		}
+	}
 	const used = new Set<string>();
 	for (const line of lines) {
 		const tag = line.match(/^\d+ (?:@[^@\s]+@ )?(_\S+)/)?.[1];
 		if (tag && EXTENSION_TAG_URIS[tag]) used.add(tag);
 	}
-	if (used.size === 0) return [];
-	return ['1 SCHMA', ...[...used].sort().map((tag) => `2 TAG ${tag} ${EXTENSION_TAG_URIS[tag]}`)];
+	for (const tag of [...used].sort()) {
+		for (const [key, [keptTag]] of [...entries]) if (keptTag === tag) entries.delete(key);
+		entries.set(`${tag} ${EXTENSION_TAG_URIS[tag]}`, [tag, EXTENSION_TAG_URIS[tag]]);
+	}
+	if (entries.size === 0) return [];
+	return ['1 SCHMA', ...[...entries.values()].map(([tag, uri]) => `2 TAG ${tag} ${uri}`)];
 }
 
 /**

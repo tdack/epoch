@@ -18,7 +18,11 @@ vi.mock('#lib/api/files.js', () => ({
 	linkFileApi: vi.fn(),
 	renameFileApi: vi.fn(),
 	unlinkFileApi: vi.fn(),
-	uploadMediaApi: vi.fn()
+	mediaFromUploadApi: vi.fn()
+}));
+vi.mock('#lib/api/uploader.js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/api/uploader.js')>()),
+	startUpload: vi.fn()
 }));
 
 import {
@@ -29,14 +33,16 @@ import {
 	linkFileApi,
 	renameFileApi,
 	unlinkFileApi,
-	uploadMediaApi
+	mediaFromUploadApi
 } from '#lib/api/files.js';
+import { startUpload } from '#lib/api/uploader.js';
 import { ConflictError } from '#lib/api/client.js';
 import { fetchSources } from '#lib/api/evidence.js';
 import Page from './+page.svelte';
 
 const remove = vi.mocked(deleteFileApi);
-const upload = vi.mocked(uploadMediaApi);
+const upload = vi.mocked(mediaFromUploadApi);
+const send = vi.mocked(startUpload);
 const rename = vi.mocked(renameFileApi);
 const link = vi.mocked(linkFileApi);
 const unlink = vi.mocked(unlinkFileApi);
@@ -61,6 +67,7 @@ beforeEach(() => {
 	remove.mockReset();
 	rename.mockReset();
 	upload.mockReset();
+	send.mockReset();
 	link.mockReset();
 	unlink.mockReset();
 	sources.mockReset();
@@ -80,6 +87,12 @@ const TREE = { id: 't1', name: 'Tree One', slug: 'tree-one' };
 function row(overrides: Partial<FileRowDto>): FileRowDto {
 	return {
 		id: 'f1',
+		objectId: 'f1',
+		objectVersion: 3,
+		isUnresolved: false,
+		gedcomPath: null,
+		extraFiles: [],
+		hostLink: null,
 		title: 'Certificate.pdf',
 		version: 3,
 		mimeType: 'application/pdf',
@@ -160,6 +173,36 @@ describe('Files page visibility', () => {
 		render({ role: 'editor', files: [row({}), row({ id: 'f2', links: [] })] });
 		expect(document.body.textContent).toMatch(/Ada Lovelace\s*Byron/);
 		expect(document.body.textContent).toContain('Not linked');
+	});
+
+	it('marks an unlinked file with a text badge', () => {
+		render({ role: 'editor', files: [row({ id: 'f2', links: [] })] });
+		expect(document.querySelector('[data-testid="file-unlinked-badge"]')?.textContent).toContain(
+			'Not linked'
+		);
+	});
+
+	it('lists only unlinked files when asked, and all of them again when cleared', async () => {
+		render({ role: 'editor', files: [row({}), row({ id: 'f2', links: [] })] });
+		listFiles.mockResolvedValue({ files: [row({ id: 'f2', links: [] })], nextCursor: null });
+		const toggle = document.querySelector(
+			'[data-testid="files-unlinked-only"]'
+		) as HTMLInputElement;
+		toggle.checked = true;
+		toggle.dispatchEvent(new Event('change', { bubbles: true }));
+		await vi.waitFor(() =>
+			expect(listFiles).toHaveBeenLastCalledWith(
+				expect.objectContaining({ treeId: 't1', isDetachedOnly: true })
+			)
+		);
+		await vi.waitFor(() => expect(document.querySelectorAll('tbody tr')).toHaveLength(1));
+		toggle.checked = false;
+		toggle.dispatchEvent(new Event('change', { bubbles: true }));
+		await vi.waitFor(() =>
+			expect(listFiles).toHaveBeenLastCalledWith(
+				expect.objectContaining({ treeId: 't1', isDetachedOnly: false })
+			)
+		);
 	});
 
 	it('shows metadata only, with no actions, for a row the caller cannot open', () => {
@@ -247,7 +290,7 @@ describe('Files page paging', () => {
 			.find((b) => b.textContent?.trim() === 'Load more files')!
 			.click();
 		await vi.waitFor(() => expect(document.body.textContent).toContain('Second.pdf'));
-		expect(listFiles).toHaveBeenCalledWith({ treeId: 't1', cursor: 'c1' });
+		expect(listFiles).toHaveBeenCalledWith({ treeId: 't1', isDetachedOnly: false, cursor: 'c1' });
 		expect(document.querySelectorAll('[data-testid="file-row"]')).toHaveLength(2);
 	});
 
@@ -261,7 +304,11 @@ describe('Files page paging', () => {
 			.click();
 		await vi.waitFor(() => expect(document.body.textContent).toContain('Found.pdf'));
 		expect(listFiles).toHaveBeenCalledTimes(2);
-		expect(listFiles).toHaveBeenLastCalledWith({ treeId: 't1', cursor: 'c2' });
+		expect(listFiles).toHaveBeenLastCalledWith({
+			treeId: 't1',
+			isDetachedOnly: false,
+			cursor: 'c2'
+		});
 	});
 });
 
@@ -284,6 +331,7 @@ describe('Files page upload to a source', () => {
 
 	it('uploads a file to the source chosen', async () => {
 		upload.mockResolvedValue(undefined);
+		send.mockResolvedValue({ sessionId: 'u1', r2Key: 'k', totalBytes: 1 });
 		listFiles.mockResolvedValue({ files: [], nextCursor: null });
 		render({ role: 'editor', files: [] });
 		document.querySelector<HTMLButtonElement>('[data-testid="files-add"]')!.click();
@@ -294,7 +342,68 @@ describe('Files page upload to a source', () => {
 		input.dispatchEvent(new Event('change', { bubbles: true }));
 		await pickSource();
 		click('Upload');
-		await vi.waitFor(() => expect(upload).toHaveBeenCalledWith('t1', 's1', file));
+		await vi.waitFor(() =>
+			expect(upload).toHaveBeenCalledWith({
+				sessionId: 'u1',
+				entityId: 's1',
+				title: 'scan.png'
+			})
+		);
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({ file, treeId: 't1', purpose: 'media' })
+		);
+	});
+
+	async function chooseAndStart(file: File) {
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		render({ role: 'editor', files: [] });
+		document.querySelector<HTMLButtonElement>('[data-testid="files-add"]')!.click();
+		flushSync();
+		const input = document.querySelector<HTMLInputElement>('#upload-file')!;
+		Object.defineProperty(input, 'files', { value: [file] });
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+		await pickSource();
+		click('Upload');
+	}
+
+	it('shows progress while the parts go up', async () => {
+		send.mockImplementation(async ({ onProgress }) => {
+			onProgress?.({ uploadedBytes: 500, totalBytes: 1000 });
+			return new Promise(() => {});
+		});
+		await chooseAndStart(new File([new Uint8Array(1000)], 'big.pdf'));
+		await vi.waitFor(() =>
+			expect(document.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe(
+				'50'
+			)
+		);
+	});
+
+	it('cancels an upload from the progress panel and returns to the picker', async () => {
+		send.mockImplementation(
+			({ signal }) =>
+				new Promise((_resolve, reject) =>
+					signal?.addEventListener('abort', () => reject(new DOMException('x', 'AbortError')))
+				)
+		);
+		await chooseAndStart(new File(['x'], 'a.png'));
+		await vi.waitFor(() => expect(document.querySelector('[role="progressbar"]')).not.toBeNull());
+		click('Cancel upload');
+		await vi.waitFor(() => expect(document.querySelector('[role="progressbar"]')).toBeNull());
+		expect(document.querySelector('[role="alert"]')).toBeNull();
+		expect(upload).not.toHaveBeenCalled();
+	});
+
+	it('shows a failure with a retry that does not send the bytes again once they arrived', async () => {
+		send.mockResolvedValue({ sessionId: 'u1', r2Key: 'k', totalBytes: 1 });
+		upload.mockRejectedValueOnce(new Error('This upload is not finished')).mockResolvedValue();
+		await chooseAndStart(new File(['x'], 'a.png'));
+		await vi.waitFor(() =>
+			expect(document.querySelector('[role="alert"]')?.textContent).toContain('not finished')
+		);
+		click('Try again');
+		await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+		expect(send).toHaveBeenCalledTimes(1);
 	});
 
 	it('closes the dialog, reloads and says so when the file changed under a rename', async () => {
@@ -444,5 +553,84 @@ describe('Files page link chips', () => {
 			.find((b) => b.textContent?.trim() === 'Link')!
 			.click();
 		await vi.waitFor(() => expect(link).toHaveBeenCalledWith('f1', 't1', 's1', 3));
+	});
+});
+
+describe('Files page imported objects', () => {
+	const missing = (overrides: Partial<FileRowDto> = {}) =>
+		row({
+			id: 'u1',
+			title: null,
+			isUnresolved: true,
+			previewKey: null,
+			canPreview: false,
+			sizeBytes: null,
+			gedcomPath: 'C:\\Photos\\ada-1923.jpg',
+			mimeType: 'image/jpeg',
+			...overrides
+		});
+
+	it('shows an unresolved file with the last path segment, a text badge, no image and no preview', () => {
+		render({ role: 'editor', files: [missing()] });
+		const tr = document.querySelector('[data-testid="file-row"]')!;
+		expect(tr.textContent).toContain('ada-1923.jpg');
+		expect(tr.textContent).toContain('Not stored in Epoch');
+		expect(tr.querySelector('img')).toBeNull();
+		expect(actions()).toEqual(['Details ada-1923.jpg']);
+		expect(tr.querySelector('td:nth-child(4)')!.textContent).toContain('—');
+	});
+
+	it('shows the path as plain text in the details, and an http address as a safe link', () => {
+		render({ role: 'editor', files: [missing()] });
+		document.querySelector<HTMLButtonElement>('tbody button')!.click();
+		flushSync();
+		const path = document.querySelector('[data-testid="file-path"]')!;
+		expect(path.textContent).toContain('C:\\Photos\\ada-1923.jpg');
+		expect(path.querySelector('a')).toBeNull();
+		unmountAll();
+		render({ role: 'editor', files: [missing({ gedcomPath: 'https://example.org/a.jpg' })] });
+		document.querySelector<HTMLButtonElement>('tbody button')!.click();
+		flushSync();
+		const link = document.querySelector<HTMLAnchorElement>('[data-testid="file-path"] a')!;
+		expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+		expect(link.getAttribute('target')).toBe('_blank');
+	});
+
+	it('offers "Add file…" in the details to an editor, not to a viewer', () => {
+		const openDetails = () => {
+			[...document.querySelectorAll<HTMLButtonElement>('tbody button')]
+				.find((b) => b.textContent?.trim().startsWith('Details'))!
+				.click();
+			flushSync();
+		};
+		render({ role: 'editor', files: [missing({ canLink: true })] });
+		openDetails();
+		expect(document.querySelector('[data-testid="add-file-input"]')).not.toBeNull();
+		unmountAll();
+		render({ role: 'viewer', files: [missing({ canLink: false })] });
+		openDetails();
+		expect(document.querySelector('[data-testid="add-file-input"]')).toBeNull();
+	});
+
+	it('says "+n files" and lists every file of the object in its details', () => {
+		const extra = (id: string) => ({
+			id,
+			title: `${id}.png`,
+			version: 1,
+			mimeType: 'image/png',
+			sizeBytes: 5,
+			isUnresolved: false,
+			gedcomPath: null,
+			previewKey: `media/t1/${id}.png`
+		});
+		render({ role: 'editor', files: [row({ extraFiles: [extra('b'), extra('c')] })] });
+		expect(document.querySelector('[data-testid="file-extra-count"]')!.textContent).toBe(
+			'+2 files'
+		);
+		[...document.querySelectorAll<HTMLButtonElement>('tbody button')]
+			.find((b) => b.textContent?.trim().startsWith('Details'))!
+			.click();
+		flushSync();
+		expect(document.querySelectorAll('[data-testid="object-file"]')).toHaveLength(3);
 	});
 });

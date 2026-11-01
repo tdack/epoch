@@ -6,6 +6,8 @@
 		Download,
 		Eye,
 		FileText,
+		FileX,
+		Info,
 		Image as ImageIcon,
 		Link,
 		User,
@@ -15,11 +17,14 @@
 		Plus,
 		Search,
 		Trash2,
+		Unlink,
 		Upload,
 		X
 	} from '@lucide/svelte';
 	import { fileDrop } from '#lib/components/forms/fileDrop.js';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
+	import MediaFileList from '#lib/components/media/MediaFileList.svelte';
+	import NotStoredBadge from '#lib/components/media/NotStoredBadge.svelte';
 	import FileOwnerPicker from '#lib/components/FileOwnerPicker.svelte';
 	import { canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -31,15 +36,21 @@
 		fetchUnlinkedFiles,
 		linkFileApi,
 		renameFileApi,
-		unlinkFileApi,
-		uploadMediaApi
+		mediaFromUploadApi,
+		unlinkFileApi
 	} from '#lib/api/files.js';
+	import { isAbortError, startUpload } from '#lib/api/uploader.js';
+	import UploadProgress from '#lib/components/forms/UploadProgress.svelte';
+	import type { UploadCompleteDto } from '#lib/shared/uploads.js';
 	import type { FileRowDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 	import {
+		extraFilesLabel,
 		formatMediaSize,
 		isInlineMediaType,
 		MEDIA_UPLOAD_ACCEPT,
-		mediaUrl
+		mediaUrl,
+		unresolvedFileLabel,
+		type ObjectFileView
 	} from '#lib/shared/media.js';
 	import { canChangeRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { PageProps } from './$types';
@@ -61,6 +72,8 @@
 	let files = $state<FileRowDto[]>(untrack(() => data.files.files));
 	let nextCursor = $state<string | null>(untrack(() => data.files.nextCursor));
 	let usage = $state<FileUsageDto>(untrack(() => data.usage));
+	/** Lists only files with no link, such as the ones a replace import leaves behind (ADR-082). */
+	let isUnlinkedOnly = $state(false);
 	let isLoading = $state(false);
 	let listError = $state<string | null>(null);
 	/** Bumped on every new listing, so an answer to an earlier filter cannot overwrite the current one. */
@@ -69,7 +82,7 @@
 	let unlinked = $state<UnlinkedListDto | null>(null);
 	let isCheckingUnlinked = $state(false);
 
-	type Dialog = 'upload' | 'rename' | 'link' | 'delete' | 'preview' | 'unlinked' | null;
+	type Dialog = 'upload' | 'rename' | 'link' | 'delete' | 'preview' | 'details' | 'unlinked' | null;
 	let dialog = $state<Dialog>(null);
 	let target = $state<FileRowDto | null>(null);
 	let isBusy = $state(false);
@@ -77,6 +90,16 @@
 	let dialogError = $state<string | null>(null);
 	let renameTitle = $state('');
 	let uploadFile = $state<File | null>(null);
+	/** Where the chosen file's upload stands; `null` before one starts. */
+	let upload = $state<{
+		phase: 'uploading' | 'finishing' | 'failed';
+		uploadedBytes: number;
+		error: string | null;
+	} | null>(null);
+	const isSending = $derived(upload?.phase === 'uploading' || upload?.phase === 'finishing');
+	/** Kept after the bytes arrive, so a failed filing retries without sending them again. */
+	let uploaded: UploadCompleteDto | null = null;
+	let uploadAbort: AbortController | null = null;
 	/** The person or source the upload dialog has chosen. */
 	let chosenOwner = $state<{ id: string; name: string } | null>(null);
 
@@ -85,6 +108,14 @@
 	// Below lg a row is a card, so each figure carries its own label in place of the column header.
 	const cellClass =
 		'col-start-2 text-stone-600 before:text-stone-500 before:content-[attr(data-label)] max-lg:before:mr-1 lg:table-cell lg:px-3 lg:py-2 lg:before:content-none';
+	/** An object's first file and the rest, as its details list them. */
+	const filesOf = (file: FileRowDto): ObjectFileView[] => [file, ...file.extraFiles];
+	/** Whether there is anything to see beyond the row: more files, or a file whose bytes are not here. */
+	const hasDetails = (file: FileRowDto) =>
+		file.extraFiles.length > 0 || file.isUnresolved || file.gedcomPath !== null;
+	const nameOf = (file: FileRowDto) =>
+		file.isUnresolved ? unresolvedFileLabel(file) : (file.title ?? 'Untitled');
+
 	const scopeOf = (value: string) => (value === ALL_TREES ? null : value);
 	const hasUploader = $derived(files.some((file) => file.uploadedBy !== null));
 	const thisTreeUsage = $derived(usage.trees.find((t) => t.treeId === treeId) ?? null);
@@ -112,7 +143,7 @@
 			let page;
 			let found: FileRowDto[] = [];
 			do {
-				page = await fetchFiles({ treeId: scopeOf(value), cursor });
+				page = await fetchFiles({ treeId: scopeOf(value), isDetachedOnly: isUnlinkedOnly, cursor });
 				found = [...found, ...page.files];
 				cursor = page.nextCursor;
 			} while (page.files.length === 0 && cursor !== null);
@@ -136,7 +167,11 @@
 			let page;
 			let found: FileRowDto[] = [];
 			do {
-				page = await fetchFiles({ treeId: scopeOf(filter), cursor });
+				page = await fetchFiles({
+					treeId: scopeOf(filter),
+					isDetachedOnly: isUnlinkedOnly,
+					cursor
+				});
 				found = [...found, ...page.files];
 				cursor = page.nextCursor;
 			} while (page.files.length === 0 && cursor !== null);
@@ -159,6 +194,11 @@
 		await Promise.all([listFrom(filter), refreshUsage()]);
 	}
 
+	function changeUnlinkedOnly(isOnly: boolean) {
+		isUnlinkedOnly = isOnly;
+		void listFrom(filter);
+	}
+
 	function changeFilter(value: string) {
 		filter = value;
 		unlinked = null;
@@ -172,13 +212,22 @@
 		isBusy = false;
 		chosenOwner = null;
 		if (kind === 'rename') renameTitle = file?.title ?? '';
-		if (kind === 'upload') uploadFile = null;
+		if (kind === 'upload') resetUpload(null);
+	}
+
+	/** Forgets any upload in progress and the file it was for, stopping its requests. */
+	function resetUpload(file: File | null) {
+		uploadAbort?.abort();
+		uploadAbort = null;
+		uploaded = null;
+		upload = null;
+		uploadFile = file;
 	}
 
 	/** A file dropped on the list opens the upload dialog with it chosen; the record is still the user's pick. */
 	function dropToUpload(dropped: File[]) {
 		openDialog('upload');
-		uploadFile = dropped[0]!;
+		resetUpload(dropped[0]!);
 		if (dropped.length > 1)
 			toasts.push('Files are added one at a time, so only the first is selected.');
 	}
@@ -192,12 +241,15 @@
 			dialogError = `Already linked to ${owner.name}.`;
 			return;
 		}
-		void run(() => linkFileApi(file.id, file.treeId, owner.id, file.version), 'File linked');
+		void run(
+			() => linkFileApi(file.objectId, file.treeId, owner.id, file.objectVersion),
+			'File linked'
+		);
 	};
 
 	async function unlink(file: FileRowDto, link: FileRowDto['links'][number]) {
 		try {
-			await unlinkFileApi(file.id, file.treeId, link.entityId, file.version);
+			await unlinkFileApi(file.objectId, file.treeId, link.entityId, file.objectVersion);
 			toasts.push(`Unlinked from ${link.label}`);
 			await reload();
 		} catch (cause) {
@@ -207,6 +259,8 @@
 	}
 
 	function closeDialog() {
+		// Leaving the dialog mid-upload is a cancel; the session is deleted rather than left to expire.
+		if (dialog === 'upload') uploadAbort?.abort();
 		dialog = null;
 	}
 
@@ -235,12 +289,51 @@
 		}
 	}
 
-	const uploadTo = () => {
+	/**
+	 * Sends the file in parts, then files it on the chosen record. Not `run`: a failure stays in the
+	 * progress panel with its own retry, and a retry resumes rather than starting over.
+	 */
+	async function uploadTo() {
 		const file = uploadFile;
 		const owner = chosenOwner;
-		if (!file || !owner) return;
-		return run(() => uploadMediaApi(treeId, owner.id, file), `Uploaded ${file.name}`);
-	};
+		if (!file || !owner || isSending) return;
+		const controller = new AbortController();
+		uploadAbort = controller;
+		upload = { phase: 'uploading', uploadedBytes: upload?.uploadedBytes ?? 0, error: null };
+		try {
+			uploaded ??= await startUpload({
+				file,
+				treeId,
+				purpose: 'media',
+				signal: controller.signal,
+				onProgress: (p) => {
+					if (upload) upload = { ...upload, uploadedBytes: p.uploadedBytes };
+				}
+			});
+			upload = { phase: 'finishing', uploadedBytes: file.size, error: null };
+			await mediaFromUploadApi({
+				sessionId: uploaded.sessionId,
+				entityId: owner.id,
+				title: file.name
+			});
+			uploadAbort = null;
+			upload = null;
+			dialog = null;
+			toasts.push(`Uploaded ${file.name}`);
+			await reload();
+		} catch (cause) {
+			// A cancel is the person's own doing, so it returns to the picker without an error.
+			if (isAbortError(cause) || controller.signal.aborted) {
+				upload = null;
+				return;
+			}
+			upload = {
+				phase: 'failed',
+				uploadedBytes: upload?.uploadedBytes ?? 0,
+				error: messageOf(cause, 'The upload failed')
+			};
+		}
+	}
 
 	function rename(event: SubmitEvent) {
 		event.preventDefault();
@@ -348,6 +441,15 @@
 			{/each}
 		</select>
 	</div>
+	<label class="flex items-center gap-1.5 pb-1.5 text-xs font-semibold text-stone-700">
+		<input
+			type="checkbox"
+			data-testid="files-unlinked-only"
+			checked={isUnlinkedOnly}
+			onchange={(event) => changeUnlinkedOnly(event.currentTarget.checked)}
+		/>
+		Unlinked only
+	</label>
 	<p class="pb-1.5 text-xs text-stone-600" role="status" aria-live="polite">
 		{#if isLoading}Loading files…{:else}{files.length} shown{nextCursor
 				? ', more to load'
@@ -408,6 +510,8 @@
 								loading="lazy"
 								class="h-9 w-9 rounded object-cover"
 							/>
+						{:else if file.isUnresolved}
+							<FileX class="h-6 w-6 text-stone-500" aria-hidden="true" />
 						{:else if file.mimeType === 'application/pdf'}
 							<FileText class="h-6 w-6 text-stone-500" aria-hidden="true" />
 						{:else}
@@ -418,15 +522,29 @@
 						scope="row"
 						class="text-left text-sm font-semibold break-words text-stone-900 lg:table-cell lg:max-w-xs lg:px-3 lg:py-2 lg:text-xs"
 					>
-						{file.title ?? 'Untitled'}
+						{nameOf(file)}
+						{#if file.isUnresolved}
+							<span class="ml-1 align-middle"><NotStoredBadge /></span>
+						{/if}
+						{#if file.extraFiles.length > 0}
+							<span class="ml-1 font-normal text-stone-600" data-testid="file-extra-count"
+								>{extraFilesLabel(file.extraFiles.length)}</span
+							>
+						{/if}
 					</th>
 					<td class={cellClass} data-label="Type:">{file.mimeType}</td>
 					<td class="{cellClass} whitespace-nowrap tabular-nums lg:text-right" data-label="Size:"
-						>{formatMediaSize(file.sizeBytes)}</td
+						>{file.isUnresolved ? '—' : formatMediaSize(file.sizeBytes)}</td
 					>
 					<td class="col-start-2 max-lg:order-1 max-lg:pt-1 lg:table-cell lg:px-3 lg:py-2">
 						{#if file.links.length === 0}
-							<span class="text-stone-600">Not linked</span>
+							<span
+								data-testid="file-unlinked-badge"
+								class="inline-flex items-center gap-1 rounded-full border border-dashed border-stone-400 bg-stone-100 px-2 py-0.5 text-stone-800"
+							>
+								<Unlink class="h-3 w-3" aria-hidden="true" />
+								Not linked
+							</span>
 						{:else}
 							<ul class="flex flex-wrap gap-1" aria-label="Linked records">
 								{#each file.links as link (link.entityId)}
@@ -481,6 +599,15 @@
 									>
 								</button>
 							{/if}
+							{#if hasDetails(file)}
+								<button
+									type="button"
+									class="row-action"
+									onclick={() => openDialog('details', file)}
+								>
+									<Info aria-hidden="true" />Details<span class="sr-only">{' '}{nameOf(file)}</span>
+								</button>
+							{/if}
 							{#if file.canRename}
 								<button type="button" class="row-action" onclick={() => openDialog('rename', file)}>
 									<Pencil aria-hidden="true" />Rename<span class="sr-only"
@@ -506,7 +633,7 @@
 									>
 								</button>
 							{/if}
-							{#if !file.canPreview}
+							{#if !file.canPreview && !hasDetails(file)}
 								<span class="px-2 py-1 text-stone-500">Details only</span>
 							{/if}
 						</div>
@@ -626,8 +753,9 @@
 				id="upload-file"
 				type="file"
 				accept={MEDIA_UPLOAD_ACCEPT}
+				disabled={isSending}
 				onchange={(event) =>
-					(uploadFile = (event.currentTarget as HTMLInputElement).files?.[0] ?? null)}
+					resetUpload((event.currentTarget as HTMLInputElement).files?.[0] ?? null)}
 				class="mt-1 text-xs"
 			/>
 			{#if uploadFile}
@@ -644,14 +772,29 @@
 				bind:picked={chosenOwner}
 			/>
 		{/if}
+		{#if upload && uploadFile}
+			<UploadProgress
+				fileName={uploadFile.name}
+				uploadedBytes={upload.uploadedBytes}
+				totalBytes={uploadFile.size}
+				phase={upload.phase}
+				error={upload.error}
+				oncancel={() => uploadAbort?.abort()}
+				onretry={() => void uploadTo()}
+			/>
+		{/if}
 		<div class="flex justify-end gap-2 border-t border-stone-200 pt-3">
 			<button
 				type="button"
 				onclick={closeDialog}
 				class="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-600">Cancel</button
 			>
-			<button type="submit" disabled={isBusy || !uploadFile || !chosenOwner} class="btn-primary-sm">
-				{isBusy ? 'Uploading…' : 'Upload'}
+			<button
+				type="submit"
+				disabled={upload !== null || !uploadFile || !chosenOwner}
+				class="btn-primary-sm"
+			>
+				Upload
 			</button>
 		</div>
 	</form>
@@ -796,6 +939,27 @@
 			</button>
 		</div>
 	</div>
+</BaseModal>
+
+<BaseModal
+	isOpen={dialog === 'details'}
+	title={target ? nameOf(target) : 'File'}
+	icon={Info}
+	maxWidthClass="max-w-xl"
+	onclose={closeDialog}
+>
+	{#if target}
+		<MediaFileList
+			files={filesOf(target)}
+			treeId={target.treeId}
+			canAdd={target.canLink}
+			onresolved={async () => {
+				dialog = null;
+				toasts.push('File added');
+				await reload();
+			}}
+		/>
+	{/if}
 </BaseModal>
 
 <BaseModal

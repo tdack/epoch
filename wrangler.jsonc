@@ -47,6 +47,15 @@
 			}
 		},
 		{
+			"name": "epoch-genealogy-import-workflow",
+			"binding": "GEDCOM_IMPORT_WORKFLOW",
+			"class_name": "GedcomImportWorkflow",
+			"default_retention": {
+				"success_retention": "3 days",
+				"error_retention": "7 days"
+			}
+		},
+		{
 			"name": "epoch-genealogy-match-workflow",
 			"binding": "PLACE_MATCH_WORKFLOW",
 			"class_name": "PlaceMatchWorkflow",
@@ -56,6 +65,11 @@
 			}
 		}
 	],
+	// Hourly, off the top of the hour so it does not join the rush of other scheduled work. It only
+	// closes upload sessions that were abandoned past their expiry (see UploadService.sweepExpired).
+	"triggers": {
+		"crons": ["17 * * * *"]
+	},
 	// Per-location counters with no resource to create: the namespace_id is a number we choose
 	// (ADR-066). The limits live in src/lib/server/http/rate-limit.ts; keep the two in step.
 	"ratelimits": [

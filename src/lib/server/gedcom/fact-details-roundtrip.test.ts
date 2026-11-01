@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import factDetails from '../../../../test/data/fact-details.ged?raw';
 import windsors from '../../../../test/data/The Windsors.ged?raw';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
-import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
+import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';
 import { parseGedcom } from './parser';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
 
@@ -14,11 +14,11 @@ afterAll(async () => {
 	await t.dispose();
 });
 
-/** The records of a file, from its first record on: the header is written afresh by each export. */
+/** The records of a file, from its first record on: the header and the CHAN/CREA stamps are written afresh by each export. */
 function recordLines(text: string): string[] {
 	const lines = text.split(/\r\n|\r|\n/).filter((line) => line.trim() !== '');
 	const start = lines.findIndex((line) => /^0 @/.test(line));
-	return lines.slice(start).filter((line) => line !== '0 TRLR');
+	return withoutStamps(lines.slice(start).filter((line) => line !== '0 TRLR'));
 }
 
 /** Every line of `input` is in `output`, counting repeats, whatever the order. */

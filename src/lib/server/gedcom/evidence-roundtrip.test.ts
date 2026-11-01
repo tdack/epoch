@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import FIXTURE from './fixtures/evidence.ged?raw';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
-import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
+import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -22,7 +22,7 @@ afterAll(async () => {
 const lines = (text: string) => text.replace(/\r\n/g, '\n').split('\n').filter(Boolean);
 /** The header describes the file Epoch writes, not the tree, so it is Epoch's own. */
 const withoutHeader = (all: string[]) =>
-	all.slice(all.findIndex((line, i) => i > 0 && line.startsWith('0 ')));
+	withoutStamps(all.slice(all.findIndex((line, i) => i > 0 && line.startsWith('0 '))));
 const exportOf = async (treeId: string, format: '551' | '7' = '551') => {
 	const data = await getTreeExportData(t.d1, treeId);
 	return lines(format === '551' ? buildGedcom551String(data) : buildGedcom7String(data));
@@ -55,10 +55,11 @@ describe('every structure the fixture carries comes back', () => {
 		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence');
 		for (const format of ['551', '7'] as const) {
 			const out = await exportOf(treeId, format);
+			// 7.0 has no `NOTE` record: a shared note is an `SNOTE` there.
 			for (const record of [
 				'0 @S1@ SOUR',
 				'0 @R1@ REPO',
-				'0 @N1@ NOTE Shared note text',
+				`0 @N1@ ${format === '7' ? 'SNOTE' : 'NOTE'} Shared note text`,
 				'0 @M1@ OBJE'
 			]) {
 				expect(
@@ -96,8 +97,8 @@ describe('importing again changes nothing', () => {
 
 /**
  * A source can have files in Epoch (ADR-061), but a GEDCOM `OBJE` carries a path, never bytes, so an
- * import creates no file and an export has no file to write. The `OBJE` under a `SOUR` stays a
- * retained line, written once; a file attached in Epoch adds nothing to the export.
+ * import creates no bytes. An `OBJE` under a `SOUR`, embedded or by pointer, becomes a media record
+ * with a link, written once; a file attached in Epoch is written as one more record and pointer.
  */
 describe('an OBJE under a source', () => {
 	const SOURCE_OBJE = `0 HEAD
@@ -122,12 +123,15 @@ describe('an OBJE under a source', () => {
 			source.findIndex((line, i) => i > 0 && line.startsWith('0 '))
 		);
 		expect(block.filter((line) => line === '1 OBJE @M1@')).toHaveLength(1);
-		expect(block).toContain('1 OBJE');
-		expect(block).toContain('2 FILE scan.png');
+		// The embedded copy is a record of its own with a pointer, in 7.0 and in 5.5.1.
+		expect(block.filter((line) => /^1 OBJE @O\d+@$/.test(line))).toHaveLength(1);
+		expect(block.some((line) => line.includes('_OBJE'))).toBe(false);
 		expect(out.filter((line) => line === '0 @M1@ OBJE')).toHaveLength(1);
+		expect(out.filter((line) => /^0 @O\d+@ OBJE$/.test(line))).toHaveLength(1);
+		expect(out.filter((line) => line === '1 FILE scan.png')).toHaveLength(1);
 	});
 
-	it('is unchanged by a file attached to the source in Epoch', async () => {
+	it('gains a record and a pointer for a file attached to the source in Epoch', async () => {
 		const treeId = crypto.randomUUID();
 		await importGedcomToDb(t.d1, treeId, SOURCE_OBJE, 'Source OBJE');
 		const before = withoutHeader(await exportOf(treeId));
@@ -149,7 +153,13 @@ describe('an OBJE under a source', () => {
 			.prepare(`insert into media_links (id, tree_id, media_id, entity_id) values (?, ?, 'm-1', ?)`)
 			.bind(`m-1:${source.id}`, treeId, source.id)
 			.run();
-		expect(withoutHeader(await exportOf(treeId))).toEqual(before);
-		expect(withoutHeader(await exportOf(treeId, '7'))).toEqual(before7);
+		// The file is a record of its own, which leaves everything the import kept as it was.
+		const after = withoutHeader(await exportOf(treeId));
+		const after7 = withoutHeader(await exportOf(treeId, '7'));
+		expect(after).toEqual(expect.arrayContaining(before));
+		expect(after7).toEqual(expect.arrayContaining(before7));
+		expect(after).toContain('1 FILE media/scan-m-1.png');
+		expect(after7).toContain('1 FILE media/scan-m-1.png');
+		expect(after.filter((line) => line === '1 OBJE @O1@')).toHaveLength(1);
 	});
 });

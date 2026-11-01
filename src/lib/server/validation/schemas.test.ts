@@ -106,6 +106,12 @@ describe('line terminators at the write boundary', () => {
 		expect(treeRenameSchema.safeParse({ name: 'T', version: 1, dateFormat: 'nope' }).success).toBe(
 			false
 		);
+		const submitter = { name: 'Ada', email: null, www: null };
+		expect(treeRenameSchema.safeParse({ name: 'T', version: 1, submitter }).success).toBe(true);
+		expect(
+			treeRenameSchema.safeParse({ name: 'T', version: 1, submitter: { ...submitter, name: lf } })
+				.success
+		).toBe(false);
 	});
 
 	it('rejects a terminator in a citation entry date and a call number', () => {

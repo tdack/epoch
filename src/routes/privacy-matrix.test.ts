@@ -45,6 +45,8 @@ const PUBLIC_TREE = 'services/public-tree.test.ts';
 
 const FILES = 'services/media-files.test.ts';
 
+const UPLOADS = 'services/upload-service.test.ts';
+
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
 	[`${API}/admin/public-tree/+server.ts`]: { kind: 'role-gated', covers: PUBLIC_TREE },
@@ -54,12 +56,37 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/files/[id]/+server.ts`]: { kind: 'guarded-write', covers: FILES },
 	[`${API}/files/[id]/links/+server.ts`]: { kind: 'guarded-write', covers: FILES },
 	[`${API}/files/[id]/links/[entityId]/+server.ts`]: { kind: 'guarded-write', covers: FILES },
+	[`${API}/files/order/+server.ts`]: { kind: 'guarded-write', covers: FILES },
 	[`${API}/files/unlinked/+server.ts`]: { kind: 'role-gated', covers: FILES },
 	[`${API}/export/status/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/export/download/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/import/+server.ts`]: { kind: 'role-gated', covers: 'auth/authorization.test.ts' },
+	[`${API}/import/[jobId]/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/import-job-service.test.ts'
+	},
 	[`${API}/media/[...key]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
-	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/media/from-upload/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/media-from-upload.test.ts'
+	},
+	[`${API}/media/[id]/resolve-from-upload/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/media-resolve.test.ts'
+	},
+	// An upload session carries bytes, never a record, and only its creator can touch it.
+	[`${API}/uploads/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
+	[`${API}/uploads/[id]/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
+	[`${API}/uploads/[id]/complete/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
+	[`${API}/uploads/[id]/parts/[n]/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
+	[`${API}/uploads/[id]/import/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/gedzip-import-service.test.ts'
+	},
+	[`${API}/uploads/[id]/preview/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/gedzip-import-service.test.ts'
+	},
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
 	[`${API}/csp-report/+server.ts`]: { kind: 'no-record-data', covers: 'http/csp-report.test.ts' },
 	[`${API}/trees/[id]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
@@ -365,8 +392,11 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/files/usage/+server.ts`]: 'refused',
 	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
+	[`${API}/import/[jobId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
 	[`${API}/profile/avatar/[userId]/+server.ts`]: 'refused',
+	[`${API}/uploads/[id]/+server.ts`]: 'refused',
+	[`${API}/uploads/[id]/preview/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/graph/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',

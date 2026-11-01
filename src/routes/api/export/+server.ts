@@ -1,7 +1,7 @@
 import { apiHandler } from '#lib/server/http/handler.js';
 import { downloadHeaders } from '#lib/server/http/export-download.js';
+import { deleteExport } from '#lib/server/http/export-storage.js';
 import { ExportExpiredError, ExportUnavailableError } from '#lib/server/domain/errors.js';
-import type { R2Bucket } from '@cloudflare/workers-types';
 import { assertExportable, GedcomService } from '#lib/server/services/gedcom-service.js';
 import { DEFAULT_GEDCOM_FORMAT, type GedcomFormat } from '#lib/server/gedcom/tags.js';
 import { exportBodySchema, exportQuerySchema } from '#lib/server/validation/schemas.js';
@@ -42,15 +42,6 @@ const MAX_SYNC_EXPORT_INDIVIDUALS = 50000;
 const EXPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' } as const;
 
 const options = { failure: 'Export failed' };
-
-/** Best-effort delete of an object whose instance is gone: the lifecycle rule is the backstop. */
-async function discard(bucket: R2Bucket, fileKey: string): Promise<void> {
-	try {
-		await bucket.delete(fileKey);
-	} catch {
-		// The object is beyond use whether or not the delete lands, so the answer is unchanged.
-	}
-}
 
 function resolveFormat(raw: string | null): GedcomFormat {
 	return raw === 'gedcom551' || raw === 'gedcom7' ? raw : DEFAULT_GEDCOM_FORMAT;
@@ -103,7 +94,8 @@ export const POST = apiHandler(
 		const { treeId, clientUuid } = body;
 		const format = resolveFormat(body.format ?? null);
 		const shouldCompress = body.shouldCompress ?? false;
-		assertExportable({ format, shouldCompress });
+		const shouldIncludeMedia = body.includeMedia ?? false;
+		assertExportable({ format, shouldCompress, shouldIncludeMedia });
 
 		const env = event.platform?.env;
 		const bucket = env?.MEDIA_BUCKET;
@@ -115,7 +107,8 @@ export const POST = apiHandler(
 		// synchronous ceiling cannot be built here and must not start a workflow either — it would
 		// only OOM and retry — so it is refused outright.
 		const count = await service.countIndividuals(treeId);
-		if (count <= LARGE_EXPORT_INDIVIDUALS) return { status: 'sync' };
+		// A media export is never synchronous: its files cannot be built inside a request.
+		if (!shouldIncludeMedia && count <= LARGE_EXPORT_INDIVIDUALS) return { status: 'sync' };
 		if (count > MAX_SYNC_EXPORT_INDIVIDUALS) {
 			return Response.json(
 				{ error: 'This tree is too large to export', code: 'export_too_large' },
@@ -131,11 +124,17 @@ export const POST = apiHandler(
 		// The id is built server-side from the tree, the format and the client's per-click uuid, so a
 		// retry names the same instance and a download can derive the object key from it. The key
 		// itself is never returned.
-		const instanceId = buildExportInstanceId(treeId, format, shouldCompress, clientUuid);
+		const instanceId = buildExportInstanceId(
+			treeId,
+			format,
+			shouldCompress,
+			clientUuid,
+			shouldIncludeMedia
+		);
 		try {
 			await workflow.create({
 				id: instanceId,
-				params: { treeId, userId: ctx.user.id, format, shouldCompress },
+				params: { treeId, userId: ctx.user.id, format, shouldCompress, shouldIncludeMedia },
 				retention: EXPORT_INSTANCE_RETENTION
 			});
 		} catch {
@@ -159,7 +158,7 @@ export const POST = apiHandler(
 				const fileKey = exportObjectKey(parsed.treeId, parsed.token, parsed.clientUuid);
 				const object = await bucket.head(fileKey).catch(() => null);
 				if (!object || isExportExpired(exportWriteTime(object))) {
-					if (object) await discard(bucket, fileKey);
+					if (object) await deleteExport(bucket, parsed, true);
 					throw new ExportExpiredError();
 				}
 			}

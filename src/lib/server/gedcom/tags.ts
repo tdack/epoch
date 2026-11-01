@@ -24,11 +24,27 @@ export const SEX_X_TAG = '_EPOCH_SEX';
  */
 export const PRIVACY_PUBLIC_TAG = '_EPOCH_PRIVACY';
 
+/** `RESN` words that mean "keep this person from viewers": they become the private override. */
+export const RESTRICTING_RESN_WORDS: ReadonlySet<string> = new Set(['privacy', 'confidential']);
+
 /**
  * Marks a name that came from the legacy `_MARNM` tag (ADR-013). It is a married name in the model
  * and is written back as `_MARNM`, not as a second `NAME`, so a round trip does not double it.
  */
 export const LEGACY_MARRIED_NAME_TAG = '_MARNM';
+
+/**
+ * A citation on a child's `FAMC` link. 7.0 has no `SOUR` there, so a 7.0 export writes it as this
+ * extension and import reads it back as the citation it is.
+ */
+export const FAMC_CITATION_TAG = '_SOUR';
+
+/**
+ * A phonetic (`FONE`) or romanized (`ROMN`) variation of a name or place whose `TYPE` has no 7.0
+ * language to stand for it. The ones that do become a standard `TRAN` with a `LANG` instead.
+ */
+const PHONETIC_VARIATION_TAG = '_FONE';
+const ROMANIZED_VARIATION_TAG = '_ROMN';
 
 /**
  * The note Epoch writes under a `NAME` to say when it came into use and from which family (ADR-013).
@@ -53,5 +69,8 @@ const EXTENSIONS_DOC = 'https://github.com/tdack/epoch/blob/main/docs/gedcom-ext
  */
 export const EXTENSION_TAG_URIS: Readonly<Record<string, string>> = {
 	[PARENT_PEDIGREE_TAG]: `${EXTENSIONS_DOC}#_pedi_parent`,
-	[PRIVACY_PUBLIC_TAG]: `${EXTENSIONS_DOC}#_epoch_privacy`
+	[PRIVACY_PUBLIC_TAG]: `${EXTENSIONS_DOC}#_epoch_privacy`,
+	[FAMC_CITATION_TAG]: `${EXTENSIONS_DOC}#_sour`,
+	[PHONETIC_VARIATION_TAG]: `${EXTENSIONS_DOC}#_fone`,
+	[ROMANIZED_VARIATION_TAG]: `${EXTENSIONS_DOC}#_romn`
 };

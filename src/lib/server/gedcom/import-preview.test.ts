@@ -33,12 +33,9 @@ describe('retained tags in the import preview', () => {
 		]);
 	});
 
-	it('shows what remains of the Windsors file: objects and associations only', () => {
+	it('shows what remains of the Windsors file: associations only', () => {
 		const preview = previewNewTree(parseGedcom(windsors));
-		expect(preview.retainedTags).toEqual([
-			{ tag: 'OBJE', count: 50 },
-			{ tag: 'ASSO', count: 6 }
-		]);
+		expect(preview.retainedTags).toEqual([{ tag: 'ASSO', count: 6 }]);
 	});
 
 	it('counts a second TYPE or ADDR under one event, which has no column', () => {
@@ -101,5 +98,21 @@ describe('retained tags in the import preview', () => {
 	it('is empty when nothing is kept', () => {
 		const file = fileWithEvents(['1 BIRT', '2 DATE 1900', '2 ADDR Road', '2 PHON 123']);
 		expect(previewNewTree(parseGedcom(file)).retainedTags).toEqual([]);
+	});
+});
+
+describe('linked files', () => {
+	const file = parseGedcom(fileWithEvents(['1 BIRT']));
+	const rows = { individuals: [], unions: [], parentChild: [], events: [] };
+
+	it('reports the count of linked files only when there are some', () => {
+		expect(
+			previewAgainstTree('t', file, file, { ...rows, linkedMediaObjectCount: 5 })
+				.linkedMediaObjectCount
+		).toBe(5);
+		expect(
+			previewAgainstTree('t', file, file, { ...rows, linkedMediaObjectCount: 0 })
+		).not.toHaveProperty('linkedMediaObjectCount');
+		expect(previewNewTree(file)).not.toHaveProperty('linkedMediaObjectCount');
 	});
 });

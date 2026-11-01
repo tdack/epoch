@@ -14,10 +14,16 @@ import {
 	STAGING_LIFECYCLE_PREFIX,
 	STAGING_RULE_MAX_AGE_SECONDS,
 	stagingLifecycleRule,
+	UPLOAD_ABORT_MAX_AGE_SECONDS,
+	UPLOAD_LIFECYCLE_PREFIX,
+	uploadAbortLifecycleRule,
 	type R2LifecycleRule
 } from './lifecycle.ts';
 
 const ours = () => exportLifecycleRule();
+
+/** Every rule this tool writes, in the order `mergeLifecycleRules` appends them. */
+const managed = () => [ours(), stagingLifecycleRule(), uploadAbortLifecycleRule()];
 
 /** A destructive rule scoped to `prefix`: the shape that can delete or transition live objects. */
 const expiring = (prefix: string): R2LifecycleRule => ({
@@ -28,7 +34,21 @@ const expiring = (prefix: string): R2LifecycleRule => ({
 describe('mergeLifecycleRules', () => {
 	it('adds the export rule when the bucket has none', () => {
 		const rules = mergeLifecycleRules([]);
-		expect(rules).toEqual([ours(), stagingLifecycleRule()]);
+		expect(rules).toEqual(managed());
+	});
+
+	it('adds an abort-only rule for incomplete uploads, which deletes nothing', () => {
+		const abort = uploadAbortLifecycleRule();
+		expect(abort.conditions?.prefix).toBe(UPLOAD_LIFECYCLE_PREFIX);
+		expect(abort.abortMultipartUploadsTransition).toEqual({
+			condition: { type: 'Age', maxAge: UPLOAD_ABORT_MAX_AGE_SECONDS }
+		});
+		expect(abort.deleteObjectsTransition).toBeUndefined();
+		expect(isDangerousRule(abort)).toBe(false);
+	});
+
+	it('sets the abort age to one day, the session lifetime, so it never aborts a live session', () => {
+		expect(UPLOAD_ABORT_MAX_AGE_SECONDS).toBe(24 * 60 * 60);
 	});
 
 	it('keeps every unrelated rule untouched and appends ours', () => {
@@ -65,7 +85,21 @@ describe('mergeLifecycleRules', () => {
 			enabled: false
 		};
 		const rules = mergeLifecycleRules([stale]);
-		expect(rules).toEqual([ours(), stagingLifecycleRule()]);
+		expect(rules).toEqual(managed());
+	});
+
+	it('replaces our upload abort rule rather than adding a second, and keeps a foreign one', () => {
+		const stale = { ...uploadAbortLifecycleRule(), enabled: false };
+		const foreign: R2LifecycleRule = {
+			id: 'epoch-upload-abort',
+			conditions: { prefix: 'logs/' },
+			abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 60 } }
+		};
+		const rules = mergeLifecycleRules([stale, foreign]);
+		expect(rules).toContainEqual(foreign);
+		expect(rules.filter((rule) => rule.conditions?.prefix === UPLOAD_LIFECYCLE_PREFIX)).toEqual([
+			uploadAbortLifecycleRule()
+		]);
 	});
 
 	it('is idempotent: merging its own output changes nothing', () => {
@@ -79,7 +113,7 @@ describe('mergeLifecycleRules', () => {
 			...stagingLifecycleRule(),
 			deleteObjectsTransition: { condition: { type: 'Age', maxAge: 3600 } }
 		};
-		expect(mergeLifecycleRules([shortened])).toEqual([ours(), stagingLifecycleRule()]);
+		expect(mergeLifecycleRules([shortened])).toEqual(managed());
 	});
 
 	it('refuses a foreign destructive rule over staging/ even with our id on another prefix', () => {

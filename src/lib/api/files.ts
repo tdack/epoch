@@ -2,14 +2,16 @@ import type { FileLinkResponse } from '#lib/shared/api-contracts.js';
 import type { FileListDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 import { ApiError, call, json, path, restartSignIn } from './client.js';
 
-/** Attach a photo or document to a person, partnership or source; the server checks the caller may add media to it. */
-export async function uploadMediaApi(treeId: string, entityId: string, file: File): Promise<void> {
-	const body = new FormData();
-	body.append('file', file);
-	body.append('treeId', treeId);
-	body.append('entityId', entityId);
-	body.append('title', file.name);
-	await call('/api/media/upload', { method: 'POST', body }, 'Upload failed');
+/**
+ * Files a finished upload session as media on a person, partnership or source. The bytes are
+ * already stored, so this sends only the session and the record; the server checks them again.
+ */
+export async function mediaFromUploadApi(input: {
+	sessionId: string;
+	entityId: string;
+	title: string;
+}): Promise<void> {
+	await call('/api/media/from-upload', json('POST', input), 'Could not add the file');
 }
 
 export async function previewGedcomImport(
@@ -23,17 +25,40 @@ export async function previewGedcomImport(
 	return call('/api/import', { method: 'PUT', body: fd }, 'Failed to preview import');
 }
 
+/** What an import answers: the counts when it ran in the request, a job to poll when it was queued. */
+export interface GedcomImportResult {
+	status?: 'complete' | 'queued';
+	individualsCount?: number;
+	familiesCount?: number;
+	mergedFamiliesCount?: number;
+	/** Present only for a `.gdz`. */
+	media?: import('#lib/shared/media.js').GedzipMediaCounts;
+	treeId?: string;
+	/** Present when the import was queued; poll it with `importStatusApi`. */
+	jobId?: string;
+}
+
+/** What the archive would add, from the uploaded `.gdz`'s directory and dataset alone. */
+export function previewGedzipImport(
+	sessionId: string
+): Promise<import('#lib/types/genealogy.js').ImportPreviewData> {
+	return call(path`/api/uploads/${sessionId}/preview`, {}, 'Failed to preview the archive');
+}
+
+/** Starts the import of an uploaded `.gdz`; a second start of the same upload is a 409. */
+export function startGedzipImport(
+	sessionId: string,
+	input: { mode: 'replace' | 'merge'; shouldMergeDuplicateFamilies: boolean; isNewTree?: boolean }
+): Promise<GedcomImportResult> {
+	return call(path`/api/uploads/${sessionId}/import`, json('POST', input), 'Import failed');
+}
+
 export async function submitGedcomImport(
 	file: File,
 	mode: 'replace' | 'merge',
 	treeId?: string | null,
 	options: { shouldMergeDuplicateFamilies?: boolean } = {}
-): Promise<{
-	individualsCount?: number;
-	familiesCount?: number;
-	mergedFamiliesCount?: number;
-	treeId?: string;
-}> {
+): Promise<GedcomImportResult> {
 	const fd = new FormData();
 	fd.append('file', file);
 	fd.append('mode', mode);
@@ -44,11 +69,35 @@ export async function submitGedcomImport(
 	return call('/api/import', { method: 'POST', body: fd }, 'Import failed');
 }
 
+/** A queued import's state, as `GET /api/import/<jobId>` answers it. */
+export interface GedcomImportStatus {
+	status: 'pending' | 'running' | 'complete' | 'failed';
+	result?: {
+		individualsCount: number;
+		familiesCount: number;
+		eventsCount: number;
+		mergedFamiliesCount: number;
+		/** Present only for a `.gdz`. */
+		media?: import('#lib/shared/media.js').GedzipMediaCounts;
+	};
+	/** Media entries handled so far of all in the archive; present while a `.gdz` import runs. */
+	progress?: { done: number; total: number };
+	/** A fixed sentence the server chose; safe to show. */
+	error?: string;
+}
+
+/** One poll of a queued import. `signal` lets the caller abandon a superseded poll. */
+export function importStatusApi(jobId: string, signal?: AbortSignal): Promise<GedcomImportStatus> {
+	return call(path`/api/import/${jobId}`, { signal }, 'Failed to check the import');
+}
+
 /** How a tree is exported: the GEDCOM version and whether to package it as a `.gdz`. */
 export interface GedcomExportChoice {
 	format: 'gedcom7' | 'gedcom551';
 	/** Only meaningful for 7.0: GEDZip is defined for 7.0 alone. */
 	shouldCompress: boolean;
+	/** Only meaningful for a 7.0 `.gdz`. Absent, not false, when unchecked: the request omits it. */
+	shouldIncludeMedia?: true;
 }
 
 /** The download address for a tree's export. A plain navigation, so the browser saves the file. */
@@ -81,7 +130,13 @@ function browserSession(): Storage | null {
 
 /** The sessionStorage key holding one export choice's idempotency id. */
 function exportClientUuidKey(treeId: string, choice: GedcomExportChoice): string {
-	return `${EXPORT_CLIENT_UUID_KEY}:${treeId}:${choice.format}:${choice.shouldCompress ? 'gdz' : 'ged'}`;
+	// A media export is its own file, so it must not reuse a plain `.gdz` export's id.
+	const packaging = choice.shouldCompress
+		? choice.shouldIncludeMedia
+			? 'gdz-media'
+			: 'gdz'
+		: 'ged';
+	return `${EXPORT_CLIENT_UUID_KEY}:${treeId}:${choice.format}:${packaging}`;
 }
 
 /**
@@ -130,7 +185,8 @@ export async function startGedcomExport(
 			treeId,
 			clientUuid: exportClientUuid(treeId, choice),
 			format: choice.format,
-			shouldCompress: choice.shouldCompress
+			shouldCompress: choice.shouldCompress,
+			includeMedia: choice.shouldIncludeMedia
 		})
 	});
 	if (response.status === 503) return { status: 'unavailable' };
@@ -240,15 +296,20 @@ export async function linkFileApi(
 	);
 }
 
-/** Unlinks a file from one record; the file itself is kept. */
+/**
+ * Unlinks a file from one record, or from one of its facts when `factId` is given; the file itself
+ * is kept. `fileId` names the object.
+ */
 export async function unlinkFileApi(
 	fileId: string,
 	treeId: string,
 	entityId: string,
-	version: number | undefined
+	version: number | undefined,
+	factId?: string | null
 ): Promise<FileLinkResponse> {
 	const query = new URLSearchParams({ treeId });
 	if (version !== undefined) query.set('version', String(version));
+	if (factId) query.set('factId', factId);
 	return call(
 		path`/api/files/${fileId}/links/${entityId}` + `?${query}`,
 		{ method: 'DELETE' },
@@ -276,4 +337,58 @@ export async function deleteUnlinkedFilesApi(
 ): Promise<{ deleted: number; failed: number }> {
 	const qs = treeId ? `?treeId=${encodeURIComponent(treeId)}` : '';
 	return call(`/api/files/unlinked${qs}`, { method: 'DELETE' }, 'Failed to delete stored files');
+}
+
+/**
+ * Sets the title that overrides the file's for one record or fact; blank clears it. `fileId` names
+ * the object and `version` is its version, so a stale edit is refused.
+ */
+export async function updateFileLinkTitleApi(input: {
+	fileId: string;
+	treeId: string;
+	entityId: string;
+	factId?: string | null;
+	title: string | null;
+	version: number | undefined;
+}): Promise<FileLinkResponse> {
+	return call(
+		path`/api/files/${input.fileId}/links/${input.entityId}`,
+		json('PATCH', {
+			treeId: input.treeId,
+			factId: input.factId ?? null,
+			title: input.title,
+			version: input.version
+		}),
+		'Failed to edit the link'
+	);
+}
+
+/** Sets the order of every file on one record or fact; `orderedMediaIds` names objects, first first. */
+export async function reorderFilesApi(input: {
+	treeId: string;
+	entityId: string;
+	factId?: string | null;
+	orderedMediaIds: string[];
+}): Promise<FileLinkResponse> {
+	return call(
+		'/api/files/order',
+		json('PUT', { ...input, factId: input.factId ?? null }),
+		'Failed to reorder the files'
+	);
+}
+
+/**
+ * Gives an unresolved file the bytes of a finished upload ("Add file…"). `fileId` is the file's own
+ * id, not its object's; `version` is the file's version.
+ */
+export async function resolveFileFromUploadApi(input: {
+	fileId: string;
+	sessionId: string;
+	version: number | undefined;
+}): Promise<FileLinkResponse> {
+	return call(
+		path`/api/media/${input.fileId}/resolve-from-upload`,
+		json('POST', { sessionId: input.sessionId, version: input.version }),
+		'Could not add the file'
+	);
 }
