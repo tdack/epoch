@@ -5,13 +5,16 @@
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { canChangeRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { fileDrop } from '#lib/components/forms/fileDrop.js';
+	import UploadProgress from '#lib/components/forms/UploadProgress.svelte';
 	import {
 		deleteFileApi,
+		mediaFromUploadApi,
 		reorderFilesApi,
 		unlinkFileApi,
-		updateFileLinkTitleApi,
-		uploadMediaApi
+		updateFileLinkTitleApi
 	} from '#lib/api/files.js';
+	import { isAbortError, startUpload } from '#lib/api/uploader.js';
+	import type { UploadCompleteDto } from '#lib/shared/uploads.js';
 	import LinkControls from '#lib/components/media/LinkControls.svelte';
 	import MediaFileList from '#lib/components/media/MediaFileList.svelte';
 	import NotStoredBadge from '#lib/components/media/NotStoredBadge.svelte';
@@ -36,11 +39,21 @@
 
 	let { dto, treeId, editor, role }: Props = $props();
 
-	let isUploading = $state(false);
 	const canUpload = $derived(canChangeRecords(role));
 	let isDragOver = $state(false);
-	let uploadError = $state<string | null>(null);
 	let fileInput: HTMLInputElement | null = $state(null);
+	/** The file on its way: its bytes so far and where it is; null when nothing is in progress. */
+	let sending = $state<{
+		file: File;
+		uploadedBytes: number;
+		phase: 'uploading' | 'finishing' | 'failed';
+		error: string | null;
+	} | null>(null);
+	/** Files not yet filed, the first being the one in `sending`; a failure keeps them for the retry. */
+	let queue: File[] = [];
+	/** The finished session for `queue[0]` when only filing it failed, so a retry does not send the bytes again. */
+	let finished: UploadCompleteDto | null = null;
+	let uploadAbort: AbortController | null = null;
 	const { toasts } = getTreeContext();
 	/** The pointer whose delete is waiting for its second click; one at a time, so one key is enough. */
 	let confirmingKey = $state<string | null>(null);
@@ -126,29 +139,63 @@
 		);
 	}
 
-	/** One after another, so a failure names its file and the rest still go. */
-	async function upload(files: File[]) {
-		isUploading = true;
-		uploadError = null;
+	/** Queues the files; a run already in progress picks them up, so drops during an upload are not lost. */
+	function upload(files: File[]) {
+		queue.push(...files);
+		if (sending === null) void sendQueue();
+	}
+
+	/** Sends the queue one file at a time; a failure stops there and waits for the retry. */
+	async function sendQueue() {
+		const controller = new AbortController();
+		uploadAbort = controller;
+		const patch = (changes: Partial<NonNullable<typeof sending>>) => {
+			if (sending) sending = { ...sending, ...changes };
+		};
 		try {
-			for (const file of files) {
+			while (queue.length > 0) {
+				const file = queue[0]!;
+				sending = { file, uploadedBytes: 0, phase: 'uploading', error: null };
 				try {
-					await uploadMediaApi(treeId, dto.person.id, file);
+					finished ??= await startUpload({
+						file,
+						treeId,
+						purpose: 'media',
+						signal: controller.signal,
+						onProgress: (p) => patch({ uploadedBytes: p.uploadedBytes })
+					});
+					patch({ phase: 'finishing', uploadedBytes: file.size });
+					await mediaFromUploadApi({
+						sessionId: finished.sessionId,
+						entityId: dto.person.id,
+						title: file.name
+					});
+					finished = null;
+					queue.shift();
 				} catch (cause) {
-					const message = messageOf(cause, 'Could not upload the file');
-					uploadError = files.length > 1 ? `${file.name}: ${message}` : message;
+					if (controller.signal.aborted || isAbortError(cause)) {
+						queue = [];
+						finished = null;
+						sending = null;
+						return;
+					}
+					patch({ phase: 'failed', error: messageOf(cause, 'Could not upload the file') });
+					return;
 				}
 			}
-			await editor.refresh();
+			sending = null;
 		} finally {
-			isUploading = false;
-			if (fileInput) fileInput.value = '';
+			uploadAbort = null;
+			await editor.refresh();
 		}
 	}
 
 	function handleFileUpload(e: Event) {
-		const chosen = [...((e.target as HTMLInputElement).files ?? [])];
-		if (chosen.length > 0) void upload(chosen);
+		const input = e.target as HTMLInputElement;
+		const chosen = [...(input.files ?? [])];
+		// Cleared so picking the same file again still fires a change.
+		input.value = '';
+		if (chosen.length > 0) upload(chosen);
 	}
 </script>
 
@@ -161,7 +208,7 @@
 	use:fileDrop={{
 		isEnabled: canUpload,
 		onActiveChange: (isActive) => (isDragOver = isActive),
-		onFiles: (files) => void upload(files)
+		onFiles: (files) => upload(files)
 	}}
 >
 	<!-- With nothing attached, the empty line and Upload share one row. -->
@@ -192,11 +239,16 @@
 	{#if isDragOver}
 		<p class="text-xs font-medium text-emerald-800">Drop to upload</p>
 	{/if}
-	{#if isUploading}
-		<p class="animate-pulse text-xs font-medium text-emerald-800">Uploading...</p>
-	{/if}
-	{#if uploadError}
-		<p class="text-xs font-medium text-orange-700">{uploadError}</p>
+	{#if sending}
+		<UploadProgress
+			fileName={sending.file.name}
+			uploadedBytes={sending.uploadedBytes}
+			totalBytes={sending.file.size}
+			phase={sending.phase}
+			error={sending.error}
+			oncancel={() => uploadAbort?.abort()}
+			onretry={() => void sendQueue()}
+		/>
 	{/if}
 
 	{#if dto.media.length > 0}

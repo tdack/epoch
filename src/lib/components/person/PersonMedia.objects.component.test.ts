@@ -17,7 +17,7 @@ vi.mock('#lib/components/tree/tree-context.js', () => ({
 vi.mock('#lib/api/files.js', () => ({
 	deleteFileApi: vi.fn(),
 	unlinkFileApi: vi.fn(),
-	uploadMediaApi: vi.fn(),
+	mediaFromUploadApi: vi.fn(),
 	reorderFilesApi: vi.fn(),
 	updateFileLinkTitleApi: vi.fn(),
 	resolveFileFromUploadApi: vi.fn()

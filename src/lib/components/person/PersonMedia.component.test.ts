@@ -12,24 +12,27 @@ vi.mock('#lib/components/tree/tree-context.js', () => ({
 vi.mock('#lib/api/files.js', () => ({
 	deleteFileApi: vi.fn(),
 	unlinkFileApi: vi.fn(),
-	uploadMediaApi: vi.fn(),
+	mediaFromUploadApi: vi.fn(),
 	reorderFilesApi: vi.fn(),
 	updateFileLinkTitleApi: vi.fn(),
 	resolveFileFromUploadApi: vi.fn()
 }));
 vi.mock('#lib/api/uploader.js', () => ({ startUpload: vi.fn(), isAbortError: () => false }));
 
-import { deleteFileApi, unlinkFileApi, uploadMediaApi } from '#lib/api/files.js';
+import { deleteFileApi, mediaFromUploadApi, unlinkFileApi } from '#lib/api/files.js';
+import { startUpload } from '#lib/api/uploader.js';
 import PersonMedia from './PersonMedia.svelte';
 
 const remove = vi.mocked(deleteFileApi);
-const upload = vi.mocked(uploadMediaApi);
+const send = vi.mocked(startUpload);
+const fromUpload = vi.mocked(mediaFromUploadApi);
 const unlink = vi.mocked(unlinkFileApi);
 
 let component: Record<string, unknown> | null = null;
 beforeEach(() => {
 	remove.mockReset();
-	upload.mockReset();
+	send.mockReset();
+	fromUpload.mockReset();
 	unlink.mockReset();
 	toasts.push.mockReset();
 });
@@ -146,14 +149,21 @@ describe('PersonMedia drop', () => {
 	const zone = () => document.querySelector<HTMLElement>('[data-testid="person-media-drop"]')!;
 
 	it('uploads each dropped file to the person, then reloads', async () => {
-		upload.mockResolvedValue(undefined);
+		send.mockResolvedValue({ sessionId: 's1' } as never);
+		fromUpload.mockResolvedValue(undefined);
 		const refresh = render([]);
 		const a = new File(['a'], 'a.png', { type: 'image/png' });
 		const b = new File(['b'], 'b.png', { type: 'image/png' });
 		zone().dispatchEvent(dragEvent('drop', ['Files'], [a, b]));
 		await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
-		expect(upload).toHaveBeenCalledWith('t1', 'p1', a);
-		expect(upload).toHaveBeenCalledWith('t1', 'p1', b);
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({ file: a, treeId: 't1', purpose: 'media' })
+		);
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({ file: b, treeId: 't1', purpose: 'media' })
+		);
+		expect(fromUpload).toHaveBeenCalledWith({ sessionId: 's1', entityId: 'p1', title: 'a.png' });
+		expect(fromUpload).toHaveBeenCalledWith({ sessionId: 's1', entityId: 'p1', title: 'b.png' });
 	});
 
 	it('ignores a drag that carries no files', () => {
@@ -164,7 +174,7 @@ describe('PersonMedia drop', () => {
 		expect(over.defaultPrevented).toBe(false);
 		expect(document.body.textContent).not.toContain('Drop to upload');
 		zone().dispatchEvent(dragEvent('drop', ['text/plain']));
-		expect(upload).not.toHaveBeenCalled();
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	it('shows the drop hint while a file is over, and clears it on leave', () => {
@@ -185,6 +195,6 @@ describe('PersonMedia without upload rights', () => {
 		const drop = dragEvent('drop', ['Files'], [new File(['a'], 'a.png')]);
 		document.querySelector('[data-testid="person-media-drop"]')!.dispatchEvent(drop);
 		expect(drop.defaultPrevented).toBe(false);
-		expect(upload).not.toHaveBeenCalled();
+		expect(send).not.toHaveBeenCalled();
 	});
 });
