@@ -11,7 +11,7 @@
 	import SubtreeManager from '#lib/components/subtree/SubtreeManager.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { deleteTreeApi, renameTreeApi } from '#lib/api/trees.js';
-	import type { GedcomExportChoice } from '#lib/api/files.js';
+	import { fetchFileUsage, type GedcomExportChoice } from '#lib/api/files.js';
 	import type { TreeSubmitter } from '#lib/shared/tree-submitter.js';
 	import { DATE_FORMATS, DATE_FORMAT_LABELS, type DateFormat } from '#lib/shared/date-display.js';
 	import { DATA_KEY } from '#lib/shared/data-key.js';
@@ -139,6 +139,22 @@
 	}
 
 	let isExporting = $state(false);
+	// The same stored-bytes figure the Files page's quota bar reads. Null when the caller may not see
+	// it, so the menu falls back to a plain note. The size is a hint: a failed read costs only the figure.
+	let storedBytes = $state<number | null>(null);
+	$effect(() => {
+		if (tab !== 'export' || !data.canExport) return;
+		let isCurrent = true;
+		fetchFileUsage(tree.id)
+			.then((usage) => {
+				if (isCurrent)
+					storedBytes = usage.trees.find((t) => t.treeId === tree.id)?.storedBytes ?? null;
+			})
+			.catch(() => {});
+		return () => {
+			isCurrent = false;
+		};
+	});
 	async function exportGedcom(choice: GedcomExportChoice) {
 		if (isExporting) return;
 		isExporting = true;
@@ -408,7 +424,7 @@
 		<p class="max-w-prose text-sm text-stone-600">
 			Download the whole tree as a GEDCOM file. It includes living people.
 		</p>
-		<GedcomExportChoices {isExporting} onexport={exportGedcom} />
+		<GedcomExportChoices {isExporting} mediaBytes={storedBytes} onexport={exportGedcom} />
 	</section>
 {/if}
 
