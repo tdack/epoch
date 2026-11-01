@@ -190,3 +190,309 @@ describe('media commands as planned changes', () => {
 		);
 	});
 });
+
+// ---- Objects, pointers under facts, and the link ops of ADR-082 ----
+
+const objectRows = () =>
+	treeRows({
+		people: [{ id: 'sh', givenName: 'Jane', surname: 'Doe', birth: '1900' }],
+		unions: [{ id: 'u1', partners: ['sh'], marriage: '1925' }],
+		events: [{ id: 'ev1', entityId: 'sh', type: 'OCCU' }],
+		objects: [{ id: 'o1', version: 4 }],
+		media: [
+			{ id: 'o1', title: 'Group.jpg', objectId: 'o1', linkedTo: ['sh'] },
+			{ id: 'o2', title: 'Second.jpg', objectId: 'o2' }
+		]
+	});
+
+describe('links under a fact', () => {
+	it('links under a fact with an id that names the fact and keeps the owner in entityId', () => {
+		const ops = buildMediaOps(
+			objectRows(),
+			{ kind: 'link_media', mediaId: 'o1', entityId: 'sh', factId: 'ev1' },
+			mediaCtx
+		);
+		const created = linkOps(ops)[0]!;
+		expect(created.id).toBe('o1:sh:ev1');
+		expect(created.after).toMatchObject({ entityId: 'sh', factId: 'ev1', sortOrder: null });
+	});
+
+	it('lets one object sit on a person and on one of their facts', () => {
+		const rows = objectRows();
+		expect(rows.mediaLinks.map((l) => l.id)).toEqual(['o1:sh']);
+		const ops = buildMediaOps(
+			rows,
+			{ kind: 'link_media', mediaId: 'o1', entityId: 'sh', factId: 'ev1' },
+			mediaCtx
+		);
+		expect(ops.some((op) => op.table === 'media_links')).toBe(true);
+	});
+
+	it('refuses a fact that is not the record’s own', () => {
+		const rows = objectRows();
+		expect(() =>
+			buildMediaOps(
+				rows,
+				{ kind: 'link_media', mediaId: 'o2', entityId: 'u1', factId: 'ev1' },
+				mediaCtx
+			)
+		).toThrow(ValidationError);
+		expect(() =>
+			buildMediaOps(
+				rows,
+				{ kind: 'link_media', mediaId: 'o2', entityId: 'sh', factId: 'ghost' },
+				mediaCtx
+			)
+		).toThrow(NotFoundError);
+	});
+
+	it('stores sortOrder, crop and title as given, and nulls when they are not', () => {
+		const withAll = buildMediaOps(
+			objectRows(),
+			{
+				kind: 'link_media',
+				mediaId: 'o2',
+				entityId: 'sh',
+				sortOrder: 2,
+				crop: { top: 1, left: 2, height: 30, width: 40 },
+				title: '  Face  '
+			},
+			mediaCtx
+		);
+		expect(linkOps(withAll)[0]!.after).toMatchObject({
+			sortOrder: 2,
+			cropTop: 1,
+			cropLeft: 2,
+			cropHeight: 30,
+			cropWidth: 40,
+			title: 'Face'
+		});
+		const bare = buildMediaOps(
+			objectRows(),
+			{ kind: 'link_media', mediaId: 'o2', entityId: 'sh' },
+			mediaCtx
+		);
+		expect(linkOps(bare)[0]!.after).toMatchObject({
+			sortOrder: null,
+			cropTop: null,
+			title: null
+		});
+	});
+
+	it('refuses a crop that is not whole pixels or has no area', () => {
+		const attempt = (crop: { top: number; left: number; height: number; width: number }) =>
+			buildMediaOps(
+				objectRows(),
+				{ kind: 'link_media', mediaId: 'o2', entityId: 'sh', crop },
+				mediaCtx
+			);
+		expect(() => attempt({ top: 0.5, left: 0, height: 5, width: 5 })).toThrow(ValidationError);
+		expect(() => attempt({ top: 0, left: 0, height: 0, width: 5 })).toThrow(ValidationError);
+	});
+
+	it('unlinks only the pointer it names', () => {
+		const rows = objectRows();
+		rows.mediaLinks.push({ ...rows.mediaLinks[0]!, id: 'o1:sh:ev1', factId: 'ev1' });
+		const ops = buildMediaOps(
+			rows,
+			{ kind: 'unlink_media', mediaId: 'o1', entityId: 'sh', factId: 'ev1' },
+			mediaCtx
+		);
+		expect(linkOps(ops).map((op) => op.id)).toEqual(['o1:sh:ev1']);
+	});
+});
+
+describe('the version a link op checks and bumps', () => {
+	it('checks and bumps the object, leaving the file alone', () => {
+		const ops = buildMediaOps(
+			objectRows(),
+			{ kind: 'link_media', mediaId: 'o1', entityId: 'u1', expectedVersion: 4 },
+			mediaCtx
+		);
+		expect(ops.find((op) => op.table === 'media_object')?.after).toMatchObject({ version: 5 });
+		expect(ops.some((op) => op.table === 'media_items')).toBe(false);
+		expect(() =>
+			buildMediaOps(
+				objectRows(),
+				{ kind: 'link_media', mediaId: 'o1', entityId: 'u1', expectedVersion: 1 },
+				mediaCtx
+			)
+		).toThrow(ConcurrencyConflictError);
+	});
+
+	it('falls back to the file for one not yet backfilled', () => {
+		const ops = buildMediaOps(
+			rows(),
+			{ kind: 'link_media', mediaId: 'm2', entityId: 'sh' },
+			mediaCtx
+		);
+		expect(ops.some((op) => op.table === 'media_items')).toBe(true);
+		expect(ops.some((op) => op.table === 'media_object')).toBe(false);
+	});
+});
+
+describe('editing and reordering links', () => {
+	const withTwo = () => {
+		const snapshot = objectRows();
+		snapshot.mediaLinks.push({
+			...snapshot.mediaLinks[0]!,
+			id: 'o2:sh',
+			mediaId: 'o2',
+			sortOrder: null
+		});
+		return snapshot;
+	};
+
+	it('updates only the keys present and clears with null', () => {
+		const snapshot = withTwo();
+		const edit = buildMediaOps(
+			snapshot,
+			{
+				kind: 'update_media_link',
+				mediaId: 'o1',
+				entityId: 'sh',
+				title: 'A title',
+				crop: { top: 0, left: 0, height: 9, width: 9 }
+			},
+			mediaCtx
+		);
+		expect(edit.find((op) => op.table === 'media_links')).toMatchObject({
+			id: 'o1:sh',
+			after: { title: 'A title', cropWidth: 9 }
+		});
+		const cleared = buildMediaOps(
+			applyOpsToRows(snapshot, edit),
+			{ kind: 'update_media_link', mediaId: 'o1', entityId: 'sh', title: null },
+			mediaCtx
+		);
+		expect(cleared.find((op) => op.table === 'media_links')?.after).toMatchObject({
+			title: null,
+			cropWidth: 9
+		});
+	});
+
+	it('writes nothing for an edit that changes nothing, and refuses a link that is not there', () => {
+		expect(
+			buildMediaOps(
+				objectRows(),
+				{ kind: 'update_media_link', mediaId: 'o1', entityId: 'sh', title: null },
+				mediaCtx
+			)
+		).toEqual([]);
+		expect(() =>
+			buildMediaOps(
+				objectRows(),
+				{ kind: 'update_media_link', mediaId: 'o2', entityId: 'sh', title: 'x' },
+				mediaCtx
+			)
+		).toThrow(NotFoundError);
+	});
+
+	it('writes positions as one change and leaves an unset first link alone', () => {
+		const ops = buildMediaOps(
+			withTwo(),
+			{ kind: 'reorder_media_links', entityId: 'sh', orderedMediaIds: ['o1', 'o2'] },
+			mediaCtx
+		);
+		expect(ops.map((op) => [op.id, (op.after as { sortOrder: number }).sortOrder])).toEqual([
+			['o2:sh', 1]
+		]);
+		const swapped = buildMediaOps(
+			withTwo(),
+			{ kind: 'reorder_media_links', entityId: 'sh', orderedMediaIds: ['o2', 'o1'] },
+			mediaCtx
+		);
+		expect(swapped.map((op) => op.id)).toEqual(['o1:sh']);
+	});
+
+	it('refuses a set that misses or adds a file', () => {
+		for (const orderedMediaIds of [['o1'], ['o1', 'o2', 'o3'], ['o1', 'o1']])
+			expect(() =>
+				buildMediaOps(
+					withTwo(),
+					{ kind: 'reorder_media_links', entityId: 'sh', orderedMediaIds },
+					mediaCtx
+				)
+			).toThrow(ValidationError);
+	});
+});
+
+describe('an object’s privacy', () => {
+	it('sets it, bumps the object version and checks it', () => {
+		const ops = buildMediaOps(
+			objectRows(),
+			{ kind: 'update_media_object', mediaId: 'o1', privacy: 'private', expectedVersion: 4 },
+			mediaCtx
+		);
+		expect(ops).toEqual([
+			{
+				table: 'media_object',
+				id: 'o1',
+				before: expect.objectContaining({ privacy: 'auto' }),
+				after: expect.objectContaining({ privacy: 'private', version: 5 })
+			}
+		]);
+		expect(() =>
+			buildMediaOps(
+				objectRows(),
+				{ kind: 'update_media_object', mediaId: 'o1', privacy: 'private', expectedVersion: 2 },
+				mediaCtx
+			)
+		).toThrow(ConcurrencyConflictError);
+	});
+
+	it('writes nothing when unchanged and refuses a file with no object row yet', () => {
+		expect(
+			buildMediaOps(
+				objectRows(),
+				{ kind: 'update_media_object', mediaId: 'o1', privacy: 'auto' },
+				mediaCtx
+			)
+		).toEqual([]);
+		expect(() =>
+			buildMediaOps(
+				rows(),
+				{ kind: 'update_media_object', mediaId: 'm1', privacy: 'private' },
+				mediaCtx
+			)
+		).toThrow(NotFoundError);
+	});
+});
+
+describe('deleting a fact', () => {
+	it('removes its pointers in the same change and undo brings them back', () => {
+		const before = objectRows();
+		before.mediaLinks.push({ ...before.mediaLinks[0]!, id: 'o1:sh:ev1', factId: 'ev1' });
+		const ops = buildPlanOps(before, [{ kind: 'delete_fact', factId: 'ev1' }], ctx);
+		const gone = ops.filter((op) => op.table === 'media_links' && op.after === null);
+		expect(gone.map((op) => op.id)).toEqual(['o1:sh:ev1']);
+		const restored = applyOpsToRows(applyOpsToRows(before, ops), invertOps(ops));
+		expect(restored.mediaLinks.map((l) => l.id).sort()).toEqual(['o1:sh', 'o1:sh:ev1']);
+	});
+
+	it('leaves the record-level pointer and the object', () => {
+		const before = objectRows();
+		before.mediaLinks.push({ ...before.mediaLinks[0]!, id: 'o1:sh:ev1', factId: 'ev1' });
+		const after = applyOpsToRows(
+			before,
+			buildPlanOps(before, [{ kind: 'delete_fact', factId: 'ev1' }], ctx)
+		);
+		expect(after.mediaLinks.map((l) => l.id)).toEqual(['o1:sh']);
+		expect(after.mediaObjects.map((o) => o.id)).toEqual(['o1']);
+	});
+});
+
+describe('describing the new commands', () => {
+	it('names the file and the target', () => {
+		const snapshot = objectRows();
+		expect(
+			describeCommand(
+				{ kind: 'link_media', mediaId: 'o1', entityId: 'sh', factId: 'ev1' },
+				snapshot
+			)
+		).toBe('Linked the file “Group.jpg” to a fact of Jane Doe');
+		expect(
+			describeCommand({ kind: 'update_media_object', mediaId: 'o1', privacy: 'private' }, snapshot)
+		).toBe('Set the privacy of the file “Group.jpg” to private');
+	});
+});

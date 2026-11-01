@@ -130,25 +130,35 @@ export function unlinkFilesOf(rows: TreeRows, ownerIds: ReadonlySet<string>): Ro
 
 /**
  * Moves the files of `fromIds` to `toId`: each link is removed and the survivor is linked unless it
- * already is, so a file on both sides of a merge ends with one link.
+ * already is, so a file on both sides of a merge ends with one link. A pointer under a fact keeps
+ * its place under that fact; `factMoves` says where a fact a merge dropped went (to the identical
+ * fact that was kept, or null for the record itself, as its citations do), and a fact not named
+ * there is unchanged.
  */
 export function relinkFiles(
 	rows: TreeRows,
 	ctx: Pick<OpContext, 'now'>,
 	fromIds: ReadonlySet<string>,
-	toId: string
+	toId: string,
+	factMoves: ReadonlyMap<string, string | null> = new Map()
 ): RowOp[] {
 	const ops: RowOp[] = [];
-	const linked = new Set(rows.mediaLinks.filter((l) => l.entityId === toId).map((l) => l.mediaId));
+	const keyOf = (link: { mediaId: string; factId: string | null }) =>
+		`${link.mediaId}|${link.factId ?? ''}`;
+	const linked = new Set(rows.mediaLinks.filter((l) => l.entityId === toId).map(keyOf));
 	for (const link of rows.mediaLinks.filter((l) => fromIds.has(l.entityId))) {
 		ops.push({ table: 'media_links', id: link.id, before: link, after: null });
-		if (linked.has(link.mediaId)) continue;
-		linked.add(link.mediaId);
+		const factId =
+			link.factId && factMoves.has(link.factId) ? factMoves.get(link.factId)! : link.factId;
+		const key = keyOf({ mediaId: link.mediaId, factId });
+		if (linked.has(key)) continue;
+		linked.add(key);
+		const id = mediaLinkId(link.mediaId, toId, factId);
 		ops.push({
 			table: 'media_links',
-			id: mediaLinkId(link.mediaId, toId),
+			id,
 			before: null,
-			after: { ...link, id: mediaLinkId(link.mediaId, toId), entityId: toId, createdAt: ctx.now }
+			after: { ...link, id, entityId: toId, factId, createdAt: ctx.now }
 		});
 	}
 	return ops;

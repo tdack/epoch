@@ -109,6 +109,14 @@ export function describeGroupCitation(
 	return `Cited ${sourceName(rows, sourceId)} for ${peopleCount(count)}`;
 }
 
+/** The first file of an object, which names it; a file not yet backfilled is its own object. */
+function fileNamed(rows: TreeRows, mediaId: string) {
+	return (
+		rows.mediaItems.find((m) => m.id === mediaId) ??
+		rows.mediaItems.find((m) => m.objectId === mediaId)
+	);
+}
+
 export function describeCommand(command: RelationshipCommand, rows: TreeRows): string {
 	switch (command.kind) {
 		case 'create_fact':
@@ -207,17 +215,33 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 		case 'rename_media':
 			return `Renamed the file “${command.title.trim().slice(0, 60)}”`;
 		case 'link_media':
-		case 'unlink_media': {
-			const file = rows.mediaItems.find((m) => m.id === command.mediaId);
+		case 'unlink_media':
+		case 'update_media_link': {
+			const file = fileNamed(rows, command.mediaId);
 			const name = `“${(file?.title ?? 'a file').slice(0, 60)}”`;
 			const target = rows.individuals.some((p) => p.id === command.entityId)
 				? nameOf(rows, command.entityId)
 				: rows.sources.some((s) => s.id === command.entityId)
 					? `the source ${sourceName(rows, command.entityId)}`
 					: partnershipOf(rows, command.entityId);
+			const where = command.factId ? `a fact of ${target}` : target;
+			if (command.kind === 'update_media_link')
+				return `Edited the link of the file ${name} to ${where}`;
 			return command.kind === 'link_media'
-				? `Linked the file ${name} to ${target}`
-				: `Unlinked the file ${name} from ${target}`;
+				? `Linked the file ${name} to ${where}`
+				: `Unlinked the file ${name} from ${where}`;
+		}
+		case 'reorder_media_links': {
+			const target = rows.individuals.some((p) => p.id === command.entityId)
+				? nameOf(rows, command.entityId)
+				: rows.sources.some((s) => s.id === command.entityId)
+					? `the source ${sourceName(rows, command.entityId)}`
+					: partnershipOf(rows, command.entityId);
+			return `Reordered the files of ${command.factId ? `a fact of ${target}` : target}`;
+		}
+		case 'update_media_object': {
+			const file = fileNamed(rows, command.mediaId);
+			return `Set the privacy of the file “${(file?.title ?? 'a file').slice(0, 60)}” to ${command.privacy}`;
 		}
 		case 'create_task':
 			return `Added the task “${command.task.title.trim().slice(0, 60)}”`;

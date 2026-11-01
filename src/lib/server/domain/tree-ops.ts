@@ -19,7 +19,7 @@ import { buildEvidenceOps, citationCascadeOps } from './evidence-ops';
 import { buildNoteOps, noteCascadeOps } from './note-ops';
 import { buildSubtreeOps } from './subtree-ops';
 import { buildTaskOps, taskCascadeOps } from './task-ops';
-import { buildMediaOps } from './media-ops';
+import { buildMediaOps, mediaLinkCascadeOps } from './media-ops';
 import { buildPersonMergeOps } from './person-merge';
 import { buildDateOps } from './date-ops';
 import { buildPlaceOps } from './place-ops';
@@ -49,6 +49,7 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	union_partners: 'unionPartners',
 	parent_child: 'parentChild',
 	events: 'events',
+	media_object: 'mediaObjects',
 	media_items: 'mediaItems',
 	media_links: 'mediaLinks',
 	sources: 'sources',
@@ -175,6 +176,9 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'rename_media':
 		case 'link_media':
 		case 'unlink_media':
+		case 'update_media_link':
+		case 'reorder_media_links':
+		case 'update_media_object':
 			return buildMediaOps(rows, command, { treeId: ctx.treeId, now: ctx.now });
 		case 'create_task':
 		case 'update_task':
@@ -228,7 +232,9 @@ export function buildPlanOps(
 		// A command that removes a person, name, fact, partnership or link takes its citations, and the
 		// notes on all of those, with it.
 		const withCitations = [...planned, ...citationCascadeOps(working, planned)];
-		const withNotes = [...withCitations, ...noteCascadeOps(working, withCitations)];
+		// So does a fact: its file pointers go in the same change, and an undo brings them back.
+		const withPointers = [...withCitations, ...mediaLinkCascadeOps(working, withCitations)];
+		const withNotes = [...withPointers, ...noteCascadeOps(working, withPointers)];
 		// A task about a record that goes is kept, with its link cleared.
 		const ops = [...withNotes, ...taskCascadeOps(working, withNotes, ctx)];
 		all.push(...ops);

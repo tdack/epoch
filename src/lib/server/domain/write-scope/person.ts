@@ -53,8 +53,21 @@ export const MEDIA_SCOPES: ScopeTable = {
 			media: [c.mediaId],
 			people: [c.entityId],
 			unions: [c.entityId],
-			sources: [c.entityId]
-		})
+			sources: [c.entityId],
+			// The fact must exist and belong to the record the pointer is on.
+			events: [c.factId]
+		}),
+	update_media_link: (c) => seedOf({ media: [c.mediaId] }),
+	// The host brings its links, and with them every file in the order being set.
+	reorder_media_links: (c) =>
+		seedOf({
+			media: c.orderedMediaIds,
+			people: [c.entityId],
+			unions: [c.entityId],
+			sources: [c.entityId],
+			events: [c.factId]
+		}),
+	update_media_object: (c) => seedOf({ media: [c.mediaId] })
 };
 
 /** Seeds for commands about people, their names and facts. */

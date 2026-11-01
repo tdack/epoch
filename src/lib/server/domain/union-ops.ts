@@ -506,6 +506,8 @@ function mergeUnions(
 	// a different claim was chosen over it, on the partnership itself.
 	const citations = makeEvidenceMover(rows, ctx);
 	const seen = new Map<string, string>();
+	// Where a fact that is deleted here went (null: the partnership itself), so its files follow.
+	const factMoves = new Map<string, string | null>();
 	for (const union of involved) {
 		for (const event of eventsOf(rows, 'FAMILY', union.id)) {
 			const chosen = conflicts.some((c) => c.kind === 'event' && c.eventType === event.type)
@@ -517,6 +519,7 @@ function mergeUnions(
 			if (isLoser || (union.id !== survivor.id && isFactSeen)) {
 				ops.push({ table: 'events', id: event.id, before: event, after: null });
 				const keptEventId = isLoser ? undefined : seen.get(key);
+				factMoves.set(event.id, keptEventId ?? null);
 				ops.push(
 					...citations.move(
 						{ kind: CITATION_SUBJECT_KINDS.EVENT, id: event.id },
@@ -567,7 +570,7 @@ function mergeUnions(
 	}
 
 	// A file of a merged partnership is the survivor's now, as it would be if it had been theirs.
-	ops.push(...relinkFiles(rows, ctx, mergedSet, survivor.id));
+	ops.push(...relinkFiles(rows, ctx, mergedSet, survivor.id, factMoves));
 
 	ops.push(...relinkNames(rows, ctx, mergedIds, survivor.id));
 
