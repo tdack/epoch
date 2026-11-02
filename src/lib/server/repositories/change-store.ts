@@ -780,7 +780,8 @@ export class ChangeStore {
 				kind: changeLog.kind,
 				summary: changeLog.summary,
 				createdAt: changeLog.createdAt,
-				revertsChangeId: changeLog.revertsChangeId
+				revertsChangeId: changeLog.revertsChangeId,
+				changesJson: changeLog.changesJson
 			})
 			.from(changeLog)
 			.where(eq(changeLog.treeId, treeId))

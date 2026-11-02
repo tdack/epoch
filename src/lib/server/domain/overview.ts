@@ -59,6 +59,7 @@ export function overviewStats(rows: TreeRows): OverviewStatsDto {
 
 	return {
 		people: rows.individuals.length,
+		peopleWithBirthYear: born.length,
 		partnerships: rows.unions.length,
 		birthsByDecade: [...decades]
 			.sort(([a], [b]) => a - b)

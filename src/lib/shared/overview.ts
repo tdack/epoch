@@ -9,6 +9,8 @@ interface BornDto {
 
 export interface OverviewStatsDto {
 	people: number;
+	/** Of `people`, how many have a birth dated to a single year: the denominator for every birth figure. */
+	peopleWithBirthYear: number;
 	partnerships: number;
 	/** People per decade of birth (`1840` holds 1840–1849), oldest first; births within one year only. */
 	birthsByDecade: { decade: number; people: number }[];
@@ -43,7 +45,17 @@ interface OverviewWorkDto {
 	/** Open tasks given to the viewer, and how many there are; null for a non-member. */
 	myTasks: { items: TaskDto[]; open: number } | null;
 	/** The newest changes to the tree; null below editor, as the log names whoever a change touched. */
-	recentChanges: { id: string; summary: string; createdAt: Date }[] | null;
+	recentChanges:
+		| {
+				id: string;
+				summary: string;
+				createdAt: Date;
+				/** Who made the change; null when their account is gone. */
+				actorName?: string | null;
+				/** The first person or partnership the change touched that still exists, to link to; null otherwise. */
+				record?: { kind: 'person' | 'union'; id: string } | null;
+		  }[]
+		| null;
 }
 
 export interface OverviewDto {
@@ -56,6 +68,13 @@ export interface OverviewDto {
 	anniversaries: AnniversaryDto[];
 	/** The server's UTC day (`YYYY-MM-DD`): the starting guess until the reader's own clock takes over. */
 	today: string;
+	/**
+	 * The viewer's own "Start at" person, if set and still visible to them; null otherwise (never
+	 * set for a public visitor). The tree has no tree-wide home person: it is a per-member choice.
+	 */
+	homePerson?: { id: string; name: string } | null;
+	/** Whether the viewer may open the data-quality report (`/trees/[id]/quality`): members only. */
+	canViewQuality?: boolean;
 }
 
 /** How many days after today "Coming up" reaches. */
