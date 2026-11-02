@@ -9,11 +9,12 @@ it summarises themes rather than listing every commit. Decisions and their reaso
 
 ### Changed
 
-- **Overview tab** leads with the family: your starting person, then Jump back in, On this day
-  and Coming up, with statistics last. It says how many people have a dated birth and links to
-  the data-quality report. Latest changes name their author and link to the record. The
-  births-by-decade chart meets WCAG AA contrast, shows its peak without hovering, and reads to
-  screen readers without the empty decades.
+- **Overview tab** leads with the family: your starting person and your work, then Jump back in
+  and Coming up, which now holds today's birthdays, anniversaries and remembrances, with
+  statistics last. It says how many people have a dated birth and links to the data-quality
+  report. Latest changes name their author and link to the person, partnership or source. Dates
+  show in the reader's own time zone from the first load. The births-by-decade chart meets WCAG
+  AA contrast and can be read by keyboard, touch and screen reader.
 
 ## 2026-10-26 to 2026-11-01: Reports, maps, large imports and GEDZip with media
 
