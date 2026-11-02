@@ -2,6 +2,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { taskSubjectPath } from '#lib/components/tasks/task-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
+	import DecadeChart from './DecadeChart.svelte';
 	import EmptyTreePrompt from '#lib/components/tree/EmptyTreePrompt.svelte';
 	import { canCreateRecords, canImportGedcom } from '#lib/shared/roles.js';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
@@ -40,13 +41,6 @@
 			return { decade, people: counts.get(decade) ?? 0 };
 		});
 	});
-	const widest = $derived(Math.max(1, ...decades.map((d) => d.people)));
-	// Ends and centuries only, and a century too near an end would print over the end's label.
-	const LABEL_GAP_DECADES = 3;
-	const isLabelled = (i: number, decade: number) =>
-		i === 0 ||
-		i === decades.length - 1 ||
-		(decade % 100 === 0 && i >= LABEL_GAP_DECADES && decades.length - 1 - i >= LABEL_GAP_DECADES);
 	const widestSurname = $derived(Math.max(1, ...stats.topSurnames.map((s) => s.people)));
 	const recents = $derived(
 		marks.recents.filter((r) => !marks.favorites.some((f) => f.id === r.id)).slice(0, RECENTS_SHOWN)
@@ -265,41 +259,7 @@
 					<h2 id="births-by-decade" class="section-heading">Births by decade</h2>
 					<p class="text-xs text-stone-600">People whose birth is dated to a single year.</p>
 					{#if isDecadeChart}
-						<ol class="mt-4 flex h-28 items-end gap-px" data-testid="overview-decades">
-							{#each decades as row, i (row.decade)}
-								<li class="group relative flex h-full min-w-0 flex-1 flex-col justify-end">
-									<span class="sr-only">{row.decade}s: {plural(row.people, 'birth', 'births')}</span
-									>
-									{#if row.people > 0}
-										<span
-											aria-hidden="true"
-											class="pointer-events-none mb-0.5 text-center text-xs font-semibold text-stone-800 tabular-nums opacity-0 transition-opacity group-hover:opacity-100"
-											>{row.people}</span
-										>
-									{/if}
-									<div
-										aria-hidden="true"
-										title="{row.decade}s: {plural(row.people, 'birth', 'births')}"
-										class="mx-auto w-full max-w-8 rounded-t-sm transition-colors {row.people > 0
-											? 'bg-stone-400 group-hover:bg-stone-600'
-											: 'bg-stone-200'}"
-										style:height={row.people > 0 ? `${(row.people / widest) * 85}%` : '2px'}
-									></div>
-									{#if isLabelled(i, row.decade)}
-										<span
-											aria-hidden="true"
-											class="absolute top-full mt-1 text-xs whitespace-nowrap text-stone-600 tabular-nums {i ===
-											0
-												? 'left-0'
-												: i === decades.length - 1
-													? 'right-0'
-													: 'left-1/2 -translate-x-1/2'}">{row.decade}s</span
-										>
-									{/if}
-								</li>
-							{/each}
-						</ol>
-						<div aria-hidden="true" class="h-5 border-t border-stone-300"></div>
+						<DecadeChart {decades} labelledBy="births-by-decade" />
 					{:else if stats.birthsByDecade.length > 0}
 						<p class="mt-2 text-sm text-stone-800">
 							{stats.birthsByDecade
@@ -409,7 +369,7 @@
 								</div>
 								<div aria-hidden="true" class="mt-1 h-1 rounded-full bg-stone-200">
 									<div
-										class="h-1 rounded-full bg-stone-400"
+										class="h-1 rounded-full bg-stone-500"
 										style:width="{(row.people / widestSurname) * 100}%"
 									></div>
 								</div>
