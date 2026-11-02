@@ -6,6 +6,7 @@
 import type { EventRow, TreeRows } from './change-log';
 import { isLikelyLiving, type LivingFact } from './living-state';
 import { personName } from './tree-ops';
+import { yearsBetween } from '../../shared/age';
 import {
 	ANNIVERSARY_TYPES,
 	UPCOMING_DAYS,
@@ -23,6 +24,23 @@ function yearOf(e: EventRow | undefined): number | null {
 	if (!e?.dateSort || !e.dateSortEnd) return null;
 	const year = Number(e.dateSort.slice(0, 4));
 	return year === Number(e.dateSortEnd.slice(0, 4)) ? year : null;
+}
+
+/** The day-or-month a date is pinned to (its start), or null when it spans more than one month. */
+function monthStart(e: EventRow | undefined): string | null {
+	if (!e?.dateSort || !e.dateSortEnd) return null;
+	return e.dateSort.slice(0, 7) === e.dateSortEnd.slice(0, 7) ? e.dateSort : null;
+}
+
+/**
+ * Whole years lived. When both dates are pinned to a month or a day the shared age rule decides, so
+ * December 1900 to January 1990 is 89, as on a person's page; a year-only date can't say whether
+ * the birthday had passed, so that falls back to the difference of years.
+ */
+function yearsLived(birth: EventRow | undefined, death: EventRow | undefined, shown: number) {
+	const from = monthStart(birth);
+	const to = monthStart(death);
+	return from && to ? yearsBetween(from, to) : shown;
 }
 
 export function overviewStats(rows: TreeRows): OverviewStatsDto {
@@ -47,8 +65,10 @@ export function overviewStats(rows: TreeRows): OverviewStatsDto {
 			decades.set(decade, (decades.get(decade) ?? 0) + 1);
 			born.push({ id: person.id, name: personName(person), year });
 			const died = yearOf(deaths.get(person.id));
-			if (died !== null && died >= year && died - year <= MAX_LIFESPAN_YEARS)
-				lifespans.push({ id: person.id, name: personName(person), years: died - year });
+			if (died !== null && died >= year && died - year <= MAX_LIFESPAN_YEARS) {
+				const years = yearsLived(births.get(person.id), deaths.get(person.id), died - year);
+				if (years >= 0) lifespans.push({ id: person.id, name: personName(person), years });
+			}
 		}
 		const surname = person.surname?.trim();
 		if (surname) surnames.set(surname, (surnames.get(surname) ?? 0) + 1);

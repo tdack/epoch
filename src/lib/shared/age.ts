@@ -15,7 +15,7 @@ const ABOUT_QUALIFIERS: readonly DateQualifier[] = [
 ];
 
 /** Whole years from one `YYYY-MM-DD` day to a later one; negative when `to` is earlier. */
-function yearsBetween(from: string, to: string): number {
+export function yearsBetween(from: string, to: string): number {
 	const years = Number(to.slice(0, 4)) - Number(from.slice(0, 4));
 	return to.slice(5) < from.slice(5) ? years - 1 : years;
 }
