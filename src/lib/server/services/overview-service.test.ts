@@ -14,6 +14,8 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { OverviewService } from './overview-service';
+import { PersonService } from './person-service';
+import { TreeService } from './tree-service';
 
 const FIXTURE = `0 HEAD
 0 @I1@ INDI
@@ -104,5 +106,28 @@ describe('OverviewService', () => {
 		} finally {
 			await t.db.update(trees).set({ isPublic: false }).where(eq(trees.id, treeId));
 		}
+	});
+
+	it('counts the people with a birth year and gates the quality report to members', async () => {
+		const forOwner = await overview().load(treeId, owner.context);
+		expect(forOwner.stats.peopleWithBirthYear).toBe(3);
+		expect(forOwner.canViewQuality).toBe(true);
+		expect((await overview().load(treeId, viewer.context)).stats.peopleWithBirthYear).toBe(1);
+	});
+
+	it("names the author and the record of a change, and the viewer's own starting person", async () => {
+		const { individual } = await new PersonService(t.db).create(
+			treeId,
+			{ givenName: 'Newly' },
+			owner.context
+		);
+		await new TreeService(t.db).setHomePerson(treeId, individual.id, owner.context);
+		const dto = await overview().load(treeId, owner.context);
+		expect(dto.work.recentChanges![0]).toMatchObject({
+			actorName: expect.any(String),
+			record: { kind: 'person', id: individual.id }
+		});
+		expect(dto.homePerson).toEqual({ id: individual.id, name: 'Newly' });
+		expect((await overview().load(treeId, viewer.context)).homePerson).toBeNull();
 	});
 });

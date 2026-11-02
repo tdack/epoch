@@ -259,10 +259,9 @@
 	{/if}
 
 	<!-- The chart is the one page that wants the whole window; the lists and forms stay readable at 7xl. -->
+	<!-- gap, not space-y: the display:contents wrappers below hide their children from space-y's margin rule. -->
 	<main
-		class="mx-auto flex w-full flex-1 flex-col space-y-4 p-6 {isChartPage
-			? 'max-w-none'
-			: 'max-w-7xl'}"
+		class="mx-auto flex w-full flex-1 flex-col gap-4 p-6 {isChartPage ? 'max-w-none' : 'max-w-7xl'}"
 	>
 		<div class="contents print:hidden">
 			<TreeShellHost {shell} tree={data.summary.tree} />

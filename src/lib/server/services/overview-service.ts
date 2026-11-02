@@ -16,6 +16,9 @@ import { UserRepository } from '../repositories/user-repository';
 import { isActionAllowed } from '../auth/authorization';
 import type { AnniversaryDto, OverviewDto } from '../../shared/overview';
 import { ChangeLogService } from './change-log-service';
+import { GraphWindowRepository } from '../repositories/graph-window-repository';
+import type { RecordChange } from '../../shared/impact';
+import { TreeService } from './tree-service';
 import { TaskReadService } from './task-read-service';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
@@ -28,6 +31,8 @@ export class OverviewService {
 	private changes: ChangeLogService;
 	private users: UserRepository;
 	private trees: TreeRepository;
+	private graph: GraphWindowRepository;
+	private treeService: TreeService;
 
 	constructor(
 		db: DbClient,
@@ -38,6 +43,8 @@ export class OverviewService {
 		this.changes = new ChangeLogService(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
+		this.graph = new GraphWindowRepository(db);
+		this.treeService = new TreeService(db);
 	}
 
 	async load(treeId: string, context: AuthenticatedContext): Promise<OverviewDto> {
@@ -49,7 +56,7 @@ export class OverviewService {
 			'tree:view',
 			new Date(this.now())
 		);
-		const [myTasks, recentChanges] = await Promise.all([
+		const [myTasks, recentChanges, homePerson] = await Promise.all([
 			scope.isOutsider
 				? null
 				: this.tasks
@@ -58,10 +65,9 @@ export class OverviewService {
 			isActionAllowed(scope.role, 'record:edit')
 				? this.changes
 						.listRecent(treeId, context, WORK_ITEMS)
-						.then((rows) =>
-							rows.map((r) => ({ id: r.id, summary: r.summary, createdAt: r.createdAt }))
-						)
-				: null
+						.then((rows) => this.describeChanges(treeId, rows))
+				: null,
+			this.homePerson(treeId, context)
 		]);
 		const visible = await this.visibleRows(treeId, scope);
 		const now = new Date(this.now());
@@ -76,8 +82,55 @@ export class OverviewService {
 				scope.isOutsider
 			),
 			work: { myTasks, recentChanges },
-			today
+			today,
+			homePerson,
+			canViewQuality: !scope.isOutsider
 		};
+	}
+
+	/** The viewer's own starting person, through the same visibility check as setting it; null for a visitor. */
+	private async homePerson(treeId: string, context: AuthenticatedContext) {
+		if (context.user.isPublicVisitor) return null;
+		const mine = (await this.trees.listForUser(context.user.id)).find((t) => t.id === treeId);
+		return mine?.homePersonId
+			? this.treeService.visiblePerson(treeId, mine.homePersonId, context)
+			: null;
+	}
+
+	/** Adds the author and a link target; the caller has already limited this to roles that see everyone. */
+	private async describeChanges(
+		treeId: string,
+		rows: {
+			id: string;
+			actorId: string;
+			summary: string;
+			createdAt: Date;
+			changesJson: string;
+		}[]
+	) {
+		const changesOf = rows.map((r) => JSON.parse(r.changesJson) as RecordChange[]);
+		const [names, existing] = await Promise.all([
+			this.graph.actorNames(
+				treeId,
+				rows.map((r) => r.actorId)
+			),
+			this.store.existingRecordIds(
+				treeId,
+				changesOf.flatMap((c) => c.map((x) => x.entityId))
+			)
+		]);
+		return rows.map((r, i) => {
+			const hit = changesOf[i]!.find(
+				(c) => (c.entityType === 'person' || c.entityType === 'union') && existing.has(c.entityId)
+			);
+			return {
+				id: r.id,
+				summary: r.summary,
+				createdAt: r.createdAt,
+				actorName: names.get(r.actorId) ?? null,
+				record: hit ? { kind: hit.entityType as 'person' | 'union', id: hit.entityId } : null
+			};
+		});
 	}
 
 	/** The tree's people, partnerships and facts as the viewer may see them: the one masking every figure here shares. */
