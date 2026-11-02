@@ -688,6 +688,55 @@ export class ChangeStore {
 		return found;
 	}
 
+	/**
+	 * The person or partnership each of these records belongs to, by record id: a name or event to its
+	 * person (or partnership), a partner to its partnership, a parent link to its child. Records of
+	 * other kinds, and people and partnerships themselves, are not in the map.
+	 */
+	async ownersOf(
+		treeId: string,
+		refs: readonly { entityType: string; entityId: string }[]
+	): Promise<Map<string, { kind: 'person' | 'union'; id: string }>> {
+		const owners = new Map<string, { kind: 'person' | 'union'; id: string }>();
+		const idsOf = (type: string) => [
+			...new Set(refs.filter((r) => r.entityType === type).map((r) => r.entityId))
+		];
+		for (const part of chunkIds(idsOf('name'), 80)) {
+			const rows = await this.db
+				.select({ id: personNames.id, owner: personNames.personId })
+				.from(personNames)
+				.where(and(eq(personNames.treeId, treeId), inArray(personNames.id, part)))
+				.all();
+			for (const r of rows) owners.set(r.id, { kind: 'person', id: r.owner });
+		}
+		for (const part of chunkIds(idsOf('event'), 80)) {
+			const rows = await this.db
+				.select({ id: events.id, type: events.entityType, owner: events.entityId })
+				.from(events)
+				.where(and(eq(events.treeId, treeId), inArray(events.id, part)))
+				.all();
+			for (const r of rows)
+				owners.set(r.id, { kind: r.type === 'FAMILY' ? 'union' : 'person', id: r.owner });
+		}
+		for (const part of chunkIds(idsOf('partner'), 80)) {
+			const rows = await this.db
+				.select({ id: unionPartners.id, owner: unionPartners.unionId })
+				.from(unionPartners)
+				.where(and(eq(unionPartners.treeId, treeId), inArray(unionPartners.id, part)))
+				.all();
+			for (const r of rows) owners.set(r.id, { kind: 'union', id: r.owner });
+		}
+		for (const part of chunkIds(idsOf('link'), 80)) {
+			const rows = await this.db
+				.select({ id: parentChild.id, owner: parentChild.childId })
+				.from(parentChild)
+				.where(and(eq(parentChild.treeId, treeId), inArray(parentChild.id, part)))
+				.all();
+			for (const r of rows) owners.set(r.id, { kind: 'person', id: r.owner });
+		}
+		return owners;
+	}
+
 	/** The actor's newest change in the tree that can be undone and has not been. */
 	async latestUndoable(treeId: string, actorId: string): Promise<LoggedChange | null> {
 		const reverts = this.db

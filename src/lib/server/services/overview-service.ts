@@ -109,26 +109,32 @@ export class OverviewService {
 		}[]
 	) {
 		const changesOf = rows.map((r) => JSON.parse(r.changesJson) as RecordChange[]);
-		const [names, existing] = await Promise.all([
+		const [names, owners] = await Promise.all([
 			this.graph.actorNames(
 				treeId,
 				rows.map((r) => r.actorId)
 			),
-			this.store.existingRecordIds(
-				treeId,
-				changesOf.flatMap((c) => c.map((x) => x.entityId))
-			)
+			this.store.ownersOf(treeId, changesOf.flat())
 		]);
+		// A person or partnership links to itself; anything else to its owner (a deleted row has none).
+		const targetOf = (c: RecordChange) =>
+			c.entityType === 'person' || c.entityType === 'union'
+				? { kind: c.entityType, id: c.entityId }
+				: (owners.get(c.entityId) ?? null);
+		const targets = changesOf.map((cs) => cs.map(targetOf));
+		const existing = await this.store.existingRecordIds(
+			treeId,
+			targets.flatMap((ts) => ts.flatMap((t) => (t ? [t.id] : [])))
+		);
 		return rows.map((r, i) => {
-			const hit = changesOf[i]!.find(
-				(c) => (c.entityType === 'person' || c.entityType === 'union') && existing.has(c.entityId)
-			);
+			// The first record in the change that still has a live owner is its primary subject.
+			const hit = targets[i]!.find((t) => t && existing.has(t.id));
 			return {
 				id: r.id,
 				summary: r.summary,
 				createdAt: r.createdAt,
 				actorName: names.get(r.actorId) ?? null,
-				record: hit ? { kind: hit.entityType as 'person' | 'union', id: hit.entityId } : null
+				record: hit ?? null
 			};
 		});
 	}

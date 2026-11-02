@@ -42,6 +42,20 @@ describe('overviewStats', () => {
 		});
 	});
 
+	it('counts whole years from full dates, not the difference of years', () => {
+		const stats = overviewStats(
+			treeRows({
+				people: [
+					{ id: 'a', surname: 'Hill', birth: '15 DEC 1900', death: '10 JAN 1990' },
+					{ id: 'b', surname: 'Hill', birth: '1900', death: '1989' }
+				]
+			})
+		);
+		// 89 from the days; 89 from the years alone, which can't say whether the birthday had passed.
+		expect(stats.oldest).toMatchObject({ id: 'a', years: 89 });
+		expect(stats.averageLifespanYears).toBe(89);
+	});
+
 	it('has no lifespan figures without a dated birth and death', () => {
 		const stats = overviewStats(treeRows({ people: [{ id: 'a', birth: '1900' }] }));
 		expect(stats.averageLifespanYears).toBeNull();
