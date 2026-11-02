@@ -5,6 +5,16 @@ significant changes by week, newest first. It was written retrospectively from t
 it summarises themes rather than listing every commit. Decisions and their reasons are in
 [docs/decisions.md](docs/decisions.md); open work is in [docs/backlog.md](docs/backlog.md).
 
+## 2026-11-02 to 2026-11-08
+
+### Changed
+
+- **Overview tab** leads with the family: your starting person, then Jump back in, On this day
+  and Coming up, with statistics last. It says how many people have a dated birth and links to
+  the data-quality report. Latest changes name their author and link to the record. The
+  births-by-decade chart meets WCAG AA contrast, shows its peak without hovering, and reads to
+  screen readers without the empty decades.
+
 ## 2026-10-26 to 2026-11-01: Reports, maps, large imports and GEDZip with media
 
 ### Added
