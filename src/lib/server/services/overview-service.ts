@@ -118,7 +118,7 @@ export class OverviewService {
 		]);
 		// A person or partnership links to itself; anything else to its owner (a deleted row has none).
 		const targetOf = (c: RecordChange) =>
-			c.entityType === 'person' || c.entityType === 'union'
+			c.entityType === 'person' || c.entityType === 'union' || c.entityType === 'source'
 				? { kind: c.entityType, id: c.entityId }
 				: (owners.get(c.entityId) ?? null);
 		const targets = changesOf.map((cs) => cs.map(targetOf));

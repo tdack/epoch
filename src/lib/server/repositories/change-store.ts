@@ -676,7 +676,7 @@ export class ChangeStore {
 	async existingRecordIds(treeId: string, ids: readonly string[]): Promise<Set<string>> {
 		const found = new Set<string>();
 		for (const part of chunkIds([...new Set(ids)], 80)) {
-			for (const table of [individuals, unions]) {
+			for (const table of [individuals, unions, sources]) {
 				const rows = await this.db
 					.select({ id: table.id })
 					.from(table)
@@ -698,8 +698,33 @@ export class ChangeStore {
 		refs: readonly { entityType: string; entityId: string }[]
 	): Promise<Map<string, { kind: 'person' | 'union'; id: string }>> {
 		const owners = new Map<string, { kind: 'person' | 'union'; id: string }>();
+		// A citation belongs to whatever it supports, so it is resolved to that subject first and then
+		// takes the subject's owner: "Edited the birth of X" is logged as a citation on the birth.
+		const subjectOfCitation = new Map<string, string>();
+		const cited = { name: new Set<string>(), event: new Set<string>(), link: new Set<string>() };
+		for (const part of chunkIds(
+			[...new Set(refs.filter((r) => r.entityType === 'citation').map((r) => r.entityId))],
+			80
+		)) {
+			const rows = await this.db
+				.select({ id: citations.id, kind: citations.subjectKind, subject: citations.subjectId })
+				.from(citations)
+				.where(and(eq(citations.treeId, treeId), inArray(citations.id, part)))
+				.all();
+			for (const r of rows) {
+				if (r.kind === 'person' || r.kind === 'union')
+					owners.set(r.id, { kind: r.kind, id: r.subject });
+				else {
+					subjectOfCitation.set(r.id, r.subject);
+					cited[r.kind === 'parent_child' ? 'link' : r.kind].add(r.subject);
+				}
+			}
+		}
 		const idsOf = (type: string) => [
-			...new Set(refs.filter((r) => r.entityType === type).map((r) => r.entityId))
+			...new Set([
+				...refs.filter((r) => r.entityType === type).map((r) => r.entityId),
+				...(type in cited ? cited[type as keyof typeof cited] : [])
+			])
 		];
 		for (const part of chunkIds(idsOf('name'), 80)) {
 			const rows = await this.db
@@ -733,6 +758,10 @@ export class ChangeStore {
 				.where(and(eq(parentChild.treeId, treeId), inArray(parentChild.id, part)))
 				.all();
 			for (const r of rows) owners.set(r.id, { kind: 'person', id: r.owner });
+		}
+		for (const [citation, subject] of subjectOfCitation) {
+			const owner = owners.get(subject);
+			if (owner) owners.set(citation, owner);
 		}
 		return owners;
 	}

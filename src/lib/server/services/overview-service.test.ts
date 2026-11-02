@@ -14,6 +14,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { OverviewService } from './overview-service';
+import { EvidenceService } from './evidence-service';
 import { FactService } from './fact-service';
 import { PersonService } from './person-service';
 import { TreeService } from './tree-service';
@@ -156,5 +157,26 @@ describe('OverviewService', () => {
 		// Newest first: the delete, then the dead person's birth, which has no owner left to open.
 		expect(changes[1]!.record).toBeNull();
 		expect(changes[2]!.record).toBeNull();
+	});
+
+	it('links a citation on a birth to its person, and a source to itself', async () => {
+		const blank = { dateText: null, place: null, value: null, cause: null, age: null, notes: null };
+		const { individual } = await new PersonService(t.db).create(
+			treeId,
+			{ givenName: 'Cited' },
+			owner.context
+		);
+		const { factId } = await new FactService(t.db).create(
+			treeId,
+			individual.id,
+			{ ...blank, type: 'BIRT', dateText: '1902' },
+			owner.context
+		);
+		const evidence = new EvidenceService(t.db);
+		const { sourceId } = await evidence.createSource(treeId, { title: 'Register' }, owner.context);
+		const changes = async () => (await overview().load(treeId, owner.context)).work.recentChanges!;
+		expect((await changes())[0]!.record).toEqual({ kind: 'source', id: sourceId });
+		await evidence.addCitation(treeId, { kind: 'event', id: factId }, { sourceId }, owner.context);
+		expect((await changes())[0]!.record).toEqual({ kind: 'person', id: individual.id });
 	});
 });

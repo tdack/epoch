@@ -52,8 +52,8 @@ interface OverviewWorkDto {
 				createdAt: Date;
 				/** Who made the change; null when their account is gone. */
 				actorName?: string | null;
-				/** The first person or partnership the change touched that still exists, to link to; null otherwise. */
-				record?: { kind: 'person' | 'union'; id: string } | null;
+				/** The first person, partnership or source the change touched that still exists, to link to; null otherwise. */
+				record?: { kind: 'person' | 'union' | 'source'; id: string } | null;
 		  }[]
 		| null;
 }
