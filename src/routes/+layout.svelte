@@ -2,6 +2,8 @@
 	import type { Snippet } from 'svelte';
 	import '../app.css';
 	import PullToRefresh from '#lib/components/layout/PullToRefresh.svelte';
+	import { onMount } from 'svelte';
+	import { TIME_ZONE_COOKIE } from '#lib/shared/display-zone.js';
 	import type { LayoutData } from './$types';
 
 	interface Props {
@@ -11,6 +13,15 @@
 	}
 
 	let { data, children }: Props = $props();
+
+	// Server-rendered dates need the reader's zone before the browser runs; this lets the next load
+	// know it. It holds no personal data, and is rewritten when the reader travels.
+	onMount(() => {
+		const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		if (!zone || document.cookie.includes(`${TIME_ZONE_COOKIE}=${encodeURIComponent(zone)}`))
+			return;
+		document.cookie = `${TIME_ZONE_COOKIE}=${encodeURIComponent(zone)}; path=/; max-age=31536000; samesite=lax`;
+	});
 </script>
 
 <svelte:head>

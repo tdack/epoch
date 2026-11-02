@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
 	import { taskSubjectPath } from '#lib/components/tasks/task-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import DecadeChart from './DecadeChart.svelte';
@@ -7,6 +6,7 @@
 	import { canCreateRecords, canImportGedcom } from '#lib/shared/roles.js';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
+	import { dayLabel, stampOf } from '#lib/shared/display-zone.js';
 	import { lifeDates } from '#lib/shared/life-dates.js';
 	import {
 		nextOccurrence,
@@ -47,21 +47,12 @@
 	});
 	const widestSurname = $derived(Math.max(1, ...stats.topSurnames.map((s) => s.people)));
 	const recents = $derived(
-		marks.recents.filter((r) => !marks.favorites.some((f) => f.id === r.id)).slice(0, RECENTS_SHOWN)
+		marks.recents
+			.filter((r) => r.id !== homePerson?.id && !marks.favorites.some((f) => f.id === r.id))
+			.slice(0, RECENTS_SHOWN)
 	);
-	// Starts on the server's UTC day so the anniversary cards render in the first HTML instead of
-	// shifting the page when they appear; the reader's own day replaces it once the page runs here.
-	let today = $state(untrack(() => data.overview.today));
-	// A change's time is the reader's clock too. Until then both server and first client render show
-	// the UTC date, so hydration matches and the time is never blank.
-	let isOnReaderClock = $state(false);
-	onMount(() => {
-		isOnReaderClock = true;
-		const now = new Date();
-		today = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
-			.map((n, i) => String(n).padStart(i === 0 ? 4 : 2, '0'))
-			.join('-');
-	});
+	// The server's day in the reader's zone (cookie), so the first HTML and the hydrated page agree.
+	const today = $derived(data.overview.today);
 	const dated = $derived(
 		data.overview.anniversaries
 			.map((a) => ({ ...a, next: nextOccurrence(a.monthDay, today) }))
@@ -81,36 +72,31 @@
 			? unionPath(data.summary.tree, a.unionId)
 			: personPath(data.summary.tree, a.people[0]!.id);
 	const names = (a: AnniversaryDto) => a.people.map((p) => p.name).join(' and ');
-	// From the local day, not now plus whole days: a daylight-saving change would move it a day.
-	const dayName = (days: number) => {
-		if (days === 1) return 'Tomorrow';
-		const [year, month, day] = today.split('-').map(Number) as [number, number, number];
-		return new Date(year, month - 1, day + days).toLocaleDateString(undefined, {
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short'
-		});
-	};
+	const dayName = (days: number) => (days === 1 ? 'Tomorrow' : dayLabel(today, days));
 	const ANNIVERSARIES_SHOWN = 5;
 	const hasWork = $derived((work.myTasks?.open ?? 0) > 0 || (work.recentChanges?.length ?? 0) > 0);
 	// Bars for one or two decades show nothing the two numbers don't; they go in a sentence instead.
 	const MIN_DECADES_CHARTED = 3;
 	const isDecadeChart = $derived(stats.birthsByDecade.length >= MIN_DECADES_CHARTED);
-	const hasLives = $derived(stats.birthsByDecade.length > 0 || stats.averageLifespanYears !== null);
 	// A task opens its record; one about nothing opens the tasks list, as the Tasks page does.
 	const taskHref = (task: TaskDto) => taskSubjectPath(base, task) ?? `${base}/tasks?mine=true`;
-	// The time for a change made today, else the day: five "26 Oct" stamps would say nothing.
-	const stampOf = (at: Date) =>
-		at.toDateString() === new Date().toDateString()
-			? at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-			: at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 	const plural = (n: number, one: string, many: string) =>
 		`${n.toLocaleString()} ${n === 1 ? one : many}`;
-	const birthCoverage = $derived(
-		`${stats.peopleWithBirthYear.toLocaleString()} of ${plural(stats.people, 'person', 'people')} ${
-			stats.peopleWithBirthYear === 1 ? 'has' : 'have'
-		} a birth dated to a year.`
+	const birthCoverage = $derived.by(() => {
+		const { people, peopleWithBirthYear: dated } = stats;
+		if (people === 1)
+			return dated === 1
+				? 'Their birth is dated to a year.'
+				: 'Their birth is not dated to a year.';
+		return `${dated.toLocaleString()} of ${people.toLocaleString()} people ${dated === 1 ? 'has' : 'have'} a birth dated to a year.`;
+	});
+	// Too few decades to chart, so the figures read as a sentence in the lede instead of a card.
+	const decadeSentence = $derived(
+		isDecadeChart
+			? ''
+			: `Births by decade: ${stats.birthsByDecade.map((d) => `${d.people.toLocaleString()} in the ${d.decade}s`).join(', ')}.`
 	);
+	const hasBirthsCard = $derived(isDecadeChart || stats.averageLifespanYears !== null);
 </script>
 
 <svelte:head>
@@ -150,11 +136,16 @@
 				)}.
 			{/if}
 			{birthCoverage}
+			{decadeSentence}
 			{#if data.overview.canViewQuality}
 				<a href="{base}/quality" class="text-link rounded-sm focus-ring"
 					>The data-quality report lists what is missing.</a
 				>
 			{/if}
+		</p>
+		<p class="mt-1 text-xs text-stone-600">
+			A birth counts when its date falls within one year: “about 1900” does, “between 1968 and 1970”
+			does not.
 		</p>
 	{/if}
 	{#if data.summary.subtree}
@@ -220,9 +211,9 @@
 	{/snippet}
 
 	{#if homePerson}
-		<section aria-labelledby="start-here" class="mt-6" data-testid="overview-start">
+		<section aria-labelledby="start-here" class="section-card mt-6" data-testid="overview-start">
 			<h2 id="start-here" class="section-heading">Where to start</h2>
-			<p class="mt-1 text-xl font-bold text-stone-900">
+			<p class="mt-1 text-sm font-bold text-stone-900">
 				<a
 					href={personPath(data.summary.tree, homePerson.id)}
 					class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
@@ -261,7 +252,7 @@
 								<details class="mt-1 text-sm">
 									<summary
 										class="cursor-pointer rounded-sm text-xs font-medium text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
-										>Show all {marks.favorites.length}</summary
+										>Show all {marks.favorites.length} favourites</summary
 									>
 									<ul class="mt-1 space-y-1">
 										{#each marks.favorites.slice(FAVOURITES_SHOWN) as person (person.id)}
@@ -304,7 +295,7 @@
 							<details class="mt-1 text-sm">
 								<summary
 									class="cursor-pointer rounded-sm text-xs font-medium text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
-									>Show all {onThisDay.length}</summary
+									>Show all {onThisDay.length} anniversaries</summary
 								>
 								<ul class="mt-1 space-y-1">
 									{#each onThisDay.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
@@ -324,8 +315,8 @@
 					>
 						<h2 id="coming-up" class="section-heading">Coming up</h2>
 						<p class="text-xs text-stone-600">
-							Birthdays and wedding anniversaries in the next {UPCOMING_DAYS} days. Death anniversaries
-							are not listed.
+							Birthdays of living people and anniversaries of couples both living and still
+							together, in the next {UPCOMING_DAYS} days.
 						</p>
 						<ul class="mt-2 space-y-1 text-sm">
 							{#each comingUp.slice(0, ANNIVERSARIES_SHOWN) as a (a.id)}
@@ -336,7 +327,7 @@
 							<details class="mt-1 text-sm">
 								<summary
 									class="cursor-pointer rounded-sm text-xs font-medium text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
-									>Show all {comingUp.length}</summary
+									>Show all {comingUp.length} anniversaries</summary
 								>
 								<ul class="mt-1 space-y-1">
 									{#each comingUp.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
@@ -402,9 +393,7 @@
 										>{/if}
 								</span>
 								<time datetime={change.createdAt.toISOString()} class="shrink-0 text-stone-600"
-									>{isOnReaderClock
-										? stampOf(change.createdAt)
-										: change.createdAt.toISOString().slice(0, 10)}</time
+									>{stampOf(change.createdAt, data.now, data.timeZone)}</time
 								>
 							</li>
 						{/each}
@@ -419,24 +408,17 @@
 			</section>
 		{/if}
 
-		{#if hasLives || hasSurnameSpread}
+		{#if hasBirthsCard || hasSurnameSpread}
 			<div class="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-				{#if hasLives}
+				{#if hasBirthsCard}
 					<section
 						aria-labelledby="births-by-decade"
 						class="section-card"
 						data-testid="overview-births"
 					>
 						<h2 id="births-by-decade" class="section-heading">Births by decade</h2>
-						<p class="text-xs text-stone-600">{birthCoverage}</p>
 						{#if isDecadeChart}
 							<DecadeChart {decades} labelledBy="births-by-decade" />
-						{:else if stats.birthsByDecade.length > 0}
-							<p class="mt-2 text-sm text-stone-800">
-								{stats.birthsByDecade
-									.map((d) => `${d.people.toLocaleString()} in the ${d.decade}s`)
-									.join(', ')}.
-							</p>
 						{/if}
 						{#if stats.averageLifespanYears !== null}
 							<dl
