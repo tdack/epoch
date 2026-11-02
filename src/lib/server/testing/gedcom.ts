@@ -81,15 +81,19 @@ export function importGedcomAsRetainedFactDetails(
 }
 
 /**
- * Lines with the `CHAN` and `CREA` blocks removed. Epoch writes them from its own row timestamps, so
- * two exports made at different moments differ only there.
+ * Lines with the `CHAN` and `CREA` blocks and the header's export `DATE` removed. Epoch writes them
+ * from its own row timestamps and the clock, so two exports made at different moments differ only there.
  */
 export function withoutStamps(lines: string[]): string[] {
 	const out: string[] = [];
 	let isSkipping = false;
+	let isInHead = false;
 	for (const line of lines) {
 		const m = /^(\d+) (\S+)/.exec(line);
-		if (m && Number(m[1]) <= 1) isSkipping = m[1] === '1' && (m[2] === 'CHAN' || m[2] === 'CREA');
+		if (m?.[1] === '0') isInHead = m[2] === 'HEAD';
+		if (m && Number(m[1]) <= 1)
+			isSkipping =
+				m[1] === '1' && (m[2] === 'CHAN' || m[2] === 'CREA' || (isInHead && m[2] === 'DATE'));
 		if (!isSkipping) out.push(line);
 	}
 	return out;
