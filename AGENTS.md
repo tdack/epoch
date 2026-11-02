@@ -33,6 +33,12 @@ Open fixes and proposed additions live only in `docs/backlog.md`; the architectu
 `docs/architecture.md` and the reasons behind decisions in `docs/decisions.md`. Update those, not
 this file, when work lands.
 
+`CHANGELOG.md` records what changed for people using or running Epoch, newest first. When a
+feature, notable refactor, schema change, security fix or behaviour change lands, add or update an
+entry under the current week's heading (Added, Changed, Security, Removed). Summarise the outcome
+in one line per theme and fold related commits into one entry: it is not a copy of commit
+messages, and chores, formatting, test-only changes and small fixes stay out of it.
+
 ## Architecture
 
 Epoch is a private, single-owner family-tree application with invited collaborators, inspired by
