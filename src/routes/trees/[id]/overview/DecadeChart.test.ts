@@ -32,4 +32,15 @@ describe('DecadeChart', () => {
 		);
 		expect(count(many, 'opacity-0')).toBe(12);
 	});
+
+	it('captions the peak decade on load with previous/next buttons', () => {
+		const out = html([
+			{ decade: 1840, people: 1 },
+			{ decade: 1850, people: 0 },
+			{ decade: 1860, people: 3 }
+		]);
+		expect(out).toContain('>1860s: 3 births</p>');
+		expect(out).toContain('aria-label="Previous decade"');
+		expect(out).toContain('aria-label="Next decade"');
+	});
 });

@@ -32,6 +32,8 @@
 	// With this few decades every slot is wide enough to print its own count.
 	const MAX_DECADES_ALL_VALUES = 12;
 	const MIN_BAR_PX = 6;
+	const STEP_CLASS =
+		'inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-stone-700 focus-ring hover:bg-stone-200/70 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent';
 	const isValueShown = (i: number) => decades.length <= MAX_DECADES_ALL_VALUES || i === peakIndex;
 	// Roving tabindex: one tab stop for the whole chart instead of one per decade. Null until a bar
 	// is focused, so the peak is the way in.
@@ -40,8 +42,18 @@
 	let listEl: HTMLOListElement | undefined = $state();
 	const hintId = $derived(`${labelledBy}-keys`);
 
+	const births = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'birth' : 'births'}`;
+	const stops = $derived(decades.flatMap((d, n) => (d.people > 0 ? [n] : [])));
+	const activeStop = $derived(stops.indexOf(activeIndex));
+	const caption = $derived(
+		decades[activeIndex]
+			? `${decades[activeIndex].decade}s: ${births(decades[activeIndex].people)}`
+			: ''
+	);
+	// Moves the selection without moving focus, so repeated presses stay on the button.
+	const step = (by: number) => (focusedIndex = stops[activeStop + by] ?? focusedIndex);
+
 	function onBarKeydown(event: KeyboardEvent, i: number) {
-		const stops = decades.flatMap((d, n) => (d.people > 0 ? [n] : []));
 		const at = stops.indexOf(i);
 		const target = {
 			ArrowLeft: stops[at - 1],
@@ -54,7 +66,6 @@
 		if (target !== undefined)
 			listEl?.querySelector<HTMLElement>(`[data-index="${target}"]`)?.focus();
 	}
-	const births = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'birth' : 'births'}`;
 </script>
 
 <!-- One accessible representation: each non-empty bar is a focusable image named "1840s: 12 births",
@@ -82,6 +93,7 @@
 					tabindex={i === activeIndex ? 0 : -1}
 					data-index={i}
 					onfocus={() => (focusedIndex = i)}
+					onclick={() => (focusedIndex = i)}
 					onkeydown={(event) => onBarKeydown(event, i)}
 					aria-label="{row.decade}s: {births(row.people)}"
 					class="group flex h-full flex-col justify-end rounded-t-sm focus-ring"
@@ -98,7 +110,10 @@
 					>
 					<!-- A floor keeps one birth clearly taller than an empty slot. -->
 					<div
-						class="mx-auto w-full max-w-8 rounded-t-sm bg-stone-600 transition-colors group-hover:bg-stone-800 group-focus-visible:bg-stone-800"
+						class="mx-auto w-full max-w-8 rounded-t-sm transition-colors group-hover:bg-stone-800 group-focus-visible:bg-stone-800 {i ===
+						activeIndex
+							? 'bg-stone-800'
+							: 'bg-stone-600'}"
 						style:height="max({MIN_BAR_PX}px, {(row.people / widest) * 80}%)"
 					></div>
 				</div>
@@ -122,6 +137,51 @@
 	{/each}
 </ol>
 <div aria-hidden="true" class="h-5 border-t border-stone-300"></div>
+<!-- WCAG 2.5.8: the bars can be under 24px wide on a phone, so these buttons are the equivalent
+	control (the spec's "equivalent" exception), each 32px. aria-live is polite because the buttons
+	are the only control with no announcement of their own; a focused bar already speaks its label,
+	and polite lets that finish first. -->
+<div class="flex items-center justify-between gap-2">
+	<button
+		type="button"
+		class={STEP_CLASS}
+		aria-label="Previous decade"
+		disabled={activeStop <= 0}
+		onclick={() => step(-1)}
+	>
+		<svg
+			viewBox="0 0 16 16"
+			class="size-4"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg
+		>
+	</button>
+	<p
+		class="text-xs font-medium text-stone-700 tabular-nums"
+		aria-live="polite"
+		data-testid="overview-decade-caption"
+	>
+		{caption}
+	</p>
+	<button
+		type="button"
+		class={STEP_CLASS}
+		aria-label="Next decade"
+		disabled={activeStop >= stops.length - 1}
+		onclick={() => step(1)}
+	>
+		<svg
+			viewBox="0 0 16 16"
+			class="size-4"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg
+		>
+	</button>
+</div>
 {#if filled.length < decades.length}
 	<p class="sr-only">No dated births in {decades.length - filled.length} other decades.</p>
 {/if}
