@@ -3,6 +3,8 @@
 	import '../app.css';
 	import PullToRefresh from '#lib/components/layout/PullToRefresh.svelte';
 	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import { TIME_ZONE_COOKIE } from '#lib/shared/display-zone.js';
 	import type { LayoutData } from './$types';
 
@@ -21,6 +23,10 @@
 		if (!zone || document.cookie.includes(`${TIME_ZONE_COOKIE}=${encodeURIComponent(zone)}`))
 			return;
 		document.cookie = `${TIME_ZONE_COOKIE}=${encodeURIComponent(zone)}; path=/; max-age=31536000; samesite=lax`;
+		// A first visit was rendered in UTC. Pages that format in the reader's zone return `timeZone`;
+		// reload them once. The cookie now matches, so the next load agrees and this cannot loop.
+		const rendered = (page.data as { timeZone?: string }).timeZone;
+		if (rendered && rendered !== zone) void invalidateAll();
 	});
 </script>
 

@@ -58,7 +58,10 @@
 			.map((a) => ({ ...a, next: nextOccurrence(a.monthDay, today) }))
 			.sort((a, b) => a.next.days - b.next.days || a.year - b.year)
 	);
-	const onThisDay = $derived(dated.filter((a) => a.next.days === 0));
+	const todayItems = $derived(dated.filter((a) => a.next.days === 0));
+	// A living birthday or a couple still together is something to mark; the rest is remembered.
+	const todayNow = $derived(todayItems.filter((a) => a.isCurrent));
+	const remembered = $derived(todayItems.filter((a) => !a.isCurrent));
 	const comingUp = $derived(
 		dated.filter((a) => a.isCurrent && a.next.days > 0 && a.next.days <= UPCOMING_DAYS)
 	);
@@ -74,6 +77,14 @@
 	const names = (a: AnniversaryDto) => a.people.map((p) => p.name).join(' and ');
 	const dayName = (days: number) => (days === 1 ? 'Tomorrow' : dayLabel(today, days));
 	const ANNIVERSARIES_SHOWN = 5;
+	// The record behind a change, or null (plain text) for a kind this page doesn't link.
+	const changeHref = (record: { kind: string; id: string } | null | undefined) => {
+		if (!record) return null;
+		if (record.kind === 'union') return unionPath(data.summary.tree, record.id);
+		if (record.kind === 'person') return personPath(data.summary.tree, record.id);
+		if (record.kind === 'source') return `${base}/sources/${record.id}`;
+		return null;
+	};
 	const hasWork = $derived((work.myTasks?.open ?? 0) > 0 || (work.recentChanges?.length ?? 0) > 0);
 	// Bars for one or two decades show nothing the two numbers don't; they go in a sentence instead.
 	const MIN_DECADES_CHARTED = 3;
@@ -91,8 +102,11 @@
 		return `${dated.toLocaleString()} of ${people.toLocaleString()} people ${dated === 1 ? 'has' : 'have'} a birth dated to a year.`;
 	});
 	// Too few decades to chart, so the figures read as a sentence in the lede instead of a card.
+	// A lone decade holding every dated birth only repeats the coverage sentence.
 	const decadeSentence = $derived(
-		isDecadeChart
+		isDecadeChart ||
+			(stats.birthsByDecade.length === 1 &&
+				stats.birthsByDecade[0]!.people === stats.peopleWithBirthYear)
 			? ''
 			: `Births by decade: ${stats.birthsByDecade.map((d) => `${d.people.toLocaleString()} in the ${d.decade}s`).join(', ')}.`
 	);
@@ -138,15 +152,21 @@
 			{birthCoverage}
 			{decadeSentence}
 			{#if data.overview.canViewQuality}
-				<a href="{base}/quality" class="text-link rounded-sm focus-ring"
-					>The data-quality report lists what is missing.</a
-				>
+				<a href="{base}/quality" class="text-link rounded-sm whitespace-nowrap focus-ring"
+					>See what is missing</a
+				>.
 			{/if}
 		</p>
-		<p class="mt-1 text-xs text-stone-600">
-			A birth counts when its date falls within one year: “about 1900” does, “between 1968 and 1970”
-			does not.
-		</p>
+		<details class="mt-1 max-w-3xl">
+			<summary
+				class="cursor-pointer rounded-sm text-xs text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
+				>How births are counted</summary
+			>
+			<p class="mt-1 text-xs text-stone-600">
+				A birth counts when its date falls within one year: “about 1900” does, “between 1968 and
+				1970” does not.
+			</p>
+		</details>
 	{/if}
 	{#if data.summary.subtree}
 		<p class="mt-1 text-sm text-stone-600">
@@ -164,7 +184,7 @@
 		onReject={(message) => toasts.push(message, { tone: 'error', durationMs: 10_000 })}
 	/>
 {:else}
-	{#snippet onThisDayRow(a: (typeof onThisDay)[number])}
+	{#snippet rememberedRow(a: (typeof todayItems)[number])}
 		<li class="grid">
 			<a
 				href={href(a)}
@@ -176,8 +196,9 @@
 			</span>
 		</li>
 	{/snippet}
-	{#snippet comingUpRow(a: (typeof comingUp)[number])}
+	{#snippet comingUpRow(a: (typeof dated)[number])}
 		{@const years = a.next.year - a.year}
+		{@const when = a.next.days === 0 ? ' today' : ''}
 		<!-- The date shares the name's line and the detail takes its own, so neither wraps to an orphan at phone width. -->
 		<li class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3">
 			<a
@@ -185,11 +206,33 @@
 				class="text-link justify-self-start rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
 				>{names(a)}</a
 			>
-			<span class="text-stone-600">{dayName(a.next.days)}</span>
+			{#if a.next.days > 0}<span class="text-stone-600">{dayName(a.next.days)}</span>{/if}
 			<span class="col-span-2 text-stone-600">
-				{a.type === 'BIRT' ? `turns ${years}` : plural(years, 'year married', 'years married')}
+				{a.type === 'BIRT'
+					? `turns ${years}${when}`
+					: `${plural(years, 'year', 'years')} married${when}`}
 			</span>
 		</li>
+	{/snippet}
+	{#snippet capped(list: typeof dated, row: typeof comingUpRow)}
+		<ul class="mt-1 space-y-1 text-sm">
+			{#each list.slice(0, ANNIVERSARIES_SHOWN) as a (a.id)}
+				{@render row(a)}
+			{/each}
+		</ul>
+		{#if list.length > ANNIVERSARIES_SHOWN}
+			<details class="mt-1 text-sm">
+				<summary
+					class="cursor-pointer rounded-sm text-xs font-medium text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
+					>Show all {list.length} anniversaries</summary
+				>
+				<ul class="mt-1 space-y-1">
+					{#each list.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
+						{@render row(a)}
+					{/each}
+				</ul>
+			</details>
+		{/if}
 	{/snippet}
 	{#snippet personRow(person: (typeof marks.favorites)[number])}
 		{@const dates = lifeDates(
@@ -232,6 +275,69 @@
 	{/if}
 
 	<div class="mt-6 space-y-4">
+		{#if hasWork}
+			<section
+				aria-labelledby="your-work"
+				class="section-card print:hidden"
+				data-testid="overview-work"
+			>
+				<h2 id="your-work" class="section-heading">Your work</h2>
+				{#if work.myTasks && work.myTasks.open > 0}
+					<h3 class="mt-3 text-xs font-semibold text-stone-600">Your open tasks</h3>
+					<ul class="mt-1 space-y-1 text-sm">
+						{#each work.myTasks.items as task (task.id)}
+							<li>
+								<a
+									href={taskHref(task)}
+									class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+									>{task.title}</a
+								>
+								{#if task.subject}<span class="text-stone-600"> · {task.subject.label}</span>{/if}
+							</li>
+						{/each}
+					</ul>
+					<a
+						href="{base}/tasks?mine=true"
+						class="row-link mt-1 inline-block rounded-sm text-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+					>
+						{work.myTasks.open > work.myTasks.items.length
+							? `All ${work.myTasks.open} of your tasks`
+							: 'Your tasks'}
+					</a>
+				{/if}
+				{#if work.recentChanges?.length}
+					<h3 class="mt-3 text-xs font-semibold text-stone-600">Latest changes</h3>
+					<ul class="mt-1 space-y-1 text-sm">
+						{#each work.recentChanges as change (change.id)}
+							{@const recordHref = changeHref(change.record)}
+							<li class="flex justify-between gap-3">
+								<span class="text-stone-800">
+									{#if recordHref}
+										<a href={recordHref} class="text-link rounded-sm focus-ring">{change.summary}</a
+										>
+									{:else}
+										{change.summary}
+									{/if}
+									{#if change.actorName}<span class="text-stone-600">
+											by {change.actorName}</span
+										>{/if}
+								</span>
+								<time datetime={change.createdAt.toISOString()} class="shrink-0 text-stone-600"
+									>{stampOf(change.createdAt, data.now, data.timeZone)}</time
+								>
+							</li>
+						{/each}
+					</ul>
+					<a
+						href="{base}/audit"
+						class="row-link mt-1 inline-block rounded-sm text-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+					>
+						All changes in the audit log
+					</a>
+				{/if}
+			</section>
+		{/if}
+
 		{#if marks.favorites.length > 0 || recents.length > 0}
 			<section
 				aria-labelledby="jump-back"
@@ -277,139 +383,44 @@
 			</section>
 		{/if}
 
-		{#if onThisDay.length > 0 || comingUp.length > 0}
-			<div class="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
-				{#if onThisDay.length > 0}
-					<section
-						aria-labelledby="on-this-day"
-						class="section-card {comingUp.length === 0 ? 'md:col-span-2' : ''}"
-						data-testid="overview-on-this-day"
+		{#if todayNow.length > 0 || comingUp.length > 0 || remembered.length > 0}
+			<section aria-labelledby="coming-up" class="section-card" data-testid="overview-coming-up">
+				<h2 id="coming-up" class="section-heading">Coming up</h2>
+				<details class="mt-1">
+					<summary
+						class="cursor-pointer rounded-sm text-xs text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
+						>What is listed</summary
 					>
-						<h2 id="on-this-day" class="section-heading">On this day</h2>
-						<ul class="mt-2 space-y-1 text-sm">
-							{#each onThisDay.slice(0, ANNIVERSARIES_SHOWN) as a (a.id)}
-								{@render onThisDayRow(a)}
-							{/each}
-						</ul>
-						{#if onThisDay.length > ANNIVERSARIES_SHOWN}
-							<details class="mt-1 text-sm">
-								<summary
-									class="cursor-pointer rounded-sm text-xs font-medium text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
-									>Show all {onThisDay.length} anniversaries</summary
-								>
-								<ul class="mt-1 space-y-1">
-									{#each onThisDay.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
-										{@render onThisDayRow(a)}
-									{/each}
-								</ul>
-							</details>
-						{/if}
-					</section>
+					<p class="mt-1 text-xs text-stone-600">
+						Birthdays of living people and anniversaries of couples still together, in the next {UPCOMING_DAYS}
+						days.
+					</p>
+				</details>
+				{#if todayNow.length > 0}
+					<h3 class="mt-3 text-xs font-semibold text-stone-600">Today</h3>
+					{@render capped(todayNow, comingUpRow)}
 				{/if}
-
 				{#if comingUp.length > 0}
-					<section
-						aria-labelledby="coming-up"
-						class="section-card {onThisDay.length === 0 ? 'md:col-span-2' : ''}"
-						data-testid="overview-coming-up"
-					>
-						<h2 id="coming-up" class="section-heading">Coming up</h2>
-						<p class="text-xs text-stone-600">
-							Birthdays of living people and anniversaries of couples both living and still
-							together, in the next {UPCOMING_DAYS} days.
-						</p>
-						<ul class="mt-2 space-y-1 text-sm">
-							{#each comingUp.slice(0, ANNIVERSARIES_SHOWN) as a (a.id)}
-								{@render comingUpRow(a)}
-							{/each}
-						</ul>
-						{#if comingUp.length > ANNIVERSARIES_SHOWN}
-							<details class="mt-1 text-sm">
-								<summary
-									class="cursor-pointer rounded-sm text-xs font-medium text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
-									>Show all {comingUp.length} anniversaries</summary
-								>
-								<ul class="mt-1 space-y-1">
-									{#each comingUp.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
-										{@render comingUpRow(a)}
-									{/each}
-								</ul>
-							</details>
-						{/if}
-					</section>
+					{#if todayNow.length > 0}
+						<h3 class="mt-3 text-xs font-semibold text-stone-600">Next {UPCOMING_DAYS} days</h3>
+					{/if}
+					{@render capped(comingUp, comingUpRow)}
 				{/if}
-			</div>
-		{/if}
-
-		{#if hasWork}
-			<section
-				aria-labelledby="your-work"
-				class="section-card print:hidden"
-				data-testid="overview-work"
-			>
-				<h2 id="your-work" class="section-heading">Your work</h2>
-				{#if work.myTasks && work.myTasks.open > 0}
-					<h3 class="mt-3 text-xs font-semibold text-stone-600">Your open tasks</h3>
-					<ul class="mt-1 space-y-1 text-sm">
-						{#each work.myTasks.items as task (task.id)}
-							<li>
-								<a
-									href={taskHref(task)}
-									class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
-									>{task.title}</a
-								>
-								{#if task.subject}<span class="text-stone-600"> · {task.subject.label}</span>{/if}
-							</li>
-						{/each}
-					</ul>
-					<a
-						href="{base}/tasks?mine=true"
-						class="row-link mt-1 inline-block rounded-sm text-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
-					>
-						{work.myTasks.open > work.myTasks.items.length
-							? `All ${work.myTasks.open} of your tasks`
-							: 'Your tasks'}
-					</a>
-				{/if}
-				{#if work.recentChanges?.length}
-					<h3 class="mt-3 text-xs font-semibold text-stone-600">Latest changes</h3>
-					<ul class="mt-1 space-y-1 text-sm">
-						{#each work.recentChanges as change (change.id)}
-							{@const recordHref = change.record
-								? change.record.kind === 'union'
-									? unionPath(data.summary.tree, change.record.id)
-									: personPath(data.summary.tree, change.record.id)
-								: null}
-							<li class="flex justify-between gap-3">
-								<span class="text-stone-800">
-									{#if recordHref}
-										<a href={recordHref} class="text-link rounded-sm focus-ring">{change.summary}</a
-										>
-									{:else}
-										{change.summary}
-									{/if}
-									{#if change.actorName}<span class="text-stone-600">
-											by {change.actorName}</span
-										>{/if}
-								</span>
-								<time datetime={change.createdAt.toISOString()} class="shrink-0 text-stone-600"
-									>{stampOf(change.createdAt, data.now, data.timeZone)}</time
-								>
-							</li>
-						{/each}
-					</ul>
-					<a
-						href="{base}/audit"
-						class="row-link mt-1 inline-block rounded-sm text-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
-					>
-						All changes in the audit log
-					</a>
+				{#if remembered.length > 0}
+					<h3 class="mt-3 text-xs font-semibold text-stone-600" data-testid="overview-on-this-day">
+						Remembered today
+					</h3>
+					{@render capped(remembered, rememberedRow)}
 				{/if}
 			</section>
 		{/if}
 
 		{#if hasBirthsCard || hasSurnameSpread}
-			<div class="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+			<div
+				class="grid grid-cols-1 items-start gap-4 {hasBirthsCard && hasSurnameSpread
+					? 'md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'
+					: 'md:max-w-xl'}"
+			>
 				{#if hasBirthsCard}
 					<section
 						aria-labelledby="births-by-decade"
