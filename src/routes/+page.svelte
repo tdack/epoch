@@ -108,7 +108,7 @@
 					</article>
 				{/each}
 				<aside class="try">
-					<p>See it with a real tree before you install anything.</p>
+					<p>See Epoch with a real tree before you install anything.</p>
 					<a class="button action" href={DEMO_URL}>Explore the demo tree</a>
 				</aside>
 			</div>
@@ -126,8 +126,9 @@
 				<div class="stack">
 					<h2 id="code-title" class="display">Get the code</h2>
 					<p class="lede">
-						Epoch is one SvelteKit application, in a single repository on GitHub. Clone it, run it
-						on your own machine with a sample tree, then decide whether to install it.
+						Epoch is one SvelteKit application, in a single repository on GitHub. Clone the
+						repository, run the app on your own machine with a sample tree, then decide whether to
+						install Epoch.
 					</p>
 					<a class="button quiet" href={REPO_URL}>
 						<svg
@@ -148,15 +149,15 @@
 					</a>
 				</div>
 				<div class="stack">
-					<h3 class="label">Run it locally, with Node 24</h3>
+					<h3 class="label">Run Epoch locally, with Node 24</h3>
 					<CommandBlock
 						lines={LOCAL_COMMANDS}
 						tone="dark"
 						label="the commands to run Epoch locally"
 					/>
 					<p class="note">
-						The app opens at <code>localhost:5173</code>, signed in as a local developer. With it
-						running, <code>npm run seed</code> loads a fictional sample tree.
+						The app opens at <code>localhost:5173</code>, signed in as a local developer. With the
+						app running, <code>npm run seed</code> loads a fictional sample tree.
 					</p>
 				</div>
 			</div>
@@ -167,10 +168,10 @@
 		<div class="wrap">
 			<Descent />
 			<header class="centred">
-				<h2 id="install-title" class="display">Install it on your own Cloudflare account</h2>
+				<h2 id="install-title" class="display">Install Epoch on your own Cloudflare account</h2>
 				<p class="lede">
-					One command creates everything Epoch needs, deploys it and checks the result. It signs in
-					through your browser, so there is no API token to make.
+					One command creates everything Epoch needs, deploys the app and checks the result. Setup
+					signs in through your browser, so there is no API token to make.
 				</p>
 			</header>
 
@@ -178,14 +179,14 @@
 				<li>
 					<span class="step" aria-hidden="true">1</span>
 					<div>
-						<h3>Have what it needs</h3>
+						<h3>Have what Epoch needs</h3>
 						<p>
 							Node 24, a Cloudflare account on a paid Workers plan, a Zero Trust organisation with
 							an identity provider, and a workers.dev subdomain or a domain on Cloudflare.
 						</p>
 					</div>
 					<div class="command">
-						<h4 class="label">Cloudflare resources it uses</h4>
+						<h4 class="label">Cloudflare resources Epoch uses</h4>
 						<ul class="resources">
 							<li>Workers, serving the app and its static assets</li>
 							<li>D1, the family-tree database</li>
@@ -203,7 +204,7 @@
 					<span class="step" aria-hidden="true">2</span>
 					<div>
 						<h3>See the plan</h3>
-						<p>Read-only: it shows what would be created or changed, and touches nothing.</p>
+						<p>Read-only: the plan shows what would be created or changed, and touches nothing.</p>
 					</div>
 					<div class="command">
 						<CommandBlock lines={['./setup --plan']} label="the setup plan command" />
@@ -215,8 +216,8 @@
 						<h3>Run setup</h3>
 						<p>
 							Creates the database, storage bucket, queue, Worker, address and sign-in page,
-							deploys, checks the result and records you as the install owner. It asks only what it
-							cannot find out itself.
+							deploys, checks the result and records you as the install owner. Setup asks only what
+							it cannot find out itself.
 						</p>
 					</div>
 					<div class="command">

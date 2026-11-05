@@ -38,7 +38,7 @@ keeps vellum text above contrast over the brightest spines. -->
 					aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg
 				>
 			</a>
-			<a class="secondary" href="#install">or install it on your own Cloudflare account</a>
+			<a class="secondary" href="#install">or install Epoch on your own Cloudflare account</a>
 		</div>
 	</div>
 </header>

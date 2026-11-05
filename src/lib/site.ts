@@ -364,7 +364,7 @@ export interface Faq {
 
 export const FAQS: Faq[] = [
 	{
-		question: 'What does it cost to run?',
+		question: 'What does Epoch cost to run?',
 		answer: [
 			'Epoch runs on your own Cloudflare account, which needs a paid Workers plan. Cloudflare bills you for that directly. There is no Epoch subscription.'
 		]
@@ -414,7 +414,7 @@ export const FAQS: Faq[] = [
 		]
 	},
 	{
-		question: 'Is it open source?',
+		question: 'Is Epoch open source?',
 		answer: [
 			'Yes. Epoch is licensed under the [GNU Affero General Public License, version 3 or later](' +
 				LICENSE_URL +
@@ -422,15 +422,15 @@ export const FAQS: Faq[] = [
 		]
 	},
 	{
-		question: 'Does it work on a phone?',
+		question: 'Does Epoch work on a phone?',
 		answer: [
 			'Record pages, lists and the family view have phone layouts, and Epoch installs as a home-screen app with pull to refresh. The 3D views are best on a larger screen.'
 		]
 	},
 	{
-		question: 'How is it related to webtrees?',
+		question: 'How is Epoch related to webtrees?',
 		answer: [
-			'Epoch is inspired by the capabilities of webtrees, not its screens or code. It is a separate application, written to be hosted using Cloudflare, and exchanges data with other software through GEDCOM.'
+			'Epoch is inspired by the capabilities of webtrees, not its screens or code: a separate application, written to be hosted on Cloudflare, that exchanges data with other software through GEDCOM.'
 		]
 	},
 	{
