@@ -11,7 +11,7 @@ test('a printed person page drops the app chrome and says whose view it is', asy
 	await expect(page.getByRole('heading', { name: 'Wren Ash', level: 1 })).toBeVisible();
 	await expect(page.getByText('about 1900').first()).toBeVisible();
 	await expect(page.getByRole('navigation', { name: /tree/i })).toBeHidden();
-	await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeHidden();
+	await expect(page.getByRole('button', { name: 'Edit Wren Ash' })).toBeHidden();
 	await expect(page.getByTestId('print-footer')).toBeVisible();
 
 	// The print dialog opens every folded disclosure, and closing it folds them again.

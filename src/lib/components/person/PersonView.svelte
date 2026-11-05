@@ -15,6 +15,7 @@
 	import PersonLifeMap from './PersonLifeMap.svelte';
 	import PersonHistory from './PersonHistory.svelte';
 	import PersonMedia from './PersonMedia.svelte';
+	import PersonNameActions from './PersonNameActions.svelte';
 	import PersonNames from './PersonNames.svelte';
 	import PersonNotes from './PersonNotes.svelte';
 	import PersonPrivacy from './PersonPrivacy.svelte';
@@ -194,7 +195,11 @@
 <div class="space-y-6">
 	<header class="flex flex-wrap items-start justify-between gap-3">
 		<div class="min-w-0 space-y-2">
-			<PersonSummary {dto} isPageTitle={isPage} isSelf={dto.person.id === selfPersonId} />
+			<PersonSummary {dto} isPageTitle={isPage} isSelf={dto.person.id === selfPersonId}>
+				{#snippet nameActions()}
+					<PersonNameActions person={dto.person} {treeId} {role} {editor} {toasts} {marks} />
+				{/snippet}
+			</PersonSummary>
 			<CitationsDisclosure
 				{treeId}
 				{treeSlug}

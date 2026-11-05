@@ -1,24 +1,13 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
-	import {
-		Combine,
-		Cross,
-		Ellipsis,
-		Network,
-		Pencil,
-		Star,
-		Trash2,
-		User,
-		UserPlus
-	} from '@lucide/svelte';
+	import { Combine, Cross, Ellipsis, Network, Trash2, User, UserPlus } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import PersonMergeDialog from '#lib/components/modals/PersonMergeDialog.svelte';
 	import SubtreeDialog from '#lib/components/subtree/SubtreeDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
-	import { setFavoriteApi } from '#lib/api/lists.js';
 	import { saveSelfPerson } from '#lib/api/settings.js';
 	import { undoApi } from '#lib/api/relationships.js';
 	import { createSubtree } from '#lib/api/subtrees.js';
@@ -63,16 +52,6 @@
 		relativeTarget = LINK_TARGET
 	}: Props = $props();
 	const treeRef = $derived({ id: treeId, slug: treeSlug });
-
-	const isFavorite = $derived(marks.favorites.some((f) => f.id === dto.person.id));
-
-	async function toggleFavorite() {
-		try {
-			marks.set(await setFavoriteApi(treeId, dto.person.id, !isFavorite));
-		} catch (cause) {
-			toasts.push(messageOf(cause, 'Could not change the favourite'), { tone: 'error' });
-		}
-	}
 
 	const isMe = $derived(selfPersonId === dto.person.id);
 
@@ -156,22 +135,6 @@
 </script>
 
 <div class="flex flex-wrap gap-2">
-	{#if !marks.isReadOnly}<button
-			type="button"
-			onclick={toggleFavorite}
-			aria-pressed={isFavorite}
-			class="action-btn"
-			data-testid="favorite-toggle"
-		>
-			<Star class="h-3.5 w-3.5 {isFavorite ? 'fill-amber-400 text-amber-500' : ''}" />{isFavorite
-				? 'Favourite'
-				: 'Add to favourites'}
-		</button>{/if}
-	{#if canChange}<button
-			type="button"
-			onclick={() => void editor.openEditPerson(dto.person.id)}
-			class="action-btn"><Pencil class="h-3.5 w-3.5" />Edit</button
-		>{/if}
 	{#if canAdd}<button
 			type="button"
 			onclick={() => editor.openRelationship(editor.anchorFor(dto.person.id))}
