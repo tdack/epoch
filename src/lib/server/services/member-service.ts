@@ -331,14 +331,16 @@ export class MemberService {
 			userId,
 			personId,
 			// Whose person they are, never which person: the audit log reaches editors.
-			logEntry(
-				treeId,
-				context,
-				'set_member_person',
-				personId === null
-					? `Cleared which person ${memberLabel(target)} is`
-					: `Set which person ${memberLabel(target)} is`
-			)
+			personId === target.selfPersonId
+				? undefined
+				: logEntry(
+						treeId,
+						context,
+						'set_member_person',
+						personId === null
+							? `Cleared which person ${memberLabel(target)} is`
+							: `Set which person ${memberLabel(target)} is`
+					)
 		);
 	}
 

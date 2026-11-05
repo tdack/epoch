@@ -6,6 +6,8 @@
 	import { personPath } from '#lib/components/person/person-paths.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import { untrack } from 'svelte';
+	import { invalidate } from '$app/navigation';
+	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
@@ -70,6 +72,12 @@
 		}
 	}
 
+	async function setPerson(member: MemberDto, personId: string | null) {
+		await setMemberPersonApi(treeId, member.userId, personId);
+		// Your own link drives the "You" badge and where the tree opens, which the layout loads.
+		if (member.isYou) await invalidate(DATA_KEY);
+	}
+
 	function invite(event: SubmitEvent) {
 		event.preventDefault();
 		const address = email.trim();
@@ -107,7 +115,7 @@
 				onpick={(person) => {
 					close();
 					void run(
-						() => setMemberPersonApi(treeId, member.userId, person.id),
+						() => setPerson(member, person.id),
 						member.isYou ? `You are ${person.name}` : `${who} is ${person.name}`
 					);
 				}}
@@ -120,7 +128,7 @@
 					onclick={() => {
 						close();
 						void run(
-							() => setMemberPersonApi(treeId, member.userId, null),
+							() => setPerson(member, null),
 							member.isYou ? 'You are not linked to a person' : `${who} is not linked to a person`
 						);
 					}}>Clear link</button

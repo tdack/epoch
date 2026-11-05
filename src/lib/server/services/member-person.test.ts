@@ -140,6 +140,8 @@ describe('setting a member’s person', () => {
 		const service = new MemberService(t.db);
 		await service.setPerson(s.treeId, s.actors.owner.userId, s.olda, s.actors.owner.context);
 		await service.setPerson(s.treeId, s.actors.viewer.userId, s.olda, s.actors.manager.context);
+		// Picking the same person again changes nothing worth logging.
+		await service.setPerson(s.treeId, s.actors.viewer.userId, s.olda, s.actors.owner.context);
 		const logged = await t.db
 			.select({ kind: changeLog.kind, summary: changeLog.summary })
 			.from(changeLog)
