@@ -89,12 +89,7 @@
 {#snippet lifeMap()}
 	{#if tiles && Object.keys(dto.factLocations).length > 0}
 		<PersonSection id="map" title="Map and places" {layout} isOpenByDefault>
-			<PersonLifeMap
-				facts={dto.facts}
-				locations={dto.factLocations}
-				{tiles}
-				personName={dto.person.displayName}
-			/>
+			<PersonLifeMap {dto} {tiles} />
 		</PersonSection>
 	{/if}
 {/snippet}

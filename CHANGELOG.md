@@ -15,6 +15,9 @@ it summarises themes rather than listing every commit. Decisions and their reaso
   report. Latest changes name their author and link to the person, partnership or source. Dates
   show in the reader's own time zone from the first load. The births-by-decade chart meets WCAG
   AA contrast and can be read by keyboard, touch and screen reader.
+- **Person page map** plots the places of the Life timeline: the person's events and their
+  partnerships' marriages and other events. Attributes such as occupation and residence no longer
+  get pins.
 
 ## 2026-10-26 to 2026-11-01: Reports, maps, large imports and GEDZip with media
 

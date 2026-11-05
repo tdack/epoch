@@ -1,24 +1,28 @@
 <script lang="ts">
 	import { dateFormatReader } from '#lib/components/date-format.js';
 	import PlaceMap from '#lib/components/maps/PlaceMap.svelte';
-	import { lifeMap, type FactLocation } from '#lib/shared/life-map.js';
-	import type { FactDto } from '#lib/shared/person-page.js';
+	import { lifeMap } from '#lib/shared/life-map.js';
+	import type { PersonPageDto } from '#lib/shared/person-page.js';
+	import { lifeFacts, lifeTimeline } from './life-timeline.js';
 
 	interface Props {
-		/** The person's facts; those with an entry in `locations` are mapped. */
-		facts: FactDto[];
-		/** Fact id to its place's location, from the page data; already limited to what may be mapped. */
-		locations: Record<string, FactLocation>;
+		/** The page data; the Life entries with a location in `factLocations` are mapped. */
+		dto: PersonPageDto;
 		/** Tile URL and attribution, from the site settings. */
 		tiles: { tileUrl: string; tileAttribution: string };
-		/** Names the map for assistive technology. */
-		personName: string;
 	}
 
-	let { facts, locations, tiles, personName }: Props = $props();
+	let { dto, tiles }: Props = $props();
 
 	const dateFormat = dateFormatReader();
-	const data = $derived(lifeMap(facts, locations, dateFormat()));
+	const data = $derived(
+		lifeMap(
+			lifeFacts(lifeTimeline(dto.facts, dto.partnerships, dto.directChildren)),
+			dto.factLocations,
+			dateFormat()
+		)
+	);
+	const personName = $derived(dto.person.displayName);
 	const dated = $derived(data.items.filter((i) => i.n !== null));
 	const undated = $derived(data.items.filter((i) => i.n === null));
 </script>
