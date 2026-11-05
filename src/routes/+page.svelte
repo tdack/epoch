@@ -184,6 +184,20 @@
 							an identity provider, and a workers.dev subdomain or a domain on Cloudflare.
 						</p>
 					</div>
+					<div class="command">
+						<h4 class="label">Cloudflare resources it uses</h4>
+						<ul class="resources">
+							<li>Workers, serving the app and its static assets</li>
+							<li>D1, the family-tree database</li>
+							<li>R2, the media and document storage</li>
+							<li>Queues, for GEDCOM imports</li>
+							<li>Workflows, for GEDCOM import, export and place matching</li>
+							<li>Cron Triggers, to clear abandoned uploads</li>
+							<li>Rate Limiting, on uploads, imports and public pages</li>
+							<li>Email Sending, for invitations</li>
+							<li>Zero Trust Access, for sign-in</li>
+						</ul>
+					</div>
 				</li>
 				<li>
 					<span class="step" aria-hidden="true">2</span>
@@ -398,14 +412,16 @@
 		color: var(--stone-strong);
 	}
 
-	.group ul {
+	.group ul,
+	.resources {
 		margin: 0;
 		padding: 0;
 		list-style: none;
 		border-top: 1px solid var(--stone-rule);
 	}
 
-	.group li {
+	.group li,
+	.resources li {
 		position: relative;
 		padding: 9px 0 9px 22px;
 		border-bottom: 1px solid var(--stone-rule);
@@ -415,7 +431,8 @@
 	}
 
 	/* A small partner disc, the mark's own bullet. */
-	.group li::before {
+	.group li::before,
+	.resources li::before {
 		content: '';
 		position: absolute;
 		left: 2px;
@@ -493,7 +510,7 @@
 		border-bottom: 1px solid var(--stone-rule);
 	}
 
-	.steps li {
+	.steps > li {
 		display: grid;
 		grid-template-columns: 44px minmax(0, 5fr) minmax(0, 6fr);
 		gap: 16px clamp(16px, 3vw, 40px);
@@ -505,6 +522,11 @@
 	.command {
 		grid-column: 3;
 		margin-top: 6px;
+	}
+
+	.command .label {
+		margin-bottom: 10px;
+		color: var(--stone-strong);
 	}
 
 	.steps h3 {
@@ -662,7 +684,7 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 
-		.steps li {
+		.steps > li {
 			grid-template-columns: 44px minmax(0, 1fr);
 		}
 
