@@ -6,7 +6,7 @@
  */
 
 import type { DbClient } from '../db';
-import { grantableRoles, canManageMemberOf } from '../../shared/membership-policy';
+import { grantableRoles, canManageMemberOf, canSetPersonOf } from '../../shared/membership-policy';
 import {
 	ConcurrencyConflictError,
 	NotFoundError,
@@ -15,14 +15,19 @@ import {
 } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
-import { requireTreeAction } from './tree-access';
+import { requireRealUser, requireTreeAction, requireTreeScope } from './tree-access';
 import {
 	MemberRepository,
 	memberLabel,
 	type JoinedInvitation,
+	type MemberRow,
 	type MembershipLogEntry
 } from '../repositories/member-repository';
 import { UserRepository } from '../repositories/user-repository';
+import { TreeRepository } from '../repositories/tree-repository';
+import { SubtreeRepository } from '../repositories/subtree-repository';
+import { visibleAmong } from '../repositories/visibility';
+import { TreeService } from './tree-service';
 import { type InvitationSentDto, type MemberDto, type MembersDto } from '../../shared/members';
 import { Logger } from '../logging/logger';
 import type { InvitationMailer } from './invitation-mailer';
@@ -48,13 +53,50 @@ export class MemberService {
 	private users: UserRepository;
 
 	constructor(
-		db: DbClient,
+		private db: DbClient,
 		private now: () => Date = () => new Date(),
 		/** Absent where nothing can send (unit tests, a bare preview); invitations are then only saved. */
 		private mailer?: InvitationMailer
 	) {
 		this.members = new MemberRepository(db);
 		this.users = new UserRepository(db);
+	}
+
+	/**
+	 * Rows as the screen reads them. Each member's person is named only if the caller may see them,
+	 * and the raw id never leaves, so the list cannot be used to probe for private people.
+	 */
+	private async toDtos(
+		treeId: string,
+		rows: MemberRow[],
+		context: AuthenticatedContext
+	): Promise<MemberDto[]> {
+		const scope = await requireTreeScope(
+			this.users,
+			new TreeRepository(this.db),
+			treeId,
+			context,
+			'tree:manage_members'
+		);
+		const linked = rows.flatMap((m) => (m.selfPersonId ? [m.selfPersonId] : []));
+		const visible = await visibleAmong(this.db, treeId, linked, scope);
+		const names = new SubtreeRepository(this.db);
+		return Promise.all(
+			rows.map(async ({ selfPersonId, ...m }) => {
+				const name =
+					selfPersonId && visible.has(selfPersonId)
+						? await names.rootDisplayName(treeId, selfPersonId)
+						: null;
+				const isYou = m.userId === context.user.id;
+				return {
+					...m,
+					isYou,
+					canManage: canManageMemberOf(scope.role, m.role),
+					person: name === null ? null : { id: selfPersonId!, name },
+					canSetPerson: canSetPersonOf(scope.role, m.role, isYou)
+				};
+			})
+		);
 	}
 
 	/** The caller's role if it allows managing members; otherwise the same refusal as any other action. */
@@ -74,13 +116,9 @@ export class MemberService {
 			this.members.listInvitations(treeId)
 		]);
 		return {
-			members: members
-				.map((m) => ({
-					...m,
-					isYou: m.userId === context.user.id,
-					canManage: canManageMemberOf(actor, m.role)
-				}))
-				.sort((a, b) => a.email.localeCompare(b.email)),
+			members: (await this.toDtos(treeId, members, context)).sort((a, b) =>
+				a.email.localeCompare(b.email)
+			),
 			invitations: invitations
 				.map((i) => ({
 					id: i.id,
@@ -253,12 +291,55 @@ export class MemberService {
 					)
 		);
 		if (!didChange) await this.explainRefusal(treeId, userId, input.version, target.role);
-		const changed = (await this.members.getMember(treeId, userId))!;
-		return {
-			...changed,
-			isYou: changed.userId === context.user.id,
-			canManage: canManageMemberOf(actor, changed.role)
-		};
+		const [changed] = await this.toDtos(
+			treeId,
+			[(await this.members.getMember(treeId, userId))!],
+			context
+		);
+		return changed;
+	}
+
+	/**
+	 * Set which person a member is in the tree, or clear it with null. A member may always set their
+	 * own (any role, as on a person page); setting someone else's needs `tree:manage_members` and the
+	 * role rules, and is logged. Membership writes stay outside the record mutation runner: like a
+	 * role change they are logged but never undoable (ADR-075).
+	 */
+	async setPerson(
+		treeId: string,
+		userId: string,
+		personId: string | null,
+		context: AuthenticatedContext
+	): Promise<void> {
+		requireRealUser(context);
+		if (userId === context.user.id) {
+			await new TreeService(this.db).setSelfPerson(treeId, personId, context);
+			return;
+		}
+		const actor = await this.requireManager(treeId, context);
+		const target = await this.members.getMember(treeId, userId);
+		if (!target) throw new NotFoundError('Member', userId);
+		if (!canSetPersonOf(actor, target.role, false))
+			throw new UnauthorizedError('Forbidden: you cannot change this member');
+		if (
+			personId !== null &&
+			!(await new TreeService(this.db).visiblePerson(treeId, personId, context))
+		)
+			throw new ValidationError('That person is not in this tree');
+		await this.members.setPerson(
+			treeId,
+			userId,
+			personId,
+			// Whose person they are, never which person: the audit log reaches editors.
+			logEntry(
+				treeId,
+				context,
+				'set_member_person',
+				personId === null
+					? `Cleared which person ${memberLabel(target)} is`
+					: `Set which person ${memberLabel(target)} is`
+			)
+		);
 	}
 
 	async remove(

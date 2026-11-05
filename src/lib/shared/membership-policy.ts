@@ -30,6 +30,14 @@ export function canManageMemberOf(actor: TreeRole, target: TreeRole): boolean {
 }
 
 /**
+ * Whether `actor` may set which person a member holding `target` is ("This is me"). Anyone may set
+ * their own; otherwise it follows `canManageMemberOf`, so a manager never reaches an owner or a peer.
+ */
+export function canSetPersonOf(actor: TreeRole, target: TreeRole, isSelf: boolean): boolean {
+	return isSelf || canManageMemberOf(actor, target);
+}
+
+/**
  * What `role` may do in the tree called `treeName`, as one sentence for whoever is choosing a role
  * to give. It restates `auth/authorization.ts`'s action table and the privacy rule (ADR-015) in
  * words, so a change to either needs one here too.

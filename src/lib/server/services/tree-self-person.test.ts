@@ -72,11 +72,26 @@ describe('a member’s own person', () => {
 		await expect(s.service.setSelfPerson(s.treeId, hidden, s.owner.context)).resolves.toBeTruthy();
 	});
 
-	it('is not in the members list another member reads', async () => {
+	it('shows in the members list a manager reads, but never a person they cannot see', async () => {
 		const s = await setup();
-		await s.service.setSelfPerson(s.treeId, await idOf(s.treeId, 'Olda'), s.viewer.context);
-		const members = await new MemberService(t.db).list(s.treeId, s.owner.context);
-		expect(JSON.stringify(members)).not.toMatch(/self|Olda/i);
+		const olda = await idOf(s.treeId, 'Olda');
+		await s.service.setSelfPerson(s.treeId, olda, s.viewer.context);
+		const listed = await new MemberService(t.db).list(s.treeId, s.owner.context);
+		expect(listed.members.find((m) => m.isYou === false)?.person).toEqual({
+			id: olda,
+			name: expect.stringMatching(/Olda/)
+		});
+		// A link to a person outside this tree (merged away, or never here) reads as none.
+		await importGedcomToDb(t.d1, s.otherTree, FIXTURE, 'Elsewhere');
+		const stranger = await idOf(s.otherTree, 'Olda');
+		await new TreeRepository(t.db).setMemberSelfPerson(
+			s.viewer.context.user.id,
+			s.treeId,
+			stranger
+		);
+		const again = await new MemberService(t.db).list(s.treeId, s.owner.context);
+		expect(again.members.every((m) => m.person === null)).toBe(true);
+		expect(JSON.stringify(again)).not.toContain(stranger);
 	});
 
 	it('names a person for the reports only when the caller may see them', async () => {

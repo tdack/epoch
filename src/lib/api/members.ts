@@ -61,3 +61,16 @@ export async function removeMemberApi(
 		'Failed to remove the member'
 	);
 }
+
+/** Which person a member is in this tree; `null` clears it. */
+export async function setMemberPersonApi(
+	treeId: string,
+	userId: string,
+	personId: string | null
+): Promise<void> {
+	await call(
+		path`/api/trees/${treeId}/members/${userId}/person`,
+		json('PUT', { personId }),
+		'Failed to save who they are'
+	);
+}

@@ -16,6 +16,7 @@ export interface MemberRow {
 	name: string | null;
 	role: TreeRole;
 	version: number;
+	selfPersonId: string | null;
 }
 
 /** An invitation that made its holder a member, for telling whoever sent it. */
@@ -49,6 +50,7 @@ export interface MembershipLogEntry {
 		| 'remove_member'
 		| 'invite_member'
 		| 'withdraw_invitation'
+		| 'set_member_person'
 		| 'join_tree'
 		| 'leave_epoch';
 	summary: string;
@@ -73,7 +75,8 @@ export class MemberRepository {
 				email: users.email,
 				name: users.name,
 				role: treeMemberships.role,
-				version: treeMemberships.version
+				version: treeMemberships.version,
+				selfPersonId: treeMemberships.selfPersonId
 			})
 			.from(treeMemberships)
 			.innerJoin(users, eq(users.id, treeMemberships.userId))
@@ -88,7 +91,8 @@ export class MemberRepository {
 				email: users.email,
 				name: users.name,
 				role: treeMemberships.role,
-				version: treeMemberships.version
+				version: treeMemberships.version,
+				selfPersonId: treeMemberships.selfPersonId
 			})
 			.from(treeMemberships)
 			.innerJoin(users, eq(users.id, treeMemberships.userId))
@@ -119,6 +123,26 @@ export class MemberRepository {
 					sql`(${treeMemberships.role} <> 'owner' or ${role} = 'owner' or ${keepsAnOwner(treeId)})`
 				)
 			)
+			.returning({ id: treeMemberships.id });
+		if (!log) return (await update).length > 0;
+		const [changed] = await this.db.batch([update, this.logIfChanged(log)]);
+		return changed.length > 0;
+	}
+
+	/**
+	 * Set who a member is in the tree. Leaves `version` alone, like the member's own setting, so a
+	 * role change the screen is proposing does not turn stale. A `log` is written in the same batch.
+	 */
+	async setPerson(
+		treeId: string,
+		userId: string,
+		personId: string | null,
+		log?: MembershipLogEntry
+	): Promise<boolean> {
+		const update = this.db
+			.update(treeMemberships)
+			.set({ selfPersonId: personId })
+			.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
 			.returning({ id: treeMemberships.id });
 		if (!log) return (await update).length > 0;
 		const [changed] = await this.db.batch([update, this.logIfChanged(log)]);
