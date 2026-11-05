@@ -90,6 +90,10 @@
 		color: var(--tree-ink);
 		cursor: pointer;
 	}
+	/* The shared `menu-item` hover (stone-100) all but vanishes on the off-white tree panel. */
+	button:hover {
+		background-color: color-mix(in srgb, var(--tree-accent) 16%, var(--tree-panel));
+	}
 	button.danger {
 		color: #b91c1c;
 	}
