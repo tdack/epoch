@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ChartStyle } from '#lib/shared/charts.js';
 	import { CHART_STYLES } from '#lib/shared/charts.js';
+	import { CHART_ICONS } from './chart-icons.js';
 
 	interface Props {
 		/** The chart being shown. */
@@ -14,12 +15,15 @@
 
 <nav aria-label="Chart style" class="flex flex-wrap gap-1 text-sm">
 	{#each CHART_STYLES as style (style.id)}
+		{@const Icon = CHART_ICONS[style.id]}
 		<a
 			href={hrefFor(style.id)}
 			aria-current={style.id === current ? 'page' : undefined}
-			class="rounded-lg border px-3 py-1 font-semibold {style.id === current
+			class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1 font-semibold {style.id ===
+			current
 				? 'border-emerald-700 bg-emerald-700 text-white'
-				: 'border-stone-300 text-emerald-900 hover:bg-stone-100'}">{style.label}</a
+				: 'border-stone-300 text-emerald-900 hover:bg-stone-100'}"
+			><Icon class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{style.label}</a
 		>
 	{/each}
 </nav>

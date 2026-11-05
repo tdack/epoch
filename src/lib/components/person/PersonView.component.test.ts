@@ -72,6 +72,15 @@ function pageOf(
 	} as unknown as PersonPageDto;
 }
 
+/** jsdom has no matchMedia; a test sets this to see the page as it is from lg. */
+let isWideScreen = false;
+vi.stubGlobal('matchMedia', (query: string) => ({
+	matches: isWideScreen,
+	media: query,
+	addEventListener: () => {},
+	removeEventListener: () => {}
+}));
+
 function open(
 	dto: PersonPageDto,
 	options: {
@@ -99,6 +108,12 @@ function open(
 	});
 	flushSync();
 	return { onSelect };
+}
+
+/** The rarer actions are behind More, and the menu draws its items only while open. */
+function openMore() {
+	document.querySelector<HTMLButtonElement>('[data-testid="person-more"]')?.click();
+	flushSync();
 }
 
 const steps = () => document.querySelector('[data-testid="step-relatives"]');
@@ -270,6 +285,7 @@ describe('Make sub-tree from here', () => {
 		['owner', true]
 	] as const)('is %s-visible: %s', (role, isShown) => {
 		open(pageOf('ben', 'Ben'), { role });
+		openMore();
 		expect(offered()).toBe(isShown);
 	});
 });
@@ -290,6 +306,38 @@ describe('relativeTarget', () => {
 		open(family(), { layout: 'page', relativeTarget: { kind: 'link' } });
 		const link = [...document.querySelectorAll('a')].find((a) => a.textContent === 'Reports')!;
 		expect(link.getAttribute('href')).toBe(`/trees/t/reports?focus=${family().person.id}`);
+	});
+
+	it('links to the charts and the tree from Charts and views', () => {
+		open(family(), { layout: 'page', relativeTarget: { kind: 'link' } });
+		const hrefs = [...document.querySelectorAll('nav[aria-label="Charts and views"] a')].map((a) =>
+			a.getAttribute('href')
+		);
+		expect(hrefs).toEqual([
+			'/trees/t?focus=cat',
+			'/trees/t/people/cat/pedigree',
+			'/trees/t/people/cat/fan',
+			'/trees/t/people/cat/descendants',
+			'/trees/t/people/cat/hourglass',
+			'/trees/t/relationship?from=cat',
+			'/trees/t/reports?focus=cat'
+		]);
+	});
+
+	it('folds Charts and views closed on a phone, and shows it as a card from lg', () => {
+		const views = () => document.querySelector('[data-section="views"]')!;
+		open(family(), { layout: 'page', relativeTarget: { kind: 'link' } });
+		expect(views().tagName).toBe('DETAILS');
+		expect((views() as HTMLDetailsElement).open).toBe(false);
+		unmount(component!);
+		document.body.innerHTML = '';
+		isWideScreen = true;
+		try {
+			open(family(), { layout: 'page', relativeTarget: { kind: 'link' } });
+			expect(views().tagName).toBe('SECTION');
+		} finally {
+			isWideScreen = false;
+		}
 	});
 
 	it('is a link to their page on the person page', () => {
@@ -355,7 +403,8 @@ describe('drawer layout', () => {
 describe('page layout', () => {
 	it('uses cards with their headings, not details', () => {
 		open(pageOf('ben', 'Ben'), { layout: 'page', relativeTarget: { kind: 'link' } });
-		expect(document.querySelector('details')).toBeNull();
+		// Charts and views alone folds, on a phone; the record's own sections never do.
+		expect(document.querySelector('details:not([data-section="views"])')).toBeNull();
 		expect(headings()).toEqual(
 			expect.arrayContaining(['Life', 'Family', 'Names', 'Photos and documents', 'History'])
 		);
@@ -383,7 +432,7 @@ describe('page layout', () => {
 			conflict: null
 		} as never;
 		open(pageOf('ben', 'Ben', { facts: [occupation] }), { layout: 'page' });
-		expect(sections().slice(0, 2)).toEqual(['glance', 'life']);
+		expect(sections().slice(0, 3)).toEqual(['views', 'glance', 'life']);
 	});
 
 	it('shows privacy only to a manager whose DTO carries the setting', () => {
@@ -400,10 +449,12 @@ describe('page layout', () => {
 
 	it('shows merge only to an editor or above', () => {
 		open(pageOf('ben', 'Ben'), { layout: 'page', role: 'contributor' });
+		openMore();
 		expect(document.querySelector('[data-testid="merge-person"]')).toBeNull();
 		unmount(component!);
 		document.body.innerHTML = '';
 		open(pageOf('ben', 'Ben'), { layout: 'page', role: 'editor' });
+		openMore();
 		expect(document.querySelector('[data-testid="merge-person"]')).not.toBeNull();
 	});
 });
@@ -442,7 +493,17 @@ describe('summary', () => {
 });
 
 describe('PersonView section order', () => {
-	const ORDER = ['family', 'facts', 'names', 'media', 'privacy', 'notes', 'tasks', 'history'];
+	const ORDER = [
+		'views',
+		'family',
+		'facts',
+		'names',
+		'media',
+		'privacy',
+		'notes',
+		'tasks',
+		'history'
+	];
 	const sectionIds = () =>
 		[...document.querySelectorAll<HTMLElement>('[data-section]')].map((el) => el.dataset.section);
 	/** The column a section sits in on the page: its parent. */
@@ -455,7 +516,17 @@ describe('PersonView section order', () => {
 	});
 
 	it('leads the page with Life and Family, and gathers the rest of the record in one column', () => {
-		const PAGE_ORDER = ['life', 'family', 'notes', 'names', 'media', 'tasks', 'privacy', 'history'];
+		const PAGE_ORDER = [
+			'views',
+			'life',
+			'family',
+			'notes',
+			'names',
+			'media',
+			'tasks',
+			'privacy',
+			'history'
+		];
 		open(pageOf('ben', 'Ben', {}, 'M'), { layout: 'page', role: 'owner' });
 		expect(sectionIds()).toEqual(PAGE_ORDER.filter((id) => sectionIds().includes(id)));
 		expect(sectionIds()).not.toContain('facts');
@@ -477,6 +548,7 @@ describe('PersonView "This is me"', () => {
 
 	it('links the member to the person, and shows no badge until they are', async () => {
 		open(pageOf('ben', 'Ben'));
+		openMore();
 		expect(badge()).toBeNull();
 		expect(toggle()!.textContent).toContain('This is me');
 		toggle()!.click();
@@ -486,6 +558,7 @@ describe('PersonView "This is me"', () => {
 
 	it('badges the member’s own person and offers Not me, which clears it', async () => {
 		open(pageOf('ben', 'Ben'), { selfPersonId: 'ben' });
+		openMore();
 		expect(badge()!.textContent).toContain('You');
 		expect(toggle()!.textContent).toContain('Not me');
 		toggle()!.click();
@@ -495,6 +568,7 @@ describe('PersonView "This is me"', () => {
 
 	it('offers nothing to a reader with no account', () => {
 		open(pageOf('ben', 'Ben'), { isReadOnly: true });
+		openMore();
 		expect(toggle()).toBeNull();
 	});
 });
