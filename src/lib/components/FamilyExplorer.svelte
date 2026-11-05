@@ -21,7 +21,7 @@
 	const LAST = LENS_IDS.length - 1;
 	const MORPH_MS = 1100;
 	/** How long each view holds while playing, its morph included: long enough to read its caption. */
-	const DWELL_MS = 7000;
+	const DWELL_MS = 4500;
 	/** A frame later than this was the tab hidden or throttled, and does not count as watching. */
 	const MAX_FRAME_MS = 100;
 
