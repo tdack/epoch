@@ -1,8 +1,10 @@
 import { parseDateValue } from '#lib/shared/date-value.js';
 import { FACT_KINDS } from '#lib/shared/fact-types.js';
+import type { LifeFact } from '#lib/shared/life-map.js';
 import type { FactDto, PartnershipDto, PersonSummaryDto } from '#lib/shared/person-page.js';
 import type { GraphUnionEvent } from '#lib/shared/relationship-graph.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
+import { UNION_EVENT_LABELS } from '#lib/shared/union-events.js';
 
 /** One of the person's own events, with its place in `dto.facts` for the reorder request. */
 interface OwnEntry {
@@ -62,7 +64,7 @@ export function lifeTimeline(
 					unionId: p.unionId,
 					partners: p.partners
 				},
-				sort: event.dateSort ?? parseDateValue(event.dateText).sortStart ?? null
+				sort: unionSort(event)
 			}))
 		),
 		...[...children.values()].map(({ person, types }) => ({
@@ -81,6 +83,24 @@ export function lifeTimeline(
 	}
 	for (; u < others.length; u++) merged.push(others[u]!.entry);
 	return merged;
+}
+
+const unionSort = (event: GraphUnionEvent): string | null =>
+	event.dateSort ?? parseDateValue(event.dateText).sortStart ?? null;
+
+/**
+ * The Life entries that can sit on the map, so the map and the timeline never disagree. A child's
+ * birth shows no place on the timeline, so it has no pin either.
+ */
+export function lifeFacts(entries: readonly LifeEntry[]): LifeFact[] {
+	return entries.flatMap((e): LifeFact[] => {
+		if (e.kind === 'fact') return [e.fact];
+		if (e.kind === 'child') return [];
+		const { id, type, dateText, place } = e.event;
+		return [
+			{ id, type, label: UNION_EVENT_LABELS[type], dateText, sortStart: unionSort(e.event), place }
+		];
+	});
 }
 
 /** Earlier first, undated last; equal keys compare equal so a stable sort keeps their order. */

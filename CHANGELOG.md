@@ -28,6 +28,9 @@ it summarises themes rather than listing every commit. Decisions and their reaso
   Make sub-tree and Delete move under More.
 - **Chart pages** open with a link back to the person's record and Show in the tree, and the
   chart styles carry the same icons as the record's Charts and views card.
+- **Person page map** plots the places of the Life timeline: the person's events and their
+  partnerships' marriages and other events. Attributes such as occupation and residence no longer
+  get pins.
 
 ## 2026-10-26 to 2026-11-01: Reports, maps, large imports and GEDZip with media
 

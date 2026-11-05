@@ -23,6 +23,7 @@
 	import PersonSummary from './PersonSummary.svelte';
 	import PersonTasks from './PersonTasks.svelte';
 	import PersonViews from './PersonViews.svelte';
+	import { lifeFacts, lifeTimeline } from './life-timeline.js';
 	import { canSetPrivacy } from './person-permissions.js';
 	import type { RelativeTarget } from './relative-target.js';
 	import { LINK_TARGET } from './relative-target.js';
@@ -72,6 +73,11 @@
 	const isFlush = $derived(isPage);
 	/** The person's own citations, shown once beneath the summary; a fact's or name's are on that row. */
 	const hasAttributes = $derived(dto.facts.some((fact) => fact.kind === FACT_KINDS.ATTRIBUTE));
+	const hasMapPins = $derived(
+		lifeFacts(lifeTimeline(dto.facts, dto.partnerships, dto.directChildren)).some(
+			(f) => dto.factLocations[f.id]
+		)
+	);
 	const personCitations = $derived(
 		citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.PERSON, dto.person.id)
 	);
@@ -92,14 +98,9 @@
 {/snippet}
 
 {#snippet lifeMap()}
-	{#if tiles && Object.keys(dto.factLocations).length > 0}
+	{#if tiles && hasMapPins}
 		<PersonSection id="map" title="Map and places" {layout} isOpenByDefault>
-			<PersonLifeMap
-				facts={dto.facts}
-				locations={dto.factLocations}
-				{tiles}
-				personName={dto.person.displayName}
-			/>
+			<PersonLifeMap {dto} {tiles} />
 		</PersonSection>
 	{/if}
 {/snippet}

@@ -22,6 +22,10 @@ const FIXTURE = [
 	`0 @I1@ INDI\n1 NAME Alice /Dead/\n1 BIRT\n2 DATE 1850\n${at('Cork', 'N51.9', 'W8.47')}1 RESI\n2 DATE 1870\n${at('Hobart', 'S42.88', 'E147.33')}1 DEAT\n2 DATE 1930\n2 PLAC Nowhere`,
 	// Living: the birth place maps, the home and census never do.
 	`0 @I2@ INDI\n1 NAME Dana /Aliveson/\n1 BIRT\n2 DATE 1995\n${at('Cork', 'N51.9', 'W8.47')}1 RESI\n2 DATE 2010\n${at('Livingtown', 'N10', 'E10')}1 CENS\n2 DATE 2011\n${at('Hobart', 'S42.88', 'E147.33')}`,
+	`0 @I3@ INDI\n1 NAME Bob /Dead/\n1 BIRT\n2 DATE 1848\n1 DEAT\n2 DATE 1920`,
+	// Alice's marriages map; the one with living Dana is hidden from a restricted viewer.
+	`0 @F1@ FAM\n1 HUSB @I3@\n1 WIFE @I1@\n1 MARR\n2 DATE 1872\n${at('Bath', 'N51.38', 'W2.36')}`,
+	`0 @F2@ FAM\n1 HUSB @I2@\n1 WIFE @I1@\n1 MARR\n2 DATE 2015\n${at('Paris', 'N48.85', 'E2.35')}`,
 	'0 TRLR'
 ].join('\n');
 
@@ -68,6 +72,21 @@ describe('the person page’s fact locations', () => {
 		expect(dto.factLocations[birth.id]!.latitude).toBeCloseTo(51.9);
 		// The unlocated death still shows in the facts list.
 		expect(dto.facts.map((f) => f.type)).toContain('DEAT');
+	});
+
+	it('locates the person’s partnership events, unless a partner is hidden', async () => {
+		const marriages = async (who: TreeRole) => {
+			const dto = await page(who, 'alice');
+			return dto.partnerships
+				.flatMap((p) => p.events)
+				.map((e) => dto.factLocations[e.id]?.latitude)
+				.filter((lat) => lat !== undefined)
+				.sort();
+		};
+		expect(await marriages('owner')).toEqual([48.85, 51.38]);
+		expect(await marriages('viewer')).toEqual([51.38]);
+		const dto = await page('viewer', 'alice');
+		expect(JSON.stringify(dto.factLocations)).not.toMatch(/48\.85/);
 	});
 
 	it('leaves a living person’s residence and census off the map but keeps their facts', async () => {

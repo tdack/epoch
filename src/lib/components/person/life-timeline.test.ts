@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FactDto, PartnershipDto } from '#lib/shared/person-page.js';
 import type { GraphUnionEvent } from '#lib/shared/relationship-graph.js';
 import type { PersonSummaryDto } from '#lib/shared/person-page.js';
-import { childWord, lifeTimeline, type LifeEntry } from './life-timeline';
+import { childWord, lifeFacts, lifeTimeline, type LifeEntry } from './life-timeline';
 
 function fact(id: string, sortStart: string | null, kind: FactDto['kind'] = 'event'): FactDto {
 	return { id, kind, sortStart } as FactDto;
@@ -111,5 +111,23 @@ describe('children in the life timeline', () => {
 		expect(childWord(p('F'), ['foster'])).toBe('foster daughter');
 		expect(childWord(p('M'), ['adoptive', 'biological'])).toBe('son');
 		expect(childWord(p('M'), ['guardian'])).toBe('ward');
+	});
+});
+
+describe('the Life facts on the map', () => {
+	it('takes the timeline’s events and partnership events, never attributes or child births', () => {
+		const entries = lifeTimeline(
+			[fact('birth', '1900-01-01'), fact('job', '1920-01-01', 'attribute')],
+			[
+				{
+					...union('u1', [{ dateText: '1925', place: 'Bath' }]),
+					children: [kid('ann', '1930-01-01')]
+				}
+			]
+		);
+		const facts = lifeFacts(entries);
+		expect(facts.map((f) => f.id)).toEqual(['birth', 'u1-0']);
+		expect(facts[1]).toMatchObject({ type: 'MARR', label: 'Marriage', place: 'Bath' });
+		expect(facts[1]!.sortStart).toMatch(/^1925/);
 	});
 });
