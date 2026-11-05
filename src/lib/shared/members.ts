@@ -14,6 +14,10 @@ export interface MemberDto {
 	isYou: boolean;
 	/** Whether the caller may change or remove them: lets the screen offer only what would succeed. */
 	canManage: boolean;
+	/** Who they say they are in the tree; null when unset or a person the caller cannot see. */
+	person: { id: string; name: string } | null;
+	/** Whether the caller may change or clear `person`. */
+	canSetPerson: boolean;
 }
 
 interface InvitationDto {
