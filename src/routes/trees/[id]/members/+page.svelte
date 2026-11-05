@@ -1,5 +1,9 @@
 <script lang="ts">
+	import { UserRound } from '@lucide/svelte';
 	import TreeAdminTabs from '#lib/components/layout/TreeAdminTabs.svelte';
+	import Popover from '#lib/components/layout/Popover.svelte';
+	import PersonPicker from '#lib/components/PersonPicker.svelte';
+	import { personPath } from '#lib/components/person/person-paths.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
@@ -9,7 +13,9 @@
 		fetchMembers,
 		inviteMemberApi,
 		removeMemberApi,
-		withdrawInvitationApi
+		setMemberPersonApi,
+		withdrawInvitationApi,
+		type MemberDto
 	} from '#lib/api/members.js';
 	import { describeRole } from '#lib/shared/membership-policy.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
@@ -22,6 +28,7 @@
 	let { data }: Props = $props();
 	const { toasts } = getTreeContext();
 	const treeId = $derived(data.summary.tree.id);
+	const tree = $derived({ ...data.summary.tree, subtree: null });
 
 	// Seeded from the load; every change below refetches, so the versions sent back are current.
 	let members = $state(untrack(() => data.members));
@@ -77,13 +84,59 @@
 	}
 </script>
 
+{#snippet personAction(member: MemberDto)}
+	{@const who = member.isYou ? 'you' : (member.name ?? member.email)}
+	<Popover
+		label="Which person is {who}"
+		role="dialog"
+		align="end"
+		panelClass="w-72 max-w-[calc(100vw-2rem)] p-3"
+	>
+		{#snippet trigger(attrs)}
+			<button type="button" {...attrs} class="row-action" disabled={isBusy}>
+				<UserRound aria-hidden="true" />
+				Person<span class="sr-only">{` of ${member.name ?? member.email}`}</span>
+			</button>
+		{/snippet}
+		{#snippet children({ close })}
+			<PersonPicker
+				{treeId}
+				label={member.isYou ? 'This is me' : 'Person in the tree'}
+				picked={member.person}
+				emptyName="Not linked"
+				onpick={(person) => {
+					close();
+					void run(
+						() => setMemberPersonApi(treeId, member.userId, person.id),
+						member.isYou ? `You are ${person.name}` : `${who} is ${person.name}`
+					);
+				}}
+			/>
+			{#if member.person}
+				<button
+					type="button"
+					class="row-action mt-2 -ml-2"
+					disabled={isBusy}
+					onclick={() => {
+						close();
+						void run(
+							() => setMemberPersonApi(treeId, member.userId, null),
+							member.isYou ? 'You are not linked to a person' : `${who} is not linked to a person`
+						);
+					}}>Clear link</button
+				>
+			{/if}
+		{/snippet}
+	</Popover>
+{/snippet}
+
 <svelte:head>
 	<title>Members · {data.summary.tree.name} · Epoch</title>
 </svelte:head>
 
 <TreeAdminTabs
 	treeName={data.summary.tree.name}
-	base={treePath({ ...data.summary.tree, subtree: null })}
+	base={treePath(tree)}
 	current="members"
 	role={data.summary.viewer.role}
 />
@@ -188,9 +241,21 @@
 						{#if member.name}<span class="block truncate text-xs text-stone-600"
 								>{member.email}</span
 							>{/if}
+						{#if member.person}
+							<span class="mt-0.5 flex items-center gap-1 text-xs text-stone-600">
+								<UserRound class="size-3.5 shrink-0" aria-hidden="true" />
+								<span class="sr-only">In the tree:</span>
+								<a href={personPath(tree, member.person.id)} class="row-link truncate"
+									>{member.person.name}</a
+								>
+							</span>
+						{:else if member.canSetPerson}
+							<span class="mt-0.5 block text-xs text-stone-500">Not linked to a person</span>
+						{/if}
 					</span>
 					{#if member.canManage}
-						<span class="flex items-center gap-2">
+						<span class="flex flex-wrap items-center gap-2">
+							{@render personAction(member)}
 							<label class="sr-only" for="role-{member.userId}">Role of {member.email}</label>
 							<select
 								id="role-{member.userId}"
@@ -266,7 +331,10 @@
 							{/if}
 						</span>
 					{:else}
-						<span class="text-stone-600 capitalize">{member.role}</span>
+						<span class="flex items-center gap-2">
+							{#if member.canSetPerson}{@render personAction(member)}{/if}
+							<span class="text-stone-600 capitalize">{member.role}</span>
+						</span>
 					{/if}
 				</li>
 			{/each}
