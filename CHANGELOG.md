@@ -15,6 +15,10 @@ it summarises themes rather than listing every commit. Decisions and their reaso
   report. Latest changes name their author and link to the person, partnership or source. Dates
   show in the reader's own time zone from the first load. The births-by-decade chart meets WCAG
   AA contrast and can be read by keyboard, touch and screen reader.
+- **Person page** gathers its charts and views (the tree, ancestors, fan, descendants, hourglass,
+  relationship and reports) into a Charts and views card at the top of the side column; on a
+  phone and in the drawer it folds closed under the toolbar. The toolbar keeps Favourite, Edit, Relationship and Record death on
+  one row; This is me, Merge, Make sub-tree and Delete move under More.
 
 ## 2026-10-26 to 2026-11-01: Reports, maps, large imports and GEDZip with media
 

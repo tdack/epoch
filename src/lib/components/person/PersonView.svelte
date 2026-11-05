@@ -8,6 +8,7 @@
 	import { FACT_KINDS } from '#lib/shared/fact-types.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
+	import { MediaQuery } from 'svelte/reactivity';
 	import PersonActions from './PersonActions.svelte';
 	import PersonFacts from './PersonFacts.svelte';
 	import PersonFamily from './PersonFamily.svelte';
@@ -20,6 +21,7 @@
 	import PersonSection from './PersonSection.svelte';
 	import PersonSummary from './PersonSummary.svelte';
 	import PersonTasks from './PersonTasks.svelte';
+	import PersonViews from './PersonViews.svelte';
 	import { canSetPrivacy } from './person-permissions.js';
 	import type { RelativeTarget } from './relative-target.js';
 	import { LINK_TARGET } from './relative-target.js';
@@ -63,6 +65,8 @@
 	}: Props = $props();
 
 	const isPage = $derived(layout === 'page');
+	/** Tailwind's lg, where the page gains its side column; the server renders the folded phone form. */
+	const isWide = new MediaQuery('min-width: 1024px', false);
 	/** On the page the record's details share one card, so each section drops its own. */
 	const isFlush = $derived(isPage);
 	/** The person's own citations, shown once beneath the summary; a fact's or name's are on that row. */
@@ -168,6 +172,19 @@
 	{/if}
 {/snippet}
 
+{#snippet views()}
+	<!-- Beside the record it is a card; on a phone or in the drawer it folds closed, since someone
+	     opening a person wants their details before a chart. -->
+	<PersonSection
+		id="views"
+		title="Charts and views"
+		layout={isPage && isWide.current ? 'page' : 'drawer'}
+		isPrintHidden
+	>
+		<PersonViews personId={dto.person.id} {treeId} {treeSlug} />
+	</PersonSection>
+{/snippet}
+
 {#snippet history()}
 	<PersonSection id="history" title="History" {layout} {isFlush} isPrintHidden
 		><PersonHistory {dto} tree={{ id: treeId, slug: treeSlug }} {editor} /></PersonSection
@@ -205,16 +222,22 @@
 	</header>
 
 	{#if isPage}
+		<!-- The views come first in the source so a phone, with one column, reaches them right under the
+		     header; from lg they sit at the top of the side column. -->
 		<div
-			class="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] print:grid-cols-1"
+			class="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:grid-rows-[auto_1fr] print:grid-cols-1"
 		>
-			<div class="space-y-6">
+			<div class="lg:col-start-2 lg:row-start-1">{@render views()}</div>
+			<div class="space-y-6 lg:col-start-1 lg:row-span-2 lg:row-start-1">
 				{@render glance()}
 				{@render life()}
 				{@render lifeMap()}
 				{@render family()}
 			</div>
-			<div class="section-card divide-y divide-stone-200 py-0" data-testid="record-details">
+			<div
+				class="section-card divide-y divide-stone-200 py-0 lg:col-start-2"
+				data-testid="record-details"
+			>
 				{@render notes()}
 				{@render names()}
 				{@render media()}
@@ -225,6 +248,7 @@
 		</div>
 	{:else}
 		<div class="space-y-3">
+			{@render views()}
 			{@render family()}
 			{@render facts()}
 			{@render names()}
