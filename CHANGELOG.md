@@ -7,6 +7,12 @@ it summarises themes rather than listing every commit. Decisions and their reaso
 
 ## 2026-11-02 to 2026-11-08
 
+### Added
+
+- **Members list shows who each member is in the tree.** Owners and managers can link a member to
+  their person, or clear the link, with a Person action on each row; any member can still set
+  their own. Changes made for someone else appear in the audit log.
+
 ### Changed
 
 - **Overview tab** leads with the family: your starting person and your work, then Jump back in

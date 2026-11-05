@@ -201,8 +201,9 @@ export class TreeService {
 	}
 
 	/**
-	 * Who the caller says they are in this tree; null clears it. Private to the member: only their own
-	 * tree list reads it. Validated like the starting person, so a hidden person is refused as a missing one.
+	 * Who the caller says they are in this tree; null clears it. Read by their own tree list and by
+	 * those who manage members (`MemberService`). Validated like the starting person, so a hidden
+	 * person is refused as a missing one.
 	 */
 	async setSelfPerson(treeId: string, personId: string | null, context: AuthenticatedContext) {
 		requireRealUser(context);
