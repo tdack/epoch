@@ -17,35 +17,24 @@
 	import type { PersonRef, TreeEditActions } from '#lib/components/tree/tree-actions.js';
 	import { createDrawerLoader } from '#lib/components/tree/drawer-loader.svelte.js';
 	import { createTreeNavigation } from '#lib/components/tree/tree-navigation.svelte.js';
+	import { createSavedView } from '#lib/components/tree/saved-view.svelte.js';
+	import { createViewLayouts } from '#lib/components/tree/view-layouts.svelte.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
-		ALL_PARENT_CHILD_TYPES,
 		DEFAULT_VIEW_STATE,
 		HISTORY_KINDS,
 		ARRIVAL_COLLATERAL_DEPTH,
 		LAYOUT_MODES,
 		compactStubId,
 		parseViewState,
-		resolveStubTokens,
 		serializeViewState,
 		shouldResetStubs,
 		type HistoryKind,
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
 	import { recordRecentApi } from '#lib/api/lists.js';
-	import {
-		EMPTY_LAYOUT,
-		filterParentChildTypes,
-		layoutFocusView,
-		layoutWholeTree
-	} from '#lib/tree-layout/index.js';
-	import { layoutOrrery } from '#lib/tree-layout/orrery.js';
-	import { layoutPoincare } from '#lib/tree-layout/poincare.js';
-	import { layoutRibbons } from '#lib/tree-layout/ribbons.js';
-	import { layoutRings } from '#lib/tree-layout/rings.js';
-	import { selectWholeTree } from '#lib/tree-layout/whole-tree.js';
 	import { rememberedFocusKey } from '#lib/api/load-helpers.js';
-	import { VIEW_MODE_TRAITS, resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
+	import { VIEW_MODE_TRAITS, type LayoutMode } from '#lib/shared/view-mode.js';
 	import { canChangeRecords, canCreateRecords, canImportGedcom } from '#lib/shared/roles.js';
 	import type { PageData } from './$types';
 	import { personPath } from '#lib/components/person/person-paths.js';
@@ -73,23 +62,13 @@
 			reset: false
 		})
 	);
-	/**
-	 * The view (focus, depths, toggles, opened stubs) lives in the URL so reloads, back/forward and
-	 * shared links restore it. Everything below derives from it rather than keeping a second copy.
-	 */
-	/**
-	 * The view the viewer saved for this tree. A change made here shows at once; a reload reads the
-	 * same from the tree list. Reset when the tree changes.
-	 */
-	// The member's own default is chosen on their account (ADR-075).
-	const savedMemberMode = $derived(data.trees.find((t) => t.id === treeId)?.viewMode ?? null);
-	/** A link with no `mode` opens here; the address wins when it names one. */
-	const startingMode = $derived(
-		resolveLayoutMode({ fromAddress: null, fromMember: savedMemberMode })
-	);
-	const view = $derived(
-		parseViewState(new URLSearchParams(navigation.pendingSearch ?? page.url.search), startingMode)
-	);
+	const savedView = createSavedView({
+		savedMemberMode: () => data.trees.find((t) => t.id === treeId)?.viewMode ?? null,
+		pendingSearch: () => navigation.pendingSearch,
+		currentSearch: () => page.url.search
+	});
+	const startingMode = $derived(savedView.startingMode);
+	const view = $derived(savedView.view);
 	/** What the graph on screen was fetched for. The canvas draws with this, and the toolbar shows `view`. */
 	const applied = $derived(data.applied);
 	const graph = $derived(data.focusGraph?.graph ?? null);
@@ -109,20 +88,6 @@
 		const person = graph?.people.find((p) => p.id === focusPersonId);
 		return person ? { id: person.id, name: person.displayName } : null;
 	});
-	const expandedStubIds = $derived(
-		graph
-			? resolveStubTokens(
-					applied.expandedStubs,
-					graph.people.map((p) => p.id),
-					graph.unions.map((u) => u.id)
-				)
-			: []
-	);
-	const graphForLayout = $derived(
-		graph && view.types.length < ALL_PARENT_CHILD_TYPES.length
-			? filterParentChildTypes(graph, view.types)
-			: graph
-	);
 	const mode = $derived(view.layoutMode);
 	/** Below this width the gesture hint sits over the chart instead of above it. */
 	const PHONE_MAX_WIDTH_PX = 639;
@@ -153,68 +118,14 @@
 	 * is true; the badge says so instead of leaving a click looking ignored.
 	 */
 	const isLoading = $derived(navigation.pendingSearch !== null || navigating.to !== null);
-	const focusOptions = $derived({
-		ancestorDepth: applied.ancestorDepth,
-		descendantDepth: applied.descendantDepth,
-		shouldIncludeSiblings: applied.shouldIncludeSiblings,
-		shouldIncludeStepFamilies: applied.shouldIncludeStepFamilies,
-		// Flat draws the hourglass it always has; the wider groups are for the 3D views.
-		...(mode === LAYOUT_MODES.FLAT
-			? {}
-			: {
-					collateralDepth: applied.collateralDepth,
-					shouldIncludePartnerOrigins: applied.shouldIncludePartnerOrigins
-				}),
-		expandedStubIds
+	const layouts = createViewLayouts({
+		graph: () => graph,
+		mode: () => mode,
+		types: () => view.types,
+		focusPersonId: () => focusPersonId,
+		isWholeTreeDrawn: () => isWholeTreeDrawn,
+		applied: () => applied
 	});
-	// Only the chosen view is laid out, so switching mode costs one layout and no request.
-	const layout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.FLAT
-			? isWholeTreeDrawn
-				? layoutWholeTree(graphForLayout)
-				: layoutFocusView(graphForLayout, focusPersonId, focusOptions)
-			: EMPTY_LAYOUT
-	);
-	/** The whole tree as a selection, worked out once for whichever WebGL view draws it. */
-	const wholeSelection = $derived(
-		graphForLayout && isWholeTreeDrawn && VIEW_MODE_TRAITS[mode].isWebGl
-			? selectWholeTree(graphForLayout)
-			: undefined
-	);
-	const ringsLayout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.RINGS
-			? layoutRings(graphForLayout, focusPersonId, focusOptions, undefined, wholeSelection)
-			: null
-	);
-	const poincareLayout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.POINCARE
-			? layoutPoincare(graphForLayout, focusPersonId, focusOptions, undefined, wholeSelection)
-			: null
-	);
-	const ribbonsLayout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.RIBBONS
-			? layoutRibbons(
-					graphForLayout,
-					focusPersonId,
-					focusOptions,
-					undefined,
-					undefined,
-					wholeSelection
-				)
-			: null
-	);
-	const orreryLayout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.ORRERY
-			? layoutOrrery(
-					graphForLayout,
-					focusPersonId,
-					focusOptions,
-					undefined,
-					undefined,
-					wholeSelection
-				)
-			: null
-	);
 
 	/**
 	 * A view switch redraws the same graph, so what the person opened stays open. Flat ignores the
@@ -550,9 +461,9 @@
 			<div class="relative flex min-w-0 flex-1 touch-none flex-col" aria-busy={isLoading}>
 				<!-- Before the canvases so the legend, drawn later, stays above it. -->
 				{#if isPhone}<TreeGestureHint isOverlay />{/if}
-				{#if ringsLayout}
+				{#if layouts.rings}
 					<RingsCanvas
-						layout={ringsLayout}
+						layout={layouts.rings}
 						{palette}
 						isMotionReduced={data.isMotionReduced}
 						{fitKey}
@@ -565,9 +476,9 @@
 						onClearSelection={clearSelection}
 						{actions}
 					/>
-				{:else if poincareLayout}
+				{:else if layouts.poincare}
 					<PoincareCanvas
-						layout={poincareLayout}
+						layout={layouts.poincare}
 						{palette}
 						isMotionReduced={data.isMotionReduced}
 						{fitKey}
@@ -580,9 +491,9 @@
 						onClearSelection={clearSelection}
 						{actions}
 					/>
-				{:else if ribbonsLayout}
+				{:else if layouts.ribbons}
 					<RibbonsCanvas
-						layout={ribbonsLayout}
+						layout={layouts.ribbons}
 						{palette}
 						isMotionReduced={data.isMotionReduced}
 						{fitKey}
@@ -595,9 +506,9 @@
 						onClearSelection={clearSelection}
 						{actions}
 					/>
-				{:else if orreryLayout}
+				{:else if layouts.orrery}
 					<OrreryCanvas
-						layout={orreryLayout}
+						layout={layouts.orrery}
 						{palette}
 						isMotionReduced={data.isMotionReduced}
 						{fitKey}
@@ -612,7 +523,7 @@
 					/>
 				{:else}
 					<TreeCanvas
-						{layout}
+						layout={layouts.layout}
 						{palette}
 						{fitKey}
 						isWholeTree={isWholeTreeDrawn}
