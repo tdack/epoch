@@ -1,3 +1,4 @@
+import type { FileUsageResponse } from '#lib/shared/api-contracts.js';
 import { apiHandler } from '#lib/server/http/handler.js';
 import { MediaService } from '#lib/server/services/media-service.js';
 import { fileTreeQuerySchema } from '#lib/server/validation/schemas.js';
@@ -9,7 +10,7 @@ import { BindingUnavailableError } from '#lib/server/domain/errors.js';
  */
 export const GET = apiHandler(
 	{ failure: 'Failed to read media storage use', query: fileTreeQuerySchema },
-	({ db, ctx, event, query }) => {
+	({ db, ctx, event, query }): Promise<FileUsageResponse> => {
 		const bucket = event.platform?.env?.MEDIA_BUCKET;
 		if (!bucket) throw new BindingUnavailableError('MEDIA_BUCKET');
 		return new MediaService(db).usage(ctx, bucket, query.treeId);

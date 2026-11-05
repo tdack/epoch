@@ -1,3 +1,4 @@
+import type { FileLinkResponse } from '#lib/shared/api-contracts.js';
 import { apiHandler } from '#lib/server/http/handler.js';
 import { MediaService } from '#lib/server/services/media-service.js';
 import { fileLinkUpdateSchema, fileUnlinkQuerySchema } from '#lib/server/validation/schemas.js';
@@ -9,7 +10,7 @@ export const DELETE = apiHandler(
 		query: fileUnlinkQuerySchema,
 		params: ['id', 'entityId']
 	},
-	({ db, ctx, params, query }) =>
+	({ db, ctx, params, query }): Promise<FileLinkResponse> =>
 		new MediaService(db).unlink(ctx, {
 			treeId: query.treeId,
 			mediaId: params.id!,
@@ -26,7 +27,7 @@ export const PATCH = apiHandler(
 		body: fileLinkUpdateSchema,
 		params: ['id', 'entityId']
 	},
-	({ db, ctx, params, body }) =>
+	({ db, ctx, params, body }): Promise<FileLinkResponse> =>
 		new MediaService(db).updateLink(ctx, {
 			treeId: body.treeId,
 			mediaId: params.id!,

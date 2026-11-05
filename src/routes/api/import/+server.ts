@@ -1,3 +1,5 @@
+import type { ImportResponse } from '#lib/shared/api-contracts.js';
+import type { ImportPreviewData } from '#lib/types/genealogy.js';
 import type { RequestEvent } from '@sveltejs/kit';
 import { decodeGedcomFile } from '#lib/server/gedcom/decode.js';
 import { MAX_DATASET_BYTES, MAX_IMPORT_BYTES } from '#lib/server/gedcom/limits.js';
@@ -48,47 +50,53 @@ const previewFailure = {
 	failure: 'Failed to preview GEDCOM'
 };
 
-export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
-	await limitImports(event, ctx.user.id);
-	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
-	const file = formData.get('file');
-	if (!file) throw new ValidationError('GEDCOM file is required');
-	if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
+export const POST = apiHandler(
+	importFailure,
+	async ({ db, ctx, event }): Promise<ImportResponse | Response> => {
+		await limitImports(event, ctx.user.id);
+		const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
+		const file = formData.get('file');
+		if (!file) throw new ValidationError('GEDCOM file is required');
+		if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
 
-	const text = await readGedcom(file);
-	const env = event.platform?.env;
-	const outcome = await new GedcomService(db, {
-		bucket: env?.MEDIA_BUCKET,
-		importWorkflow: env?.GEDCOM_IMPORT_WORKFLOW
-	}).importFile(
-		{
-			treeId: formText(formData, 'treeId'),
-			treeName: formText(formData, 'treeName'),
-			fileName: file.name,
-			text,
-			// A .gdz is compressed, so its file size understates the import; the text decides whether it is a workflow.
-			sizeBytes: Math.max(file.size, text.length),
-			mode: formText(formData, 'mode') === 'merge' ? 'merge' : 'replace',
-			shouldMergeDuplicateFamilies: formData.get('mergeDuplicates') === 'true'
-		},
-		ctx
-	);
-	// Not `message`: the client polls the job at /api/import/<jobId> rather than showing this text.
-	if (outcome.status === 'queued') return Response.json(outcome, { status: 202 });
-	return outcome;
-});
+		const text = await readGedcom(file);
+		const env = event.platform?.env;
+		const outcome = await new GedcomService(db, {
+			bucket: env?.MEDIA_BUCKET,
+			importWorkflow: env?.GEDCOM_IMPORT_WORKFLOW
+		}).importFile(
+			{
+				treeId: formText(formData, 'treeId'),
+				treeName: formText(formData, 'treeName'),
+				fileName: file.name,
+				text,
+				// A .gdz is compressed, so its file size understates the import; the text decides whether it is a workflow.
+				sizeBytes: Math.max(file.size, text.length),
+				mode: formText(formData, 'mode') === 'merge' ? 'merge' : 'replace',
+				shouldMergeDuplicateFamilies: formData.get('mergeDuplicates') === 'true'
+			},
+			ctx
+		);
+		// Not `message`: the client polls the job at /api/import/<jobId> rather than showing this text.
+		if (outcome.status === 'queued') return Response.json(outcome, { status: 202 });
+		return outcome;
+	}
+);
 
-export const PUT = apiHandler(previewFailure, async ({ db, ctx, event }) => {
-	await limitImports(event, ctx.user.id);
-	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
-	const file = formData.get('file');
-	const treeId = formText(formData, 'treeId');
-	if (!file) throw new ValidationError('GEDCOM file is required');
-	if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
+export const PUT = apiHandler(
+	previewFailure,
+	async ({ db, ctx, event }): Promise<ImportPreviewData> => {
+		await limitImports(event, ctx.user.id);
+		const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
+		const file = formData.get('file');
+		const treeId = formText(formData, 'treeId');
+		if (!file) throw new ValidationError('GEDCOM file is required');
+		if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
 
-	const service = new GedcomService(db);
-	const text = await readGedcom(file);
-	// No tree yet: the import will create one, so there is nothing to compare against.
-	if (!treeId) return service.previewFile(text);
-	return service.previewImport(treeId, text, ctx);
-});
+		const service = new GedcomService(db);
+		const text = await readGedcom(file);
+		// No tree yet: the import will create one, so there is nothing to compare against.
+		if (!treeId) return service.previewFile(text);
+		return service.previewImport(treeId, text, ctx);
+	}
+);

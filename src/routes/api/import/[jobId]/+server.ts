@@ -1,3 +1,4 @@
+import type { ImportStatusResponse } from '#lib/shared/api-contracts.js';
 import { apiHandler } from '#lib/server/http/handler.js';
 import { ImportJobService } from '#lib/server/services/import-job-service.js';
 
@@ -8,5 +9,6 @@ import { ImportJobService } from '#lib/server/services/import-job-service.js';
  */
 export const GET = apiHandler(
 	{ failure: 'Failed to check the import', params: ['jobId'] },
-	({ db, ctx, params }) => new ImportJobService(db).status(params.jobId!, ctx)
+	({ db, ctx, params }): Promise<ImportStatusResponse> =>
+		new ImportJobService(db).status(params.jobId!, ctx)
 );

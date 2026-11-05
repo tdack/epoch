@@ -1,4 +1,12 @@
-import type { FileLinkResponse } from '#lib/shared/api-contracts.js';
+import type {
+	DeleteUnlinkedResponse,
+	FileLinkResponse,
+	FileListResponse,
+	FileUsageResponse,
+	ImportResponse,
+	ImportStatusResponse,
+	UnlinkedListResponse
+} from '#lib/shared/api-contracts.js';
 import type { FileListDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 import { ApiError, call, json, path, restartSignIn } from './client.js';
 
@@ -25,18 +33,8 @@ export async function previewGedcomImport(
 	return call('/api/import', { method: 'PUT', body: fd }, 'Failed to preview import');
 }
 
-/** What an import answers: the counts when it ran in the request, a job to poll when it was queued. */
-export interface GedcomImportResult {
-	status?: 'complete' | 'queued';
-	individualsCount?: number;
-	familiesCount?: number;
-	mergedFamiliesCount?: number;
-	/** Present only for a `.gdz`. */
-	media?: import('#lib/shared/media.js').GedzipMediaCounts;
-	treeId?: string;
-	/** Present when the import was queued; poll it with `importStatusApi`. */
-	jobId?: string;
-}
+/** What an import answers; see `ImportResponse`. */
+export type GedcomImportResult = ImportResponse;
 
 /** What the archive would add, from the uploaded `.gdz`'s directory and dataset alone. */
 export function previewGedzipImport(
@@ -50,7 +48,11 @@ export function startGedzipImport(
 	sessionId: string,
 	input: { mode: 'replace' | 'merge'; shouldMergeDuplicateFamilies: boolean; isNewTree?: boolean }
 ): Promise<GedcomImportResult> {
-	return call(path`/api/uploads/${sessionId}/import`, json('POST', input), 'Import failed');
+	return call<ImportResponse>(
+		path`/api/uploads/${sessionId}/import`,
+		json('POST', input),
+		'Import failed'
+	);
 }
 
 export async function submitGedcomImport(
@@ -66,29 +68,19 @@ export async function submitGedcomImport(
 		fd.append('treeId', treeId);
 	}
 	if (options.shouldMergeDuplicateFamilies) fd.append('mergeDuplicates', 'true');
-	return call('/api/import', { method: 'POST', body: fd }, 'Import failed');
-}
-
-/** A queued import's state, as `GET /api/import/<jobId>` answers it. */
-export interface GedcomImportStatus {
-	status: 'pending' | 'running' | 'complete' | 'failed';
-	result?: {
-		individualsCount: number;
-		familiesCount: number;
-		eventsCount: number;
-		mergedFamiliesCount: number;
-		/** Present only for a `.gdz`. */
-		media?: import('#lib/shared/media.js').GedzipMediaCounts;
-	};
-	/** Media entries handled so far of all in the archive; present while a `.gdz` import runs. */
-	progress?: { done: number; total: number };
-	/** A fixed sentence the server chose; safe to show. */
-	error?: string;
+	return call<ImportResponse>('/api/import', { method: 'POST', body: fd }, 'Import failed');
 }
 
 /** One poll of a queued import. `signal` lets the caller abandon a superseded poll. */
-export function importStatusApi(jobId: string, signal?: AbortSignal): Promise<GedcomImportStatus> {
-	return call(path`/api/import/${jobId}`, { signal }, 'Failed to check the import');
+export function importStatusApi(
+	jobId: string,
+	signal?: AbortSignal
+): Promise<ImportStatusResponse> {
+	return call<ImportStatusResponse>(
+		path`/api/import/${jobId}`,
+		{ signal },
+		'Failed to check the import'
+	);
 }
 
 /** How a tree is exported: the GEDCOM version and whether to package it as a `.gdz`. */
@@ -247,7 +239,12 @@ export async function fetchFiles(
 	if (query.cursor) params.set('cursor', query.cursor);
 	if (query.limit) params.set('limit', String(query.limit));
 	const qs = params.size > 0 ? `?${params}` : '';
-	return call(`/api/files${qs}`, { method: 'GET' }, 'Failed to load files', fetcher);
+	return call<FileListResponse>(
+		`/api/files${qs}`,
+		{ method: 'GET' },
+		'Failed to load files',
+		fetcher
+	);
 }
 
 /** Storage used by the files the caller may see, optionally narrowed to one tree. */
@@ -256,7 +253,12 @@ export async function fetchFileUsage(
 	fetcher: typeof fetch = fetch
 ): Promise<FileUsageDto> {
 	const qs = treeId ? `?treeId=${encodeURIComponent(treeId)}` : '';
-	return call(`/api/files/usage${qs}`, { method: 'GET' }, 'Failed to read storage use', fetcher);
+	return call<FileUsageResponse>(
+		`/api/files/usage${qs}`,
+		{ method: 'GET' },
+		'Failed to read storage use',
+		fetcher
+	);
 }
 
 /** Renames a file. `version` is the one the caller last read, so a stale rename is refused. */
@@ -323,7 +325,7 @@ export async function fetchUnlinkedFiles(
 	fetcher: typeof fetch = fetch
 ): Promise<UnlinkedListDto> {
 	const qs = treeId ? `?treeId=${encodeURIComponent(treeId)}` : '';
-	return call(
+	return call<UnlinkedListResponse>(
 		`/api/files/unlinked${qs}`,
 		{ method: 'GET' },
 		'Failed to list stored files',
@@ -334,9 +336,13 @@ export async function fetchUnlinkedFiles(
 /** Deletes the unlinked objects a fresh listing finds. Permanent. */
 export async function deleteUnlinkedFilesApi(
 	treeId: string | null
-): Promise<{ deleted: number; failed: number }> {
+): Promise<DeleteUnlinkedResponse> {
 	const qs = treeId ? `?treeId=${encodeURIComponent(treeId)}` : '';
-	return call(`/api/files/unlinked${qs}`, { method: 'DELETE' }, 'Failed to delete stored files');
+	return call<DeleteUnlinkedResponse>(
+		`/api/files/unlinked${qs}`,
+		{ method: 'DELETE' },
+		'Failed to delete stored files'
+	);
 }
 
 /**

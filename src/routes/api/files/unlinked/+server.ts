@@ -1,3 +1,4 @@
+import type { DeleteUnlinkedResponse, UnlinkedListResponse } from '#lib/shared/api-contracts.js';
 import { apiHandler } from '#lib/server/http/handler.js';
 import { MediaService } from '#lib/server/services/media-service.js';
 import { fileTreeQuerySchema } from '#lib/server/validation/schemas.js';
@@ -9,7 +10,7 @@ import { BindingUnavailableError } from '#lib/server/domain/errors.js';
  */
 export const GET = apiHandler(
 	{ failure: 'Failed to list unlinked files', query: fileTreeQuerySchema },
-	({ db, ctx, event, query }) => {
+	({ db, ctx, event, query }): Promise<UnlinkedListResponse> => {
 		const bucket = event.platform?.env?.MEDIA_BUCKET;
 		if (!bucket) throw new BindingUnavailableError('MEDIA_BUCKET');
 		return new MediaService(db).listUnlinked(ctx, bucket, query.treeId);
@@ -19,7 +20,7 @@ export const GET = apiHandler(
 /** Deletes the unlinked objects a fresh listing finds, in the trees the caller manages. Irreversible. */
 export const DELETE = apiHandler(
 	{ failure: 'Failed to delete unlinked files', query: fileTreeQuerySchema },
-	({ db, ctx, event, query }) => {
+	({ db, ctx, event, query }): Promise<DeleteUnlinkedResponse> => {
 		const bucket = event.platform?.env?.MEDIA_BUCKET;
 		if (!bucket) throw new BindingUnavailableError('MEDIA_BUCKET');
 		return new MediaService(db).deleteUnlinked(ctx, bucket, query.treeId);
