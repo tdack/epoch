@@ -1,8 +1,10 @@
 import type {
 	CreateTreeResponse,
+	FocusGraphResponse,
 	RenameTreeResponse,
 	TreeImpact,
-	TreeImpactResponse
+	TreeImpactResponse,
+	WholeTreeGraphResponse
 } from '#lib/shared/api-contracts.js';
 import type { FocusGraphDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
 import type { DateFormat } from '#lib/shared/date-display.js';
@@ -102,7 +104,7 @@ export function fetchFocusGraph(
 	if (query.shouldIncludePartnerOrigins !== undefined)
 		params.set('origins', query.shouldIncludePartnerOrigins ? '1' : '0');
 	if (query.exp?.length) params.set('exp', query.exp.join(','));
-	return call(
+	return call<FocusGraphResponse>(
 		path`/api/trees/${treeId}/graph` + `?${params}`,
 		undefined,
 		'Failed to load the tree',
@@ -115,7 +117,7 @@ export function fetchWholeTreeGraph(
 	treeId: string,
 	fetchFn: typeof fetch = fetch
 ): Promise<WholeTreeGraphDto> {
-	return call(
+	return call<WholeTreeGraphResponse>(
 		path`/api/trees/${treeId}/graph` + '?scope=all',
 		undefined,
 		'Failed to load the tree',

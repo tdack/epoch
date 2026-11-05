@@ -1,3 +1,4 @@
+import type { MemberRoleResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { MemberService } from '#lib/server/services/member-service.js';
 import { changeMemberRoleSchema } from '#lib/server/validation/schemas.js';
@@ -6,7 +7,7 @@ import { ValidationError } from '#lib/server/domain/errors.js';
 /** Change a member's role. `version` is the one the screen loaded; a stale one answers 409. */
 export const PATCH = treeHandler(
 	{ failure: 'Failed to change the role', params: ['userId'], body: changeMemberRoleSchema },
-	({ db, ctx, treeId, params, body }) =>
+	({ db, ctx, treeId, params, body }): Promise<MemberRoleResponse> =>
 		new MemberService(db).changeRole(treeId, params.userId, body, ctx)
 );
 

@@ -1,4 +1,4 @@
-import type { ImpactResponse } from '#lib/shared/api-contracts.js';
+import type { ImpactResponse, NoteListResponse } from '#lib/shared/api-contracts.js';
 import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type { NoteListItem, NoteSubjectRef, SharedNoteInput } from '#lib/shared/notes.js';
 import type { Page } from '#lib/shared/lists.js';
@@ -9,7 +9,7 @@ export async function fetchNotes(
 	params: URLSearchParams,
 	fetcher: typeof fetch = fetch
 ): Promise<Page<NoteListItem>> {
-	return call(
+	return call<NoteListResponse>(
 		path`/api/trees/${treeId}/lists/notes` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the notes',

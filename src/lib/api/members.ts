@@ -1,3 +1,4 @@
+import type { MemberRoleResponse, MembersResponse } from '#lib/shared/api-contracts.js';
 import type { InvitationSentDto, MemberDto, MembersDto } from '#lib/shared/members.js';
 import type { TreeRole } from '#lib/shared/roles.js';
 import { call, json, path } from './client.js';
@@ -8,7 +9,7 @@ export async function fetchMembers(
 	treeId: string,
 	fetcher: typeof fetch = fetch
 ): Promise<MembersDto> {
-	return call(
+	return call<MembersResponse>(
 		path`/api/trees/${treeId}/members`,
 		{ method: 'GET' },
 		'Failed to load the members',
@@ -42,7 +43,7 @@ export async function changeMemberRoleApi(
 	role: TreeRole,
 	version: number
 ): Promise<MemberDto> {
-	return call(
+	return call<MemberRoleResponse>(
 		path`/api/trees/${treeId}/members/${userId}`,
 		json('PATCH', { role, version }),
 		'Failed to change the role'

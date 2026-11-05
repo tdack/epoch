@@ -1,4 +1,9 @@
-import type { ImpactResponse } from '#lib/shared/api-contracts.js';
+import type {
+	ImpactResponse,
+	RepositoryListResponse,
+	SourceListResponse,
+	UnionListResponse
+} from '#lib/shared/api-contracts.js';
 import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type {
 	CitationInput,
@@ -17,7 +22,7 @@ export async function fetchSources(
 	params: URLSearchParams,
 	fetcher: typeof fetch = fetch
 ): Promise<Page<SourceListItem>> {
-	return call(
+	return call<SourceListResponse>(
 		path`/api/trees/${treeId}/lists/sources` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the sources',
@@ -30,7 +35,7 @@ export async function fetchUnions(
 	params: URLSearchParams,
 	fetcher: typeof fetch = fetch
 ): Promise<Page<UnionListItem>> {
-	return call(
+	return call<UnionListResponse>(
 		path`/api/trees/${treeId}/lists/unions` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the partnerships',
@@ -43,7 +48,7 @@ export async function fetchRepositories(
 	params: URLSearchParams,
 	fetcher: typeof fetch = fetch
 ): Promise<Page<RepositoryListItem>> {
-	return call(
+	return call<RepositoryListResponse>(
 		path`/api/trees/${treeId}/lists/repositories` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the repositories',

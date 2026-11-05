@@ -1,3 +1,4 @@
+import type { FocusGraphResponse, WholeTreeGraphResponse } from '#lib/shared/api-contracts.js';
 import { ValidationError } from '#lib/server/domain/errors.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { GraphQueryService } from '#lib/server/services/graph-query-service.js';
@@ -11,7 +12,7 @@ import { parseFocusQuery } from '#lib/server/validation/graph-query.js';
  */
 export const GET = treeHandler(
 	{ allowPublicVisitor: true, failure: 'Failed to load relationship graph' },
-	({ db, ctx, treeId, subtree, url }) => {
+	({ db, ctx, treeId, subtree, url }): Promise<FocusGraphResponse | WholeTreeGraphResponse> => {
 		const { focusPersonId, options, isWholeTree } = parseFocusQuery(url.searchParams);
 		if (isWholeTree) return new GraphQueryService(db).wholeTreeGraph(treeId, ctx, subtree);
 		if (!focusPersonId) throw new ValidationError('focus: a person to centre the graph on');
