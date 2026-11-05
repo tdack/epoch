@@ -20,6 +20,8 @@ it summarises themes rather than listing every commit. Decisions and their reaso
   phone and in the drawer it folds closed under the toolbar. Edit and Favourite are a pencil and
   a star beside the name; the toolbar keeps Relationship and Record death, and This is me, Merge,
   Make sub-tree and Delete move under More.
+- **Chart pages** open with a link back to the person's record and Show in the tree, and the
+  chart styles carry the same icons as the record's Charts and views card.
 
 ## 2026-10-26 to 2026-11-01: Reports, maps, large imports and GEDZip with media
 

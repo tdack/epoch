@@ -1,15 +1,7 @@
 <script lang="ts">
-	import {
-		ArrowLeftRight,
-		ChevronsDown,
-		ChevronsUp,
-		FileText,
-		GitBranch,
-		Hourglass,
-		Rainbow
-	} from '@lucide/svelte';
-	import type { Component } from 'svelte';
-	import { CHART_STYLES, type ChartStyle } from '#lib/shared/charts.js';
+	import { ArrowLeftRight, FileText, GitBranch } from '@lucide/svelte';
+	import { CHART_ICONS } from '#lib/components/charts/chart-icons.js';
+	import { CHART_STYLES } from '#lib/shared/charts.js';
 	import { personPath, treePath } from './person-paths.js';
 
 	interface Props {
@@ -25,14 +17,6 @@
 	const treeHref = $derived(treePath(treeRef));
 	const here = $derived(personPath(treeRef, personId));
 	const focus = $derived(encodeURIComponent(personId));
-
-	// Each chart's icon draws its shape: up for ancestors, down for descendants, arcs for the fan.
-	const CHART_ICONS: Record<ChartStyle, Component> = {
-		pedigree: ChevronsUp,
-		fan: Rainbow,
-		descendants: ChevronsDown,
-		hourglass: Hourglass
-	};
 
 	const link =
 		'row-link inline-flex items-center gap-2 rounded-lg text-sm focus-ring coarse:min-h-11';
