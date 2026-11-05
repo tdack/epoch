@@ -154,8 +154,9 @@ export class PlaceRepository {
 	constructor(private db: DbClient) {}
 
 	/**
-	 * Where a person's facts happened: fact id to the confirmed location of its place. One query for
-	 * the whole page. A restricted viewer gets nothing for a person they may not see, and a living
+	 * Where a person's facts and their partnerships' events happened: event id to the confirmed
+	 * location of its place. One query for the whole page. A restricted viewer gets nothing for a
+	 * person they may not see, nor for a partnership with a partner they may not see, and a living
 	 * person's residence and census facts are left off, as on the Places map (ADR-078).
 	 */
 	async factLocationsOf(
@@ -163,14 +164,24 @@ export class PlaceRepository {
 		personId: string,
 		scope: Scope
 	): Promise<Record<string, { latitude: number; longitude: number }>> {
+		const located = sql`pl.tree_id = ${treeId} and pl.status = 'confirmed'
+				and pl.latitude is not null and pl.longitude is not null`;
+		const partnersVisible = scope.isRestricted
+			? sql` and not exists (select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = e.entity_id and not ${isVisibleOf('p', scope)})`
+			: sql``;
 		const rows = await this.db.all<{ id: string; latitude: number; longitude: number }>(sql`
 			select e.id as id, pl.latitude as latitude, pl.longitude as longitude
 			from events e
 			join individuals i on i.id = e.entity_id
 			join place_locations pl on pl.id = e.place_id
 			where e.tree_id = ${treeId} and e.entity_type = 'INDIVIDUAL' and e.entity_id = ${personId}
-				and pl.tree_id = ${treeId} and pl.status = 'confirmed'
-				and pl.latitude is not null and pl.longitude is not null${andVisible('i', scope)}${andNotLivingHome(scope)}`);
+				and ${located}${andVisible('i', scope)}${andNotLivingHome(scope)}
+			union all
+			select e.id, pl.latitude, pl.longitude
+			from events e
+			join union_partners me on me.union_id = e.entity_id and me.person_id = ${personId}
+			join place_locations pl on pl.id = e.place_id
+			where e.tree_id = ${treeId} and e.entity_type = 'FAMILY' and ${located}${partnersVisible}`);
 		return Object.fromEntries(
 			rows.map((r) => [r.id, { latitude: r.latitude, longitude: r.longitude }])
 		);
