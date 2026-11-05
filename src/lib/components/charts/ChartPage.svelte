@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ArrowLeft, GitBranch } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { chartAddress, type ChartStyle } from '#lib/shared/charts.js';
 	import ChartStyleNav from './ChartStyleNav.svelte';
@@ -67,6 +68,20 @@
 	<h1 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h1>
 	{#if hint}<p class="mt-1 text-sm text-stone-600">{hint}</p>{/if}
 
+	<!-- The same ways out as the record's Charts and views card, so a chart is never a dead end. -->
+	<div class="mt-2 flex flex-wrap gap-x-4 text-sm print:hidden">
+		<a
+			href="{base}/people/{encodeURIComponent(subject.id)}"
+			class="row-link inline-flex items-center gap-1.5 coarse:min-h-11"
+			><ArrowLeft class="h-4 w-4 shrink-0" aria-hidden="true" />Back to {subject.name}</a
+		>
+		<a
+			href="{base}?focus={encodeURIComponent(subject.id)}"
+			class="row-link inline-flex items-center gap-1.5 coarse:min-h-11"
+			><GitBranch class="h-4 w-4 shrink-0" aria-hidden="true" />Show in the tree</a
+		>
+	</div>
+
 	<div class="mt-3 flex flex-wrap items-center gap-3 text-sm print:hidden">
 		<ChartStyleNav
 			current={style}
@@ -82,7 +97,6 @@
 				hrefFor={stepper.hrefFor}
 			/>
 		{/if}
-		<a href="{base}?focus={encodeURIComponent(subject.id)}" class="text-link">Show in the tree</a>
 		<label for={paperId} class="font-semibold text-stone-700">Print on</label>
 		<select id={paperId} class="field-input w-auto" bind:value={paper}>
 			{#each PAPERS as size (size)}

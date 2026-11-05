@@ -24,6 +24,7 @@ test('two records of one person are compared, merged in one change, and the merg
 	const stranger = await api.addPerson('Zed', 'Other', { sex: 'M' });
 
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(ann.id)}`);
+	await page.getByTestId('person-more').click();
 	await page.getByTestId('merge-person').click();
 	const dialog = page.getByRole('dialog', { name: 'Merge with another record of this person' });
 	await dialog.getByLabel('The other record of this person').fill('Annie');

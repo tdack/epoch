@@ -485,6 +485,10 @@ Calm and solid; one primary per view.
   sr-only span ("Rename<span class="sr-only"> The Simpsons</span>"). Never icon-only: a touch
   screen has no tooltip. In a table row they sit right-aligned on one line; on a card below `lg`
   they take a row of their own under a hairline, two to a row on phones.
+- **Name actions:** on a person's page or drawer, Edit and Favourite are a 16px stone-500 pencil
+  and star right after the name, in 32px transparent buttons (44px on touch) with a stone tint on
+  hover. The one icon-only exception: each carries an `aria-label` and a `title`, and the star
+  fills amber when the person is a favourite.
 - **Destructive:** two steps, never one. The trigger on the page ("Delete this tree…", "Leave")
   is red-700 text on white with a 1px red-300 border, turning red-50 on hover; it opens a dialog
   whose confirm is the only red fill in the app (red-700, white label, red-600 on hover).
