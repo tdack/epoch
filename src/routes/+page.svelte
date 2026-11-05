@@ -107,13 +107,12 @@
 						</ul>
 					</article>
 				{/each}
-				<aside class="try">
-					<p>See Epoch with a real tree before you install anything.</p>
-					<a class="button action" href={DEMO_URL}>Explore the demo tree</a>
-				</aside>
 			</div>
-
 			<p class="more"><RichText text={FEATURES_MORE} /></p>
+			<aside class="try">
+				<p>See Epoch with a real tree before you install anything.</p>
+				<a class="button action" href={DEMO_URL}>Explore the demo tree</a>
+			</aside>
 		</div>
 	</section>
 
