@@ -71,7 +71,7 @@ async function expectIndexMatchesBaseTables(): Promise<void> {
 }
 
 const dialect = new SQLiteSyncDialect();
-const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null, selfPersonId: null };
 const filters = (words: string[]): SearchFilters => ({
 	words,
 	place: '',

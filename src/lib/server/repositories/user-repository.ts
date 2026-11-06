@@ -222,6 +222,7 @@ export class UserRepository {
 			treeId: member.treeId,
 			userId: member.userId,
 			role: member.role as TreeRole,
+			selfPersonId: member.selfPersonId,
 			createdAt: member.createdAt || new Date(),
 			updatedAt: member.updatedAt || new Date()
 		};
@@ -244,6 +245,7 @@ export class UserRepository {
 			treeId,
 			userId,
 			role,
+			selfPersonId: null,
 			createdAt: now,
 			updatedAt: now
 		};

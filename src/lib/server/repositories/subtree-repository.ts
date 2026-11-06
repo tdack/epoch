@@ -16,7 +16,10 @@ import { individuals, personNames, subtrees } from '../db/schema';
 import { displayNameWith } from '../../shared/name-types';
 import { andVisible } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'isOutsider'>;
+type Scope = Pick<
+	ViewerScope,
+	'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId' | 'isOutsider'
+>;
 
 export interface SubtreeRead {
 	row: SubtreeRow;

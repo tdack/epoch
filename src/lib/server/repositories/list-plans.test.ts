@@ -15,14 +15,20 @@ afterAll(async () => {
 });
 
 /** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
-const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null, selfPersonId: null };
 // A viewer has no creator test; a contributor's predicate also asks `created_by`, so both are measured.
-const VIEWER: { isRestricted: boolean; cutoff: string; creatorId: string | null } = {
+const VIEWER: {
+	isRestricted: boolean;
+	cutoff: string;
+	creatorId: string | null;
+	selfPersonId: string | null;
+} = {
 	isRestricted: true,
 	cutoff: '1906-10-01',
-	creatorId: null
+	creatorId: null,
+	selfPersonId: null
 };
-const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor' };
+const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor', selfPersonId: null };
 const CONTRIBUTOR_WINDOW = { ...CONTRIBUTOR, cutoff: '1906-10-01/2006-10-01' };
 
 const dialect = new SQLiteSyncDialect();

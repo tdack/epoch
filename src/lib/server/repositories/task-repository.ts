@@ -19,7 +19,7 @@ import {
 import type { ViewerScope } from '../services/tree-access';
 import { andTaskVisible, withVisibleNoteScope } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>;
 
 export interface TaskFilter {
 	/** A status to list; undefined lists every status. */

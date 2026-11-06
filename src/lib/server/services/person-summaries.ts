@@ -68,7 +68,7 @@ export async function personSummaries(
 	treeId: string,
 	graph: RelationshipGraph | undefined,
 	ids: readonly string[],
-	scope?: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
+	scope?: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>
 ): Promise<Map<string, PersonSummaryDto>> {
 	const summaries = new Map((graph?.people ?? []).map((p) => [p.id, summaryOfGraphPerson(p)]));
 	const notInGraph = [...new Set(ids)].filter((id) => !summaries.has(id));

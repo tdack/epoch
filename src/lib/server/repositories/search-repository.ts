@@ -21,7 +21,7 @@ import { andInLens } from './subtree-membership';
 import { likePattern } from './like-pattern';
 import { andVisible, isVisibleOf } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>;
 
 export interface SearchHit {
 	personId: string;

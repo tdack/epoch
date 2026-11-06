@@ -18,9 +18,14 @@ afterAll(async () => {
 });
 
 const dialect = new SQLiteSyncDialect();
-const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
-const VIEWER = { isRestricted: true, cutoff: '1906-10-01', creatorId: null as string | null };
-const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor' };
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null, selfPersonId: null };
+const VIEWER = {
+	isRestricted: true,
+	cutoff: '1906-10-01',
+	creatorId: null as string | null,
+	selfPersonId: null as string | null
+};
+const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor', selfPersonId: null };
 const CONTRIBUTOR_WINDOW = { ...CONTRIBUTOR, cutoff: '1906-10-01/2006-10-01' };
 
 interface Plan {

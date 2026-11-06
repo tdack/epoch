@@ -54,6 +54,8 @@ export interface WindowPrivacy {
 	shouldShowPrivateStructure: boolean;
 	/** A contributor's own id: the people they created are not hidden from them. */
 	creatorId: string | null;
+	/** The member's own person: never hidden from them (ADR-015, amended 2026-11-06). */
+	selfPersonId: string | null;
 }
 
 export interface FocusWindowOptions extends Omit<FocusViewOptions, 'expandedStubIds'> {
@@ -153,7 +155,12 @@ export class WindowState {
 	/** Everyone in the loaded rows whom the viewer may not see; empty when no privacy applies. */
 	hiddenPersonIds(): Set<string> {
 		return this.privacy
-			? privatePeople(this.unmaskedRows(), this.privacy.cutoff, this.privacy.creatorId)
+			? privatePeople(
+					this.unmaskedRows(),
+					this.privacy.cutoff,
+					this.privacy.creatorId,
+					this.privacy.selfPersonId
+				)
 			: new Set();
 	}
 
@@ -164,7 +171,8 @@ export class WindowState {
 					rows,
 					this.privacy.cutoff,
 					this.privacy.shouldShowPrivateStructure,
-					this.privacy.creatorId
+					this.privacy.creatorId,
+					this.privacy.selfPersonId
 				)
 			: { rows, placeholderIds: new Set() };
 	}
