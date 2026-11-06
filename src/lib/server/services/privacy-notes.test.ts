@@ -276,7 +276,8 @@ describe('the SQL and the row filters agree on what notes a viewer sees', () => 
 		const scope = {
 			isRestricted: true,
 			cutoff: role === 'public' ? EVERYONE_SHOWN_CUTOFF : livingCutoff(NOW, 110),
-			creatorId: role === 'contributor' ? actors.contributor.userId : null
+			creatorId: role === 'contributor' ? actors.contributor.userId : null,
+			selfPersonId: null
 		};
 		const masked = maskRows(rows, scope.cutoff, false, scope.creatorId).rows;
 		const repo = new NoteRepository(t.db);

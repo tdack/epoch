@@ -132,7 +132,7 @@ const lists = () => new ListService(t.db, NOW_FN);
 
 describe('the SQL predicate and the pure rule', () => {
 	it('agree for every fixture person', async () => {
-		const scope = { isRestricted: true, cutoff: CUTOFF, creatorId: null };
+		const scope = { isRestricted: true, cutoff: CUTOFF, creatorId: null, selfPersonId: null };
 		const visible = await visibleAmong(t.db, treeId, Object.keys(VISIBLE).map(idOf), scope);
 		for (const [xref, isVisible] of Object.entries(VISIBLE)) {
 			const id = idOf(xref);

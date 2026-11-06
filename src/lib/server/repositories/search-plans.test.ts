@@ -69,10 +69,15 @@ const tableScans = (details: string[]) =>
 	);
 
 /** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
-const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null, selfPersonId: null };
 // A viewer has no creator test; a contributor's predicate also asks `created_by`, so both are measured.
-const VIEWER = { isRestricted: true, cutoff: '1906-10-01', creatorId: null as string | null };
-const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor' };
+const VIEWER = {
+	isRestricted: true,
+	cutoff: '1906-10-01',
+	creatorId: null as string | null,
+	selfPersonId: null as string | null
+};
+const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor', selfPersonId: null };
 
 const FILTERS: Array<[string, Partial<SearchFilters>]> = [
 	['name, two words', { words: ['ann', 'brown'] }],

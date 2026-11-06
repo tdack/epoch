@@ -28,11 +28,15 @@ export interface MaskedRows {
 	placeholderIds: Set<string>;
 }
 
-/** Everyone in these rows who is private, from their override and the facts the rows hold for them. */
+/**
+ * Everyone in these rows who is private, from their override and the facts the rows hold for them.
+ * The viewer's own person is never private to them, whatever their override says.
+ */
 export function privatePeople(
 	rows: TreeRows,
 	cutoff: string,
-	creatorId: string | null = null
+	creatorId: string | null = null,
+	selfPersonId: string | null = null
 ): Set<string> {
 	const factsOf = new Map<string, LivingFact[]>();
 	for (const e of rows.events) {
@@ -52,6 +56,7 @@ export function privatePeople(
 				)
 			)
 			.map((i) => i.id)
+			.filter((id) => id !== selfPersonId)
 	);
 }
 
@@ -192,9 +197,10 @@ export function maskRows(
 	rows: TreeRows,
 	cutoff: string,
 	shouldShowStructure: boolean,
-	creatorId: string | null = null
+	creatorId: string | null = null,
+	selfPersonId: string | null = null
 ): MaskedRows {
-	const hidden = privatePeople(rows, cutoff, creatorId);
+	const hidden = privatePeople(rows, cutoff, creatorId, selfPersonId);
 	const unionsWithHiddenPartner = new Set(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
@@ -312,13 +318,20 @@ export interface MaskScope {
 	isRestricted: boolean;
 	cutoff: string;
 	creatorId: string | null;
+	selfPersonId: string | null;
 	shouldShowPrivateStructure: boolean;
 }
 
 /** The rows as this viewer may see them: untouched for roles that see everyone, else masked as the tree is set to. */
 export function maskForScope(rows: TreeRows, scope: MaskScope): MaskedRows {
 	return scope.isRestricted
-		? maskRows(rows, scope.cutoff, scope.shouldShowPrivateStructure, scope.creatorId)
+		? maskRows(
+				rows,
+				scope.cutoff,
+				scope.shouldShowPrivateStructure,
+				scope.creatorId,
+				scope.selfPersonId
+			)
 		: { rows, placeholderIds: new Set() };
 }
 
@@ -327,7 +340,9 @@ export function maskForScope(rows: TreeRows, scope: MaskScope): MaskedRows {
  * could be written back (a planner) or that have no use for a placeholder (the quality report).
  */
 export function omitForScope(rows: TreeRows, scope: MaskScope): TreeRows {
-	return scope.isRestricted ? maskRows(rows, scope.cutoff, false, scope.creatorId).rows : rows;
+	return scope.isRestricted
+		? maskRows(rows, scope.cutoff, false, scope.creatorId, scope.selfPersonId).rows
+		: rows;
 }
 
 /**
@@ -341,7 +356,7 @@ export function requireVisibleSubject(
 	scope: MaskScope
 ): MaskedRows {
 	const hidden = scope.isRestricted
-		? privatePeople(window.rows, scope.cutoff, scope.creatorId)
+		? privatePeople(window.rows, scope.cutoff, scope.creatorId, scope.selfPersonId)
 		: new Set<string>();
 	for (const id of typeof personIds === 'string' ? [personIds] : personIds)
 		if (!window.foundStartIds.includes(id) || hidden.has(id)) throw new NotFoundError('Person', id);

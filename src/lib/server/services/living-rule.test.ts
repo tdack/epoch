@@ -107,7 +107,7 @@ describe('the SQL predicate and the pure rule', () => {
 		['without a recent-death window', CUTOFF, 0],
 		['with a 20-year window', WINDOW_CUTOFF, 1]
 	] as const)('agree for every fixture person %s', async (_name, cutoff, column) => {
-		const scope = { isRestricted: true, cutoff, creatorId: null };
+		const scope = { isRestricted: true, cutoff, creatorId: null, selfPersonId: null };
 		const visible = await visibleAmong(t.db, treeId, Object.keys(VISIBLE).map(idOf), scope);
 		for (const [xref, expected] of Object.entries(VISIBLE)) {
 			const id = idOf(xref);
@@ -129,7 +129,8 @@ describe('the SQL predicate and the pure rule', () => {
 		const counts = await visibleCounts(t.db, treeId, {
 			isRestricted: true,
 			cutoff: CUTOFF,
-			creatorId: null
+			creatorId: null,
+			selfPersonId: null
 		});
 		expect(counts.unions).toBe(1);
 	});

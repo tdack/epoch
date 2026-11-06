@@ -17,7 +17,12 @@ afterAll(async () => {
 });
 
 /** Restricted, with a creator: the scope that binds the most parameters beside the id list. */
-const RESTRICTED = { isRestricted: true, cutoff: '1906-10-01', creatorId: 'someone' };
+const RESTRICTED = {
+	isRestricted: true,
+	cutoff: '1906-10-01',
+	creatorId: 'someone',
+	selfPersonId: null
+};
 const PEOPLE = 450;
 const PARIS = 300;
 

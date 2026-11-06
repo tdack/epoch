@@ -162,7 +162,8 @@ describe('chunked reads that carry the visibility fragment stay under the D1 par
 			new EvidenceRepository(t.db).visibleCitationCounts(treeA, sourceIds, {
 				isRestricted: true,
 				cutoff: '1906-10-01',
-				creatorId: 'a-contributor'
+				creatorId: 'a-contributor',
+				selfPersonId: null
 			})
 		).resolves.toBeInstanceOf(Map);
 	});

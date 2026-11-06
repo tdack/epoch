@@ -19,7 +19,8 @@ const D1_PARAM_LIMIT = 100;
 const RESTRICTED_CREATOR = {
 	isRestricted: true,
 	cutoff: '1906-10-01',
-	creatorId: 'a-contributor'
+	creatorId: 'a-contributor',
+	selfPersonId: null
 };
 
 /** A database that records each statement the repository would send and returns no rows. */

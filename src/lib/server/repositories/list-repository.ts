@@ -13,7 +13,7 @@ import type { ViewerScope } from '../services/tree-access';
 import { andInLens, andUnionInLens } from './subtree-membership';
 import { andVisible, isVisibleOf } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>;
 
 export interface PageRequest {
 	offset: number;

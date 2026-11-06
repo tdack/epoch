@@ -154,7 +154,12 @@ describe('inSubtree', () => {
 		const { treeId, id } = await build(['root', 'kid'], [{ parent: 'root', child: 'kid' }]);
 		await t.db.run(sql`update individuals set privacy = 'private' where id = ${id('kid')}`);
 		await t.db.run(sql`update individuals set privacy = 'public' where id = ${id('root')}`);
-		const viewer = { isRestricted: true, cutoff: '1906-10-01', creatorId: null };
+		const viewer = {
+			isRestricted: true,
+			cutoff: '1906-10-01',
+			creatorId: null,
+			selfPersonId: null
+		};
 		const statement = sql`select i.given_name as name from individuals i where i.tree_id = ${treeId}${inSubtree('i', treeId, id('root'))}${andVisible('i', viewer)}`;
 		const { sql: text, params } = dialect.sqlToQuery(statement);
 		const rows = await t.d1

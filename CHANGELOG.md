@@ -15,6 +15,9 @@ it summarises themes rather than listing every commit. Decisions and their reaso
 
 ### Changed
 
+- **Members see their own record.** A viewer or contributor linked to their person in the tree now
+  sees that person even while living or marked private. Their living relatives stay hidden, and
+  seeing the record does not let them edit it.
 - **Overview tab** leads with the family: your starting person and your work, then Jump back in
   and Coming up, which now holds today's birthdays, anniversaries and remembrances, with
   statistics last. It says how many people have a dated birth and links to the data-quality

@@ -62,7 +62,7 @@ export async function lensCounts(
 	db: DbClient,
 	treeId: string,
 	rootPersonId: string,
-	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
+	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>
 ): Promise<{ people: number; unions: number }> {
 	const allPartnersVisible = scope.isRestricted
 		? sql` and not exists (select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = u.id and not ${isVisibleOf('p', scope)})`

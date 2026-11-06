@@ -17,7 +17,12 @@ afterAll(async () => {
 });
 
 const dialect = new SQLiteSyncDialect();
-const VIEWER = { isRestricted: true, cutoff: '1906-10-01', creatorId: null as string | null };
+const VIEWER = {
+	isRestricted: true,
+	cutoff: '1906-10-01',
+	creatorId: null as string | null,
+	selfPersonId: null as string | null
+};
 const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor' };
 
 async function measure(statement: SQL) {
