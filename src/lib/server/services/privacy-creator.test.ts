@@ -185,7 +185,7 @@ describe('a person with no dated fact, created by a contributor', () => {
 
 	it('agrees between the SQL predicate and the pure rule', async () => {
 		const creatorId = actors.contributor.context.user.id;
-		const scope = { isRestricted: true, cutoff: '1906-10-01', creatorId };
+		const scope = { isRestricted: true, cutoff: '1906-10-01', creatorId, selfPersonId: null };
 		const seen = await visibleAmong(t.db, treeId, [NEWKID, parentId], scope);
 		expect(seen.has(NEWKID)).toBe(true);
 		const rows = await new (await import('../repositories/change-store')).ChangeStore(
@@ -194,7 +194,13 @@ describe('a person with no dated fact, created by a contributor', () => {
 		expect(privatePeople(rows, scope.cutoff, creatorId).has(NEWKID)).toBe(false);
 		expect(privatePeople(rows, scope.cutoff, null).has(NEWKID)).toBe(true);
 		expect(
-			(await visibleAmong(t.db, treeId, [NEWKID], { ...scope, creatorId: null })).has(NEWKID)
+			(
+				await visibleAmong(t.db, treeId, [NEWKID], {
+					...scope,
+					creatorId: null,
+					selfPersonId: null
+				})
+			).has(NEWKID)
 		).toBe(false);
 	});
 

@@ -49,15 +49,22 @@ function dayLiteral(day: string): SQL {
 
 const DEATH_TYPES_SQL = literalList(DEATH_EVENT_TYPES);
 
-type Viewer = Pick<ViewerScope, 'cutoff' | 'creatorId'>;
+type Viewer = Pick<ViewerScope, 'cutoff' | 'creatorId' | 'selfPersonId'>;
 
 /**
  * A person row is visible: not forced private, and either forced public, created by this viewer, or
  * shown not to be living (a death, or any fact that ended before the cutoff) and not recently
  * dead. The creator test comes first so a contributor's own people cost no event
- * lookups.
+ * lookups. The member's own person is visible before any of that, even when marked private.
  */
-function isVisibleSql(alias: string, { cutoff, creatorId }: Viewer): SQL {
+function isVisibleSql(alias: string, viewer: Viewer): SQL {
+	const rule = livingRuleSql(alias, viewer);
+	return viewer.selfPersonId === null
+		? rule
+		: sql`(${ident(alias)}.id is ${viewer.selfPersonId} or ${rule})`;
+}
+
+function livingRuleSql(alias: string, { cutoff, creatorId }: Viewer): SQL {
 	const person = ident(alias);
 	// The public tree shows every person not marked private; see `EVERYONE_SHOWN_CUTOFF`.
 	if (cutoff === EVERYONE_SHOWN_CUTOFF) return sql`(${person}.privacy != 'private')`;
@@ -93,7 +100,7 @@ export function isVisibleOf(alias: string, scope: Viewer): SQL {
  */
 export function andVisible(
 	alias: string,
-	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
+	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>
 ): SQL {
 	return scope.isRestricted ? sql` and ${isVisibleSql(alias, scope)}` : sql``;
 }
@@ -101,13 +108,13 @@ export function andVisible(
 /**
  * Which of these people exist in the tree and the viewer may see: a private person is exactly as
  * absent as a missing one. Ids are chunked under D1's bound-parameter cap; the tree id and the
- * restricted-scope cutoff and creator add three more, which the chunk size leaves room for.
+ * restricted-scope creator and own person add three more, which the chunk size leaves room for.
  */
 export async function visibleAmong(
 	db: DbClient,
 	treeId: string,
 	personIds: readonly string[],
-	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
+	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>
 ): Promise<Set<string>> {
 	const visible = new Set<string>();
 	for (const part of chunkIds([...new Set(personIds)])) {
@@ -123,7 +130,7 @@ export async function visibleAmong(
 	return visible;
 }
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>;
 
 /** The header counts a restricted viewer may see: visible people, and partnerships whose every partner is visible (as in the list). */
 export async function visibleCounts(

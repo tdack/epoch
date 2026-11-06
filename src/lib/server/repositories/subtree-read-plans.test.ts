@@ -40,8 +40,13 @@ afterAll(async () => {
 });
 
 const dialect = new SQLiteSyncDialect();
-const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
-const VIEWER = { isRestricted: true, cutoff: '1906-10-01', creatorId: null as string | null };
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null, selfPersonId: null };
+const VIEWER = {
+	isRestricted: true,
+	cutoff: '1906-10-01',
+	creatorId: null as string | null,
+	selfPersonId: null as string | null
+};
 const page = { offset: 0, limit: 50 };
 
 async function measure(statement: SQL) {

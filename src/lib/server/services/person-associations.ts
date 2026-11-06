@@ -32,7 +32,7 @@ export async function personAssociations(
 	ownFacts: readonly EventRow[],
 	unionIds: readonly string[],
 	graph: RelationshipGraph,
-	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
+	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>
 ): Promise<AssociationDto[]> {
 	const store = new AssociationRepository(repo.client);
 	const mine = new Set([self.xrefId, ...(self.xrefAliases ?? [])].filter((x) => x !== null));

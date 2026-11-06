@@ -16,7 +16,7 @@ import { andInLens, andUnionInLens } from './subtree-membership';
 import { likePattern } from './like-pattern';
 import { andVisible, isVisibleOf, literalList } from './visibility';
 
-export type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
+export type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>;
 
 export interface PlaceFactRow {
 	id: string;
@@ -50,7 +50,7 @@ const RESIDENCE_EVENT_TYPES = ['RESI', 'CENS'] as const;
 
 /** ` and <not a living person's home>` over `events e` and `individuals i`; the rule ignores the viewer. */
 function andNotLivingHome(scope: Scope): SQL {
-	return sql` and (e.type not in (${literalList(RESIDENCE_EVENT_TYPES)}) or ${isVisibleOf('i', { cutoff: scope.cutoff, creatorId: null })})`;
+	return sql` and (e.type not in (${literalList(RESIDENCE_EVENT_TYPES)}) or ${isVisibleOf('i', { cutoff: scope.cutoff, creatorId: null, selfPersonId: null })})`;
 }
 
 /**

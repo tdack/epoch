@@ -56,7 +56,7 @@ export class PlaceMatchRepository {
 	 * a cap drops the ones that matter least. Text that is not geocodable is filtered by the caller.
 	 */
 	async matchablePlaces(treeId: string, cutoff: string): Promise<MatchablePlace[]> {
-		const scope: Scope = { isRestricted: true, cutoff, creatorId: null };
+		const scope: Scope = { isRestricted: true, cutoff, creatorId: null, selfPersonId: null };
 		return this.db.all<MatchablePlace>(sql`
 			select f.place_id as id, min(f.place) as name, count(*) as facts
 			from (${visibleFacts(treeId, scope, sql`${hasNoLocation}${hasNoAddress}`, null)}) f

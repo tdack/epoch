@@ -15,7 +15,7 @@ import type { ViewerScope } from '../services/tree-access';
 import { likePattern } from './like-pattern';
 import { andNoteAttachmentVisible, andNoteVisible, withVisibleNoteScope } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>;
 
 export interface PageRequest {
 	offset: number;

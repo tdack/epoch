@@ -210,7 +210,12 @@ describe('the public tree as a visitor sees it', () => {
 	});
 
 	it('is the same rule in SQL and in the pure function', async () => {
-		const scope = { isRestricted: true, cutoff: EVERYONE_SHOWN_CUTOFF, creatorId: null };
+		const scope = {
+			isRestricted: true,
+			cutoff: EVERYONE_SHOWN_CUTOFF,
+			creatorId: null,
+			selfPersonId: null
+		};
 		const ids = ['@I1@', '@I2@', '@I3@', '@I4@'].map(idOf);
 		const visible = await visibleAmong(t.db, firstId, ids, scope);
 		for (const xref of ['@I1@', '@I2@', '@I3@', '@I4@']) {

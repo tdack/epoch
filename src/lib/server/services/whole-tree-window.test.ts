@@ -152,7 +152,8 @@ describe.each([false, true])('a restricted viewer, placeholders %s', (hasPlaceho
 		const scope = {
 			cutoff: new Date(NOW.getTime() - 100 * 365.25 * 24 * 3600 * 1000).toISOString(),
 			shouldShowPrivateStructure: hasPlaceholders,
-			creatorId: null
+			creatorId: null,
+			selfPersonId: null
 		};
 		const repo = new GraphWindowRepository(t.db);
 		const asViewer = await loadWholeTreeWindow(repo, treeId, scope, visibleCount);

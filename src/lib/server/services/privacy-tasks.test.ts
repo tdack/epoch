@@ -246,7 +246,8 @@ describe('the SQL and the row filters agree on what tasks a viewer sees', () => 
 		const scope = {
 			isRestricted: true,
 			cutoff: livingCutoff(NOW, 110),
-			creatorId: role === 'contributor' ? actors.contributor.userId : null
+			creatorId: role === 'contributor' ? actors.contributor.userId : null,
+			selfPersonId: null
 		};
 		const masked = maskRows(rows, scope.cutoff, false, scope.creatorId).rows;
 		const repo = new TaskRepository(t.db);

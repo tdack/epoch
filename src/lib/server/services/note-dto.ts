@@ -59,7 +59,7 @@ export async function loadNoteDtos(
 	repo: NoteRepository,
 	treeId: string,
 	attachments: NoteAttachmentRow[],
-	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
+	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'selfPersonId'>
 ): Promise<Map<string, NoteDto[]>> {
 	const sharedIds = attachments.flatMap((a) => (a.noteId ? [a.noteId] : []));
 	const [sharedRows, counts] = await Promise.all([

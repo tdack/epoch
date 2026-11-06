@@ -50,6 +50,8 @@ export interface TreeMembership {
 	treeId: string;
 	userId: string;
 	role: TreeRole;
+	/** The person this member is in the tree, if linked (ADR-075); no foreign key, so it may be stale. */
+	selfPersonId: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 }

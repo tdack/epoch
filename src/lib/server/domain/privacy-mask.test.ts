@@ -120,6 +120,7 @@ const scopeOf = (overrides: Partial<MaskScope> = {}): MaskScope => ({
 	isRestricted: true,
 	cutoff: CUTOFF,
 	creatorId: null,
+	selfPersonId: null,
 	shouldShowPrivateStructure: false,
 	...overrides
 });

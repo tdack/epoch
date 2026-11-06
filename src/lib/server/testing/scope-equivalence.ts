@@ -54,6 +54,7 @@ const BASE_SCOPE: ViewerScope = {
 	isOutsider: false,
 	userId: 'user-1',
 	creatorId: null,
+	selfPersonId: null,
 	isRestricted: false,
 	cutoff: '1950-01-01',
 	shouldShowPrivateStructure: false
