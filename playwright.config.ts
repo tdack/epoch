@@ -29,7 +29,9 @@ export default defineConfig({
 	},
 	projects: [{ name: 'chrome', use: { channel: 'chrome' } }],
 	webServer: {
-		command: `npm run dev -- --port ${PORT} --strictPort`,
+		// A local D1 behind the migrations answers every request 503, which Playwright only reports as
+		// a startup timeout; migrating first is a no-op when it is current.
+		command: `npm run db:migrate:local && npm run dev -- --port ${PORT} --strictPort`,
 		url: `http://localhost:${PORT}`,
 		reuseExistingServer: true,
 		timeout: 120_000
