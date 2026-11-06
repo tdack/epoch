@@ -2,7 +2,6 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 import { eq } from 'drizzle-orm';
 import type { WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { EXPECTED_MIGRATIONS } from '../db/schema-status';
 import { individuals } from '../db/schema';
 import { ImportJobService } from '../services/import-job-service';
 import {
@@ -36,14 +35,6 @@ const REPLACEMENT = '0 HEAD\n0 @I1@ INDI\n1 NAME Solo /Fox/\n0 TRLR';
 let t: TestDatabase;
 beforeAll(async () => {
 	t = await createTestDatabase();
-	await t.d1
-		.prepare(
-			'CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)'
-		)
-		.run();
-	for (const name of EXPECTED_MIGRATIONS) {
-		await t.d1.prepare('INSERT OR IGNORE INTO d1_migrations (name) VALUES (?)').bind(name).run();
-	}
 });
 afterAll(async () => {
 	await t.dispose();

@@ -98,9 +98,9 @@ These are the highest-value things to remember and are all established in the pl
   by `@typescript-eslint/naming-convention` (type-aware, in `eslint.config.js`) for variables,
   parameters and declared properties; object-literal options of platform APIs are exempt. It cannot
   see D1 columns, so apply the same by hand there.
-- **Colocate `*.test.ts` beside the source.** Vitest for units/integration; service
-  and repository tests get a real D1 from wrangler's `getPlatformProxy` (`server/testing/d1.ts`);
-  Playwright for e2e, outside the push gate.
+- **Colocate `*.test.ts` beside the source.** Vitest for units/integration; a test that calls
+  `createTestDatabase()` (`server/testing/d1.ts`) runs inside workerd in the `d1` project, with its
+  own migrated D1 per file (ADR-083); Playwright for e2e, outside the push gate.
 - **Prettier:** `.git-blame-ignore-revs` hides the one-off reformat; run `git config
   blame.ignoreRevsFile .git-blame-ignore-revs` once per clone.
 - **ESLint** and **knip:** `npm run lint` runs the format check, ESLint and knip, and is the push gate. The choice of tools

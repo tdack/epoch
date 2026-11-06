@@ -1,7 +1,6 @@
 import type { WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
 import { afterAll, beforeAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { UnauthorizedError } from '../domain/errors';
-import { EXPECTED_MIGRATIONS } from '../db/schema-status';
 import { MATCH_PLACES_PER_STEP } from '../../shared/place-match';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { PlaceMatchService, type MatchSelection } from '../services/place-match-service';
@@ -27,14 +26,6 @@ vi.mock('./workflow-runtime', () => ({
 let t: TestDatabase;
 beforeAll(async () => {
 	t = await createTestDatabase();
-	await t.d1
-		.prepare(
-			'CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)'
-		)
-		.run();
-	for (const name of EXPECTED_MIGRATIONS) {
-		await t.d1.prepare('INSERT OR IGNORE INTO d1_migrations (name) VALUES (?)').bind(name).run();
-	}
 });
 afterAll(async () => {
 	await t.dispose();

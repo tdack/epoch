@@ -1,6 +1,7 @@
+/// <reference types="@cloudflare/vitest-plugin/types" />
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { getPlatformProxy } from 'wrangler';
+import { env } from 'cloudflare:test';
 import { treeMemberships } from '../db/schema';
 import type { R2Bucket, R2ListOptions } from '@cloudflare/workers-types';
 import { NotFoundError, PayloadTooLargeError, ValidationError } from '../domain/errors';
@@ -342,48 +343,40 @@ describe('UploadService.abort', () => {
 
 describe('against local R2 multipart', () => {
 	it('runs the whole lifecycle through the real binding', async () => {
-		const proxy = await getPlatformProxy<{ MEDIA_BUCKET: R2Bucket }>({
-			configPath: new URL('../../../../wrangler.jsonc', import.meta.url).pathname,
-			persist: false
-		});
-		try {
-			const real = proxy.env.MEDIA_BUCKET;
-			// Local R2 keeps R2's 5 MiB minimum part, and its binding refuses a Node stream of unknown
-			// length (no FixedLengthStream outside workerd), so the parts go in as buffers.
-			const FIVE_MIB = 5 * 1024 * 1024;
-			const total = FIVE_MIB + 10;
-			// Buffers the stream the service hands over, which is what the local binding will take.
-			const buffering = {
-				createMultipartUpload: (key: string) => real.createMultipartUpload(key),
-				head: (key: string) => real.head(key),
-				list: (options?: R2ListOptions) => real.list(options),
-				resumeMultipartUpload: (key: string, uploadId: string) => {
-					const upload = real.resumeMultipartUpload(key, uploadId);
-					return {
-						uploadPart: async (n: number, body: ReadableStream<Uint8Array>) =>
-							upload.uploadPart(n, await new Response(body).arrayBuffer()),
-						complete: (parts: Array<{ partNumber: number; etag: string }>) =>
-							upload.complete(parts),
-						abort: () => upload.abort()
-					};
-				}
-			} as unknown as R2Bucket;
-			const svc = new UploadService(t.db, buffering, { partSizeBytes: FIVE_MIB, now: () => clock });
-			const { sessionId } = await svc.create(media(total), owner.context);
-			const toStream = (bytes: Uint8Array) => new Response(bytes as BodyInit).body!;
-			await svc.putPart(sessionId, 2, 10, toStream(new Uint8Array(10).fill(2)), owner.context);
-			await svc.putPart(
-				sessionId,
-				1,
-				FIVE_MIB,
-				toStream(new Uint8Array(FIVE_MIB).fill(1)),
-				owner.context
-			);
-			const done = await svc.complete(sessionId, owner.context);
-			expect((await real.head(done.r2Key))?.size).toBe(total);
-		} finally {
-			await proxy.dispose();
-		}
+		const real = (env as unknown as { MEDIA_BUCKET: R2Bucket }).MEDIA_BUCKET;
+		// Local R2 keeps R2's 5 MiB minimum part, and its binding refuses a stream of unknown
+		// length; the route wraps the body in a fixed-length stream and the service does not, so
+		// the parts go in as buffers.
+		const FIVE_MIB = 5 * 1024 * 1024;
+		const total = FIVE_MIB + 10;
+		// Buffers the stream the service hands over, which is what the local binding will take.
+		const buffering = {
+			createMultipartUpload: (key: string) => real.createMultipartUpload(key),
+			head: (key: string) => real.head(key),
+			list: (options?: R2ListOptions) => real.list(options),
+			resumeMultipartUpload: (key: string, uploadId: string) => {
+				const upload = real.resumeMultipartUpload(key, uploadId);
+				return {
+					uploadPart: async (n: number, body: ReadableStream<Uint8Array>) =>
+						upload.uploadPart(n, await new Response(body).arrayBuffer()),
+					complete: (parts: Array<{ partNumber: number; etag: string }>) => upload.complete(parts),
+					abort: () => upload.abort()
+				};
+			}
+		} as unknown as R2Bucket;
+		const svc = new UploadService(t.db, buffering, { partSizeBytes: FIVE_MIB, now: () => clock });
+		const { sessionId } = await svc.create(media(total), owner.context);
+		const toStream = (bytes: Uint8Array) => new Response(bytes as BodyInit).body!;
+		await svc.putPart(sessionId, 2, 10, toStream(new Uint8Array(10).fill(2)), owner.context);
+		await svc.putPart(
+			sessionId,
+			1,
+			FIVE_MIB,
+			toStream(new Uint8Array(FIVE_MIB).fill(1)),
+			owner.context
+		);
+		const done = await svc.complete(sessionId, owner.context);
+		expect((await real.head(done.r2Key))?.size).toBe(total);
 	}, 60_000);
 });
 

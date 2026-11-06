@@ -1,6 +1,15 @@
 import type { MessageBatch, R2Bucket } from '@cloudflare/workers-types';
 import { and, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+	type MockInstance
+} from 'vitest';
 import { individuals, treeMemberships } from '../db/schema';
 import { MAX_STAGED_BYTES } from '../gedcom/limits';
 import {
@@ -12,9 +21,6 @@ import {
 } from '../testing/d1';
 import { GedcomService, type ImportQueueMessage } from '../services/gedcom-service';
 import consumer from './import-consumer';
-
-// The real check reads Wrangler's bookkeeping table, which the test database never fills.
-vi.mock('../db/schema-status', () => ({ assertSchemaCurrent: async () => {} }));
 
 const FILE = '0 HEAD\n0 @I1@ INDI\n1 NAME Ann /Fox/\n0 @I2@ INDI\n1 NAME Ben /Fox/\n0 TRLR';
 const REPLACEMENT = '0 HEAD\n0 @I1@ INDI\n1 NAME Solo /Fox/\n0 TRLR';
@@ -28,8 +34,10 @@ beforeAll(async () => {
 afterAll(async () => {
 	await t.dispose();
 });
+// Kept as a reference: in workerd, reading `console.warn` back does not return the spy.
+let warn: MockInstance<typeof console.warn>;
 beforeEach(() => {
-	vi.spyOn(console, 'warn').mockImplementation(() => {});
+	warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -96,8 +104,8 @@ describe('import queue consumer', () => {
 
 		expect(q.message.ack).toHaveBeenCalledTimes(1);
 		expect(q.message.retry).not.toHaveBeenCalled();
-		expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(q.treeId));
-		expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(q.editor.userId));
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining(q.treeId));
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining(q.editor.userId));
 		expect(await q.countPeople()).toBe(2);
 		// Nothing else would ever remove a refused user's upload from the bucket.
 		expect(q.objects.has(q.key)).toBe(false);
@@ -138,7 +146,7 @@ describe('import queue consumer', () => {
 
 		expect(q.message.ack).toHaveBeenCalledTimes(1);
 		expect(q.message.retry).not.toHaveBeenCalled();
-		expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('too large'));
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('too large'));
 		expect(await q.countPeople()).toBe(2);
 		expect(q.objects.has(q.key)).toBe(false);
 	});
