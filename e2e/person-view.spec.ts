@@ -19,7 +19,7 @@ test('a fact and a name are edited from the drawer, and the drawer shows the res
 	// Facts is open by default.
 	await drawer.getByRole('button', { name: 'Edit Birth' }).click();
 	const edit = page.getByRole('dialog', { name: 'Edit fact' });
-	await edit.getByLabel('Place').fill('York');
+	await edit.getByLabel('Place', { exact: true }).fill('York');
 	await edit.getByRole('button', { name: 'Save fact' }).click();
 	await expect(edit).toBeHidden();
 	await expect(drawer.getByTestId('fact')).toContainText('York');

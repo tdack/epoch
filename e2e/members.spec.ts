@@ -26,12 +26,11 @@ test('an owner invites an address, sees the offer waiting, and withdraws it', as
 test('the only owner cannot be removed or lowered', async ({ api, page }) => {
 	await open(page, `/trees/${api.treeId}/members`);
 	const me = page.getByTestId('member');
-	await me.getByRole('combobox').selectOption('viewer');
-	await me.getByRole('button', { name: 'Make viewer' }).click();
-	await expect(page.getByText('A tree must keep at least one owner')).toBeVisible();
-	await expect(me.getByRole('combobox')).toHaveValue('owner');
-	await me.getByRole('button', { name: 'Remove' }).click();
-	await me.getByRole('button', { name: 'Confirm remove' }).click();
-	await expect(page.getByText('A tree must keep at least one owner').first()).toBeVisible();
+	// The page offers neither; the server's own refusal is covered by the member-service tests.
+	const role = me.getByRole('combobox');
+	await expect(role).toHaveValue('owner');
+	for (const lower of ['manager', 'editor', 'contributor', 'viewer'])
+		await expect(role.getByRole('option', { name: lower })).toBeDisabled();
+	await expect(me.getByRole('button', { name: 'Remove' })).toHaveCount(0);
 	await expect(page.getByTestId('member')).toHaveCount(1);
 });

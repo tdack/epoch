@@ -42,12 +42,17 @@ test('places are listed once however their case varies, open onto their facts, a
 	await expect(page.getByTestId('place-name')).toHaveText('Cork, Ireland');
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(one.id)}`);
 	await page.getByRole('button', { name: 'Add fact' }).click();
-	await page.getByRole('dialog', { name: 'Add a fact' }).getByLabel('Place').fill('cork');
-	await expect(page.locator('#fact-place + datalist option')).toHaveCount(1);
-	await expect(page.locator('#fact-place + datalist option').first()).toHaveAttribute(
-		'value',
-		'Cork, Ireland'
-	);
+	await page
+		.getByRole('dialog', { name: 'Add a fact' })
+		.getByLabel('Place', { exact: true })
+		.fill('cork');
+	// OpenStreetMap's own suggestions follow when it answers in time; only the tree's are certain.
+	const suggestions = page
+		.getByRole('listbox', { name: 'Place suggestions' })
+		.getByRole('group', { name: 'In this tree' })
+		.getByRole('option');
+	await expect(suggestions).toHaveCount(1);
+	await expect(suggestions.first()).toContainText('Cork, Ireland');
 });
 
 test('a place is renamed, merged into another and put back with one undo each', async ({

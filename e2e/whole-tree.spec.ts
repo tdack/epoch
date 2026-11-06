@@ -80,8 +80,9 @@ test('the whole tree draws unconnected families, lights a line in place and leav
 	await expect(card('Max', 'Marrow')).toBeVisible();
 	await expect(card('Gran', 'Whole')).toBeVisible();
 
-	// A card there is the way in: it focuses that person and leaves the whole tree.
-	await card('Moe', 'Marrow').click();
+	// A card there is the way in: a double-click (one click only marks them) focuses that person and
+	// leaves the whole tree.
+	await card('Moe', 'Marrow').dblclick();
 	await expect(page).not.toHaveURL(/scope=all/);
 	await expect(page).toHaveURL(new RegExp(`focus=${moe.id}`));
 	await expect(flatWhole).toHaveAttribute('aria-pressed', 'false');

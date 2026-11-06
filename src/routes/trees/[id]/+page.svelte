@@ -407,7 +407,12 @@
 			recentreTargetId = id;
 		}
 		rememberFocus(id);
-		navigate({ focusId: id, personId: id }, { kind: HISTORY_KINDS.FOCUS });
+		// The flat whole tree lights no line, so opening a card there is the way in: it leaves (ADR-046).
+		const isLeavingWholeTree = isWholeTreeDrawn && mode === LAYOUT_MODES.FLAT;
+		navigate(
+			{ focusId: id, personId: id, ...(isLeavingWholeTree && { isWholeTree: false }) },
+			{ kind: HISTORY_KINDS.FOCUS }
+		);
 	}
 
 	function openProfile(id: string) {

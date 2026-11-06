@@ -10,8 +10,8 @@ test('changing one parent’s link to adoptive previews the change, leaves the o
 		await api.addPerson('Cal')
 	];
 	await api.partner(a, b);
+	// Adding a child to one partner adds the other as a parent too.
 	await api.child(a, c);
-	await api.parent(c, b);
 	await openTree(page, api, c);
 
 	await card(page, 'Cal').focus();

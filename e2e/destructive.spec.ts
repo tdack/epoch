@@ -31,13 +31,13 @@ test('deleting a person lists exactly what goes and needs confirmation', async (
 	await dialog.getByRole('button', { name: 'Delete person' }).click();
 
 	await expect(page.getByRole('status').filter({ hasText: 'Deleted John Smith' })).toBeVisible();
-	// Jane and Sam are no longer connected, so each is its own window.
+	// Sam was added as the child of both partners, so Jane's own link to Sam stays.
 	expect((await api.counts()).people).toBe(2);
-	for (const person of [jane, sam]) {
-		const graph = await api.graph(person.id);
-		expect(graph.people.map((p) => p.displayName)).toEqual([`${person.givenName} Smith`]);
-		expect(graph.parentChild).toEqual([]);
-	}
+	const graph = await api.graph(jane.id);
+	expect(graph.people.map((p) => p.displayName).sort()).toEqual(['Jane Smith', 'Sam Smith']);
+	expect(graph.parentChild).toEqual([
+		expect.objectContaining({ parentId: jane.id, childId: sam.id })
+	]);
 });
 
 test('removing a single parent link through the popover leaves the other parent', async ({
@@ -50,8 +50,8 @@ test('removing a single parent link through the popover leaves the other parent'
 		await api.addPerson('Cal')
 	];
 	await api.partner(a, b);
+	// Adding a child to one partner adds the other as a parent too.
 	await api.child(a, c);
-	await api.parent(c, b);
 	await openTree(page, api, c);
 
 	await card(page, 'Cal').focus();

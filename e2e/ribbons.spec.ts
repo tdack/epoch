@@ -5,7 +5,7 @@
  */
 import { activate, clickPick, expect, open, pickPoint, test } from './support';
 
-test('ribbons opens from the address, names the focus line and refocuses on a click in the scene', async ({
+test('ribbons opens from the address, names the focus line and refocuses on a double-click in the scene', async ({
 	api,
 	page
 }) => {
@@ -16,8 +16,8 @@ test('ribbons opens from the address, names the focus line and refocuses on a cl
 	const sib = await api.addPerson('Sib', 'Ribbons', { birthDate: '1962' });
 	await api.child(gran, mum);
 	await api.partner(mum, dad);
-	await api.child(mum, me);
-	await api.child(mum, sib);
+	await api.soleChild(mum, me, dad);
+	await api.soleChild(mum, sib, dad);
 
 	const view = page.getByRole('group', { name: 'Ribbons view' });
 	const name = (given: string) =>
@@ -56,7 +56,7 @@ test('ribbons opens from the address, names the focus line and refocuses on a cl
 		);
 		const box = (await name('Gran').boundingBox())!;
 		// The name sits 10px above its node's centre.
-		await page.mouse.click(box.x + box.width / 2, box.y + box.height + 10);
+		await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height + 10);
 		await expect(page).toHaveURL(new RegExp(`focus=${gran.id}`), { timeout: 2000 });
 	}).toPass({ timeout: 15000 });
 	await expect(page).toHaveURL(/mode=ribbons/);
@@ -76,10 +76,10 @@ async function family(api: Parameters<Parameters<typeof test>[2]>[0]['api'], tag
 	const me = await api.addPerson('Me', tag);
 	const sib = await api.addPerson('Sib', tag);
 	await api.partner(gran, gran2);
-	await api.child(gran, mum);
+	await api.soleChild(gran, mum, gran2);
 	await api.partner(mum, dad);
-	await api.child(mum, me);
-	await api.child(mum, sib);
+	await api.soleChild(mum, me, dad);
+	await api.soleChild(mum, sib, dad);
 	const graph = await api.graph(me.id);
 	const unionOf = (a: { id: string }, b: { id: string }) =>
 		graph.unions.find((u) => u.partnerIds.includes(a.id) && u.partnerIds.includes(b.id))!.id;

@@ -17,8 +17,8 @@ test('rings opens from the toolbar, asks for more generations, and refocuses fro
 	const kid = await api.addPerson('Kid', 'Rings', { birthDate: '1990' });
 	await api.child(gran, mum);
 	await api.partner(mum, dad);
-	await api.child(mum, me);
-	await api.child(mum, sib);
+	await api.soleChild(mum, me, dad);
+	await api.soleChild(mum, sib, dad);
 	await api.child(me, kid);
 
 	const mode = (name: string) =>
@@ -45,8 +45,10 @@ test('rings opens from the toolbar, asks for more generations, and refocuses fro
 	await rings.getByRole('button', { name: 'All names' }).click();
 	await expect(name('Sib')).toBeVisible();
 
-	// A name refocuses the rings on that person; Shift+Enter opens their details.
-	await name('Kid').click();
+	// A click on a name only lights their line; a double-click refocuses the rings on them, and
+	// Shift+Enter opens their details. A name follows the turning rings and is never still long enough
+	// to be clicked by position, so the double-click goes to the name itself.
+	await name('Kid').dispatchEvent('dblclick');
 	await expect(page).toHaveURL(new RegExp(`focus=${kid.id}`));
 	await expect(page).toHaveURL(/mode=rings/);
 	await name('Mum').focus();
@@ -89,7 +91,7 @@ test('rings opens from the toolbar, asks for more generations, and refocuses fro
 		);
 		const box = (await name('Gran').boundingBox())!;
 		// The name sits 10px above its sphere's centre.
-		await page.mouse.click(box.x + box.width / 2, box.y + box.height + 10);
+		await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height + 10);
 		await expect(page).toHaveURL(new RegExp(`focus=${gran.id}`), { timeout: 2000 });
 	}).toPass({ timeout: 15000 });
 
@@ -129,9 +131,9 @@ test('clearing the highlight keeps everyone in place, and a name or the switch l
 	await page.keyboard.press('Escape');
 	await expect(focusLine).toHaveAttribute('aria-pressed', 'false');
 
-	// "All names" still reaches everyone, and a name refocuses and lights the line.
+	// "All names" still reaches everyone, and a double-click on a name refocuses and lights the line.
 	await rings.getByRole('button', { name: 'All names' }).click();
-	await name('Mum').click();
+	await name('Mum').dblclick();
 	await expect(page).toHaveURL(new RegExp(`focus=${mum.id}`));
 	await expect(focusLine).toHaveAttribute('aria-pressed', 'true');
 });
@@ -145,10 +147,10 @@ async function family(api: Parameters<Parameters<typeof test>[2]>[0]['api'], tag
 	const me = await api.addPerson('Me', tag);
 	const sib = await api.addPerson('Sib', tag);
 	await api.partner(gran, gran2);
-	await api.child(gran, mum);
+	await api.soleChild(gran, mum, gran2);
 	await api.partner(mum, dad);
-	await api.child(mum, me);
-	await api.child(mum, sib);
+	await api.soleChild(mum, me, dad);
+	await api.soleChild(mum, sib, dad);
 	const graph = await api.graph(me.id);
 	const unionOf = (a: { id: string }, b: { id: string }) =>
 		graph.unions.find((u) => u.partnerIds.includes(a.id) && u.partnerIds.includes(b.id))!.id;

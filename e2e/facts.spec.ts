@@ -14,7 +14,7 @@ test('a person keeps two conflicting births, edits one, and undo restores it', a
 	const dialog = page.getByRole('dialog', { name: 'Add a fact' });
 	await dialog.getByLabel('Type', { exact: true }).selectOption('BIRT');
 	await dialog.getByRole('textbox', { name: 'Date' }).fill('5 MAR 1900');
-	await dialog.getByLabel('Place').fill('Hull');
+	await dialog.getByLabel('Place', { exact: true }).fill('Hull');
 	await expect(dialog.getByText('Added Birth of Wren Ash')).toBeVisible();
 	await dialog.getByRole('button', { name: 'Add fact', exact: true }).click();
 	await expect(dialog).toBeHidden();
@@ -29,7 +29,7 @@ test('a person keeps two conflicting births, edits one, and undo restores it', a
 	// Edit only the second; the first stays exactly as it was.
 	await facts.nth(1).getByRole('button', { name: 'Edit Birth' }).click();
 	const edit = page.getByRole('dialog', { name: 'Edit fact' });
-	await edit.getByLabel('Place').fill('York');
+	await edit.getByLabel('Place', { exact: true }).fill('York');
 	await expect(edit.getByText('Changed Birth of Wren Ash')).toBeVisible();
 	await edit.getByRole('button', { name: 'Save fact' }).click();
 	await expect(edit).toBeHidden();
@@ -146,7 +146,7 @@ test('a fact keeps its address and agency, and an edit to the address is undone'
 	await page.getByRole('button', { name: 'Add fact' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Add a fact' });
 	await dialog.getByLabel('Type', { exact: true }).selectOption('BIRT');
-	await dialog.getByLabel('Place').fill('Hull');
+	await dialog.getByLabel('Place', { exact: true }).fill('Hull');
 	await dialog.locator('summary', { hasText: 'Details' }).click();
 	await dialog.getByLabel('Address').fill('12 High St\nHull');
 	await dialog.getByLabel('Agency').fill('Parish of St Mary');

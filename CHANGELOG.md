@@ -34,6 +34,12 @@ it summarises themes rather than listing every commit. Decisions and their reaso
 - **Person page map** plots the places of the Life timeline: the person's events and their
   partnerships' marriages and other events. Attributes such as occupation and residence no longer
   get pins.
+- **Double-clicks in the tree work again.** In the 3D views, a double-click on a person focuses
+  them even when the first click's lit line lands under the pointer. In the flat whole tree, a
+  double-click on a card focuses them and leaves the whole tree. The flat view's narrow poster
+  button meets WCAG 2.2's 24-pixel minimum target size.
+- **File uploads work under `npm run dev`.** The local R2 binding refused streamed parts, so dev
+  now buffers each part; the deployed Worker still streams.
 
 ## 2026-10-26 to 2026-11-01: Reports, maps, large imports and GEDZip with media
 

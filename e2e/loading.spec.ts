@@ -27,7 +27,8 @@ test('choosing a person shows a loading badge until the new view is drawn', asyn
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 		await route.continue();
 	});
-	await card('Kit').click();
+	// A double-click refocuses; one click only highlights.
+	await card('Kit').dblclick();
 	await expect(badge).toBeVisible();
 	await expect(badge).toHaveCount(0);
 	await expect(card('Kit')).toHaveAttribute('aria-label', /focus person/);

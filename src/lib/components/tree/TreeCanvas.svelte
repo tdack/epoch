@@ -936,6 +936,8 @@
 	}
 	.poster.narrow {
 		padding-inline: 0.25rem;
+		/* The icon and padding alone come to 22px; WCAG 2.2's minimum target is 24px. */
+		min-width: 1.5rem;
 	}
 	.poster:disabled {
 		cursor: progress;

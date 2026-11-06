@@ -28,6 +28,14 @@
 		const rendered = (page.data as { timeZone?: string }).timeZone;
 		if (rendered && rendered !== zone) void invalidateAll();
 	});
+
+	// Pages are rendered on the server, so a button can be seen before it works. This marks the
+	// moment the page is interactive, for tests and for anything that must not click early; the root
+	// layout mounts after every page and layout below it.
+	onMount(() => {
+		document.body.dataset.hydrated = '';
+		return () => delete document.body.dataset.hydrated;
+	});
 </script>
 
 <svelte:head>

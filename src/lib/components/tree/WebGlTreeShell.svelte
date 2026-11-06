@@ -444,20 +444,23 @@
 			return;
 		}
 		const previous = lastHit;
+		const now = performance.now();
 		lastHit =
 			target?.kind === 'person'
-				? { id: target.id, x: event.clientX, y: event.clientY, at: performance.now() }
+				? { id: target.id, x: event.clientX, y: event.clientY, at: now }
 				: null;
 		// The browser's own dblclick is not reliable on a canvas that captures the pointer to orbit,
-		// so two clicks on the same person in quick succession are counted here too.
+		// so two clicks on the same spot in quick succession are counted here too. The first click
+		// lights the person's line, which the second one's pick can then land on instead; the
+		// first click's hit says who was meant.
 		if (
-			lastHit &&
-			previous?.id === lastHit.id &&
-			lastHit.at - previous.at < DOUBLE_CLICK_MS &&
-			Math.hypot(lastHit.x - previous.x, lastHit.y - previous.y) <= CLICK_SLOP_PX
+			previous &&
+			(target?.kind !== 'person' || target.id === previous.id) &&
+			now - previous.at < DOUBLE_CLICK_MS &&
+			Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <= CLICK_SLOP_PX
 		) {
 			lastHit = null;
-			openPerson(target!.id);
+			openPerson(previous.id);
 			return;
 		}
 		if (target) activate(target);
