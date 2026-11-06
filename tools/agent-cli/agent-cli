@@ -431,11 +431,12 @@ const commands = {
 		help: 'uses <Name|path-fragment>\n  Who imports a component/module: files whose import lines mention it (tests excluded unless --tests).',
 		run() {
 			const withTests = has('--tests');
-			const name = args[0];
+			// Imports name a module with or without `.js`/`.ts`; matching the bare stem finds both.
+			const name = args[0]?.replace(/\.(js|ts|svelte)$/, '');
 			if (!name) throw new Error('uses needs a name');
 			const r = sh('grep', [
 				'-rlE',
-				`(import|from).*['"/]${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\.svelte|\\.ts)?['"]`,
+				`(import|from).*['"/]${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\.svelte|\\.ts|\\.js)?['"]`,
 				'src',
 				'e2e',
 				'workers',
