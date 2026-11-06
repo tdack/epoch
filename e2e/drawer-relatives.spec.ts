@@ -7,8 +7,8 @@ async function family(api: Api) {
 	const dad = await api.addPerson('Dan', 'Marsh');
 	const kid = await api.addPerson('Kit', 'Marsh');
 	await api.partner(mum, dad);
+	// Adding a child to one partner adds the other as a parent too.
 	await api.child(mum, kid);
-	await api.child(dad, kid);
 	return { mum, dad, kid };
 }
 

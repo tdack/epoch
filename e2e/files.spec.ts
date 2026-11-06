@@ -43,7 +43,7 @@ async function uploadTo(request: APIRequestContext, api: Api, personId: string, 
 const rowFor = (page: import('@playwright/test').Page, title: string) =>
 	page.getByTestId('file-row').filter({ hasText: title });
 
-test('an owner renames, moves, detaches and deletes a file, and the server agrees each time', async ({
+test('an owner renames, links, unlinks and deletes a file, and the server agrees each time', async ({
 	api,
 	page,
 	request
@@ -64,20 +64,26 @@ test('an owner renames, moves, detaches and deletes a file, and the server agree
 	await page.getByRole('button', { name: 'Save name' }).click();
 	await expect(rowFor(page, 'Portrait of John.png')).toBeVisible();
 
-	// Move to Jane, one person in the same tree.
+	// Link to Jane as well, one person in the same tree; the link to John stays.
 	await rowFor(page, 'Portrait of John.png')
-		.getByRole('button', { name: /Move Portrait of John/ })
+		.getByRole('button', { name: /Link Portrait of John\.png to a record/ })
 		.click();
 	await page.getByRole('combobox', { name: 'Person', exact: true }).fill('Jane');
 	await page.getByRole('option', { name: 'Jane Smith' }).click();
-	await page.getByRole('button', { name: 'Move here' }).click();
+	await page.getByRole('button', { name: 'Link', exact: true }).click();
 	await expect(rowFor(page, 'Portrait of John.png')).toContainText('Jane Smith');
+	await expect(rowFor(page, 'Portrait of John.png')).toContainText('John Smith');
 
-	// Detach: the file is kept and listed as not attached.
+	// Unlink both, each after the row has reloaded with its new version: the file is kept and listed
+	// as not linked.
 	await rowFor(page, 'Portrait of John.png')
-		.getByRole('button', { name: /Detach Portrait of John/ })
+		.getByRole('button', { name: 'Unlink John Smith' })
 		.click();
-	await expect(rowFor(page, 'Portrait of John.png')).toContainText('Not attached');
+	await expect(rowFor(page, 'Portrait of John.png')).not.toContainText('John Smith');
+	await rowFor(page, 'Portrait of John.png')
+		.getByRole('button', { name: 'Unlink Jane Smith' })
+		.click();
+	await expect(rowFor(page, 'Portrait of John.png')).toContainText('Not linked');
 
 	// Delete: a confirmation that says it is permanent, then the row is gone.
 	await rowFor(page, 'Portrait of John.png')

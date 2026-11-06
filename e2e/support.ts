@@ -80,6 +80,28 @@ export class Api {
 		});
 	}
 
+	/** Removes one biological parent link, as the parent-links popover does. */
+	async unlinkParent(parent: Person, child: Person) {
+		const res = await this.request.post(`/api/trees/${this.treeId}/relationships/remove`, {
+			data: {
+				kind: 'remove_parent_child',
+				parentId: parent.id,
+				childId: child.id,
+				type: 'biological'
+			}
+		});
+		expect(res.ok(), await res.text()).toBe(true);
+	}
+
+	/**
+	 * A child of `parent` only, though `parent` has partners: adding a child to a partnership makes
+	 * every partner a parent, so the `others` are unlinked again, leaving them step-parents.
+	 */
+	async soleChild(parent: Person, child: Person, ...others: Person[]) {
+		await this.child(parent, child);
+		for (const other of others) await this.unlinkParent(other, child);
+	}
+
 	parent(child: Person, parent: Person) {
 		return this.relate({
 			kind: 'add_parent',

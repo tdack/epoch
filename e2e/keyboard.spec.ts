@@ -72,8 +72,8 @@ test('Tab from a person reaches its edges and partnership, and Enter opens them'
 		await api.addPerson('Cal')
 	];
 	await api.partner(a, b);
+	// Adding a child to one partner adds the other as a parent too.
 	await api.child(a, c);
-	await api.parent(c, b);
 	await openTree(page, api, c);
 
 	await card(page, 'Cal').focus();
@@ -122,8 +122,9 @@ test('the card menu opens the profile page', async ({ page, api }) => {
 	const john = await api.addPerson('John', 'Smith');
 	await openTree(page, api, john);
 	await openMenuByKeyboard(page, 'John');
-	await page.keyboard.press('ArrowDown');
-	await expect(page.getByRole('menuitem', { name: 'Open profile' })).toBeFocused();
+	// Below Show details, Edit person, Add relationship and Record death.
+	for (let step = 0; step < 4; step++) await page.keyboard.press('ArrowDown');
+	await expect(page.getByRole('menuitem', { name: 'Open full page' })).toBeFocused();
 	await page.keyboard.press('Enter');
 	await expect(page).toHaveURL(/\/people\/[^/?]+$/);
 	await expect(page.getByRole('heading', { name: /John Smith/ }).first()).toBeVisible();

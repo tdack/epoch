@@ -16,8 +16,8 @@ test('ball opens from the address, names the focus line and refocuses from a nam
 	const sib = await api.addPerson('Sib', 'Poincare', { birthDate: '1962' });
 	await api.child(gran, mum);
 	await api.partner(mum, dad);
-	await api.child(mum, me);
-	await api.child(mum, sib);
+	await api.soleChild(mum, me, dad);
+	await api.soleChild(mum, sib, dad);
 
 	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(me.id)}&mode=poincare`);
 	const ball = page.getByRole('group', { name: 'Ball view' });
@@ -36,8 +36,9 @@ test('ball opens from the address, names the focus line and refocuses from a nam
 	await ball.getByRole('button', { name: 'All names' }).click();
 	await expect(name('Sib')).toBeVisible();
 
-	// A name refocuses the Ball on that person; Shift+Enter opens their details.
-	await name('Mum').click();
+	// A click on a name only lights their line; a double-click refocuses the Ball on them, and
+	// Shift+Enter opens their details.
+	await name('Mum').dblclick();
 	await expect(page).toHaveURL(new RegExp(`focus=${mum.id}`));
 	await expect(page).toHaveURL(/mode=poincare/);
 	await name('Gran').focus();
@@ -66,7 +67,7 @@ test('ball opens from the address, names the focus line and refocuses from a nam
 				new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))))
 		);
 		const box = (await name('Gran').boundingBox())!;
-		await page.mouse.click(box.x + box.width / 2, box.y + box.height + 10);
+		await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height + 10);
 		await expect(page).toHaveURL(new RegExp(`focus=${gran.id}`), { timeout: 2000 });
 	}).toPass({ timeout: 15000 });
 });

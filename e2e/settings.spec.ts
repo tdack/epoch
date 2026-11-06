@@ -44,7 +44,8 @@ test('changing the male colour repaints the flat card border', async ({ api, pag
 test('the account page has no detectable accessibility violations, even with an error shown', async ({
 	page
 }) => {
-	await open(page, '/account');
+	// The colour fields are on the Appearance tab.
+	await open(page, '/account#appearance');
 	await page.getByRole('textbox', { name: 'Female', exact: true }).first().fill('pink');
 	const result = await new AxeBuilder({ page })
 		.withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

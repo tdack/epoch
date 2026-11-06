@@ -93,10 +93,7 @@ test('a viewer is shown the dead and never the living, and a manager can change 
 		await expect(viewer.locator('[data-person-id]').filter({ hasText: 'Livia' })).toHaveCount(0);
 		await viewer.screenshot({ path: `${SHOTS}/privacy-viewer-tree-omitted.png` });
 
-		// Export is not offered to a viewer, and the endpoint refuses.
-		await viewer.locator('header button[aria-haspopup="menu"]').click();
-		await expect(viewer.getByRole('menuitem', { name: /Export/ })).toHaveCount(0);
-		await viewer.keyboard.press('Escape');
+		// Export is a tab of the managers' settings pages only, and the endpoint refuses a viewer.
 		expect((await viewer.request.get(`/api/export?treeId=${api.treeId}`)).status()).toBe(403);
 		await viewer
 			.getByRole('navigation', { name: 'Tree sections' })
@@ -111,7 +108,11 @@ test('a viewer is shown the dead and never the living, and a manager can change 
 		await open(page, `${base}/settings#visibility`);
 		// A checkbox saves on change (ADR-075).
 		await page.getByLabel(/Show hidden people as/).check();
-		await expect(page.getByText('Hidden people now show as Private')).toBeVisible();
+		await expect(
+			page
+				.getByRole('region', { name: 'Notifications' })
+				.getByText('Hidden people now show as Private')
+		).toBeVisible();
 		await page.screenshot({ path: `${SHOTS}/privacy-settings.png` });
 
 		await open(viewer, `${base}?focus=${encodeURIComponent(kin.id)}`);

@@ -32,8 +32,8 @@ test('orrery names the focus line, refocuses from a name and picks a star', asyn
 	const kid = await api.addPerson('Kid', 'Orrery', { birthDate: '1990' });
 	await api.child(gran, mum);
 	await api.partner(mum, dad);
-	await api.child(mum, me);
-	await api.child(mum, sib);
+	await api.soleChild(mum, me, dad);
+	await api.soleChild(mum, sib, dad);
 	await api.child(me, kid);
 
 	// The stars drift; stopping that makes the click below land where the name says.
@@ -52,8 +52,9 @@ test('orrery names the focus line, refocuses from a name and picks a star', asyn
 	await orrery.getByRole('button', { name: 'All names' }).click();
 	await expect(name('Sib')).toBeVisible();
 
-	// A name refocuses the orrery on that person; Shift+Enter opens their details.
-	await name('Kid').click();
+	// A click on a name only lights their line; a double-click refocuses the orrery on them, and
+	// Shift+Enter opens their details.
+	await name('Kid').dblclick();
 	await expect(page).toHaveURL(new RegExp(`focus=${kid.id}`));
 	await expect(page).toHaveURL(/mode=orrery/);
 	await name('Mum').focus();
@@ -87,7 +88,7 @@ test('orrery names the focus line, refocuses from a name and picks a star', asyn
 		expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName, at)).toBe(
 			'CANVAS'
 		);
-		await page.mouse.click(at.x, at.y);
+		await page.mouse.dblclick(at.x, at.y);
 		await expect(page).toHaveURL(new RegExp(`focus=${gran.id}`), { timeout: 2000 });
 	}).toPass({ timeout: 15000 });
 
@@ -105,7 +106,7 @@ test('orrery draws the stars moving, and holds still when motion is reduced', as
 	const dad = await api.addPerson('Dad', 'Orrery');
 	const me = await api.addPerson('Me', 'Orrery');
 	await api.partner(mum, dad);
-	await api.child(mum, me);
+	await api.soleChild(mum, me, dad);
 
 	// The signal is the name, which moves with its star; a WebGL canvas without a preserved
 	// drawing buffer reads back blank, so the pixels say nothing.
@@ -137,7 +138,7 @@ test('the Motion switch holds the orrery still, and stays off after a reload', a
 	const dad = await api.addPerson('Dad', 'Still');
 	const me = await api.addPerson('Me', 'Still');
 	await api.partner(mum, dad);
-	await api.child(mum, me);
+	await api.soleChild(mum, me, dad);
 	const orrery = page.getByRole('group', { name: 'Orrery view' });
 	const nameBox = async () =>
 		JSON.stringify(await orrery.getByRole('button', { name: /^Me Still\b/ }).boundingBox());
@@ -168,10 +169,10 @@ async function family(api: Parameters<Parameters<typeof test>[2]>[0]['api'], tag
 	const me = await api.addPerson('Me', tag);
 	const sib = await api.addPerson('Sib', tag);
 	await api.partner(gran, gran2);
-	await api.child(gran, mum);
+	await api.soleChild(gran, mum, gran2);
 	await api.partner(mum, dad);
-	await api.child(mum, me);
-	await api.child(mum, sib);
+	await api.soleChild(mum, me, dad);
+	await api.soleChild(mum, sib, dad);
 	const graph = await api.graph(me.id);
 	const unionOf = (a: { id: string }, b: { id: string }) =>
 		graph.unions.find((u) => u.partnerIds.includes(a.id) && u.partnerIds.includes(b.id))!.id;

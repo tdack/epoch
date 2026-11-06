@@ -16,8 +16,9 @@ test('Back undoes a burst of depth clicks in one step, and returns to the previo
 	await page.goBack();
 	await expect.poll(() => url().searchParams.get('up')).toBeNull();
 
-	// Choosing another person pushes an entry that Back leaves again.
-	await card(page, 'Ben').click();
+	// Choosing another person (a double-click; one click only highlights) pushes an entry that Back
+	// leaves again.
+	await card(page, 'Ben').dblclick();
 	await expect.poll(() => url().searchParams.get('focus')).toBe(b.id);
 	await page.goBack();
 	await expect.poll(() => url().searchParams.get('focus')).toBe(a.id);
