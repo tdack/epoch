@@ -1,7 +1,6 @@
 import type { R2Bucket } from '@cloudflare/workers-types';
 import type { WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { EXPECTED_MIGRATIONS } from '../db/schema-status';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -34,16 +33,6 @@ vi.mock('./workflow-runtime', () => ({
 let t: TestDatabase;
 beforeAll(async () => {
 	t = await createTestDatabase();
-	// The harness applies migration SQL directly, so Wrangler's bookkeeping is seeded by hand for
-	// the workflow's schema check.
-	await t.d1
-		.prepare(
-			'CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)'
-		)
-		.run();
-	for (const name of EXPECTED_MIGRATIONS) {
-		await t.d1.prepare('INSERT OR IGNORE INTO d1_migrations (name) VALUES (?)').bind(name).run();
-	}
 });
 afterAll(async () => {
 	await t.dispose();

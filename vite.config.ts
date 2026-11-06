@@ -1,8 +1,18 @@
+import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-plugin';
 import adapter from '@sveltejs/adapter-cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { execFileSync } from 'node:child_process';
+import { globSync, readFileSync } from 'node:fs';
 import { defaultExclude, defineConfig } from 'vitest/config';
+
+/**
+ * Server tests that need a real D1 run inside workerd. Chosen by what they use rather than by a
+ * file name, so a new test that calls `createTestDatabase()` lands in the right project unasked.
+ */
+const WORKERD_D1_TESTS = globSync('src/**/*.test.ts', {
+	exclude: ['**/*.component.test.ts']
+}).filter((file) => /createTestDatabase|testing\/scope-worlds/.test(readFileSync(file, 'utf8')));
 
 /**
  * The commit this build is made from, shortened, for the AGPL source link. Workers Builds names it
@@ -88,25 +98,42 @@ export default defineConfig({
 		// Component tests need Svelte's client build and a DOM, which would change how every
 		// server-side module resolves, so they run as their own project. Agent worktrees live under
 		// `.claude/worktrees/`, and the default include would test every one of them as well.
-		// Half the cores: each server test file also runs a workerd, so the default oversubscribes the
-		// host (load near 60 on 10 cores) for no gain; half took the same wall time at a third the load.
+		// Half the cores, set when every DB test file ran its own workerd (ADR-064): the default loaded
+		// the host to near 60 on 10 cores for no gain. Not re-measured since they share one (ADR-083).
 		maxWorkers: '50%',
 		projects: [
 			{
 				extends: true,
 				test: {
 					name: 'server',
-					// Each test talks to a real local D1 in its own workerd process, so a full run loads the
-					// host heavily; the 5-second default timed out the Windsors import (1.7s alone) and, since
-					// a timed-out test keeps running, broke the next test in the file too.
-					testTimeout: 30_000,
-					hookTimeout: 30_000,
 					exclude: [
 						...defaultExclude,
 						'.claude/**',
 						'e2e/**',
-						'src/**/*.component.test.{ts,svelte.ts}'
+						'src/**/*.component.test.{ts,svelte.ts}',
+						...WORKERD_D1_TESTS
 					]
+				}
+			},
+			{
+				extends: true,
+				// One workerd for the project with storage isolated per test file, so a file's D1 calls stay
+				// in-process instead of crossing from Node to a workerd of its own (ADR-083).
+				plugins: [
+					cloudflareTest(async () => ({
+						miniflare: {
+							compatibilityDate: '2026-01-01',
+							compatibilityFlags: ['nodejs_compat'],
+							d1Databases: { DB: 'test-db' },
+							r2Buckets: { MEDIA_BUCKET: 'test-media' },
+							bindings: { TEST_MIGRATIONS: await readD1Migrations('drizzle') }
+						}
+					}))
+				],
+				test: {
+					name: 'd1',
+					include: WORKERD_D1_TESTS,
+					setupFiles: ['src/lib/server/testing/d1.workerd.setup.ts']
 				}
 			},
 			{
