@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack, type Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import AppHeader from '#lib/components/layout/AppHeader.svelte';
@@ -154,13 +154,6 @@
 		get isPublicVisitor() {
 			return viewer.isPublicVisitor;
 		}
-	});
-
-	// Pages under a tree are rendered on the server, so a button can be seen before it works. This
-	// marks the moment the page is interactive, for tests and for anything that must not click early.
-	onMount(() => {
-		document.body.dataset.hydrated = '';
-		return () => delete document.body.dataset.hydrated;
 	});
 </script>
 
