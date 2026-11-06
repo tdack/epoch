@@ -171,7 +171,7 @@ export class UploadService {
 
 	/**
 	 * Streams one part into R2. `body` must already be sized to `contentLength` (see
-	 * `fixedLengthBody`); it is never read into memory here. Sending a part again replaces it,
+	 * `fixedLengthBody`); in the Worker it is never read into memory here. Sending a part again replaces it,
 	 * which is how a client retries.
 	 */
 	async putPart(
@@ -193,10 +193,16 @@ export class UploadService {
 			throw new ValidationError(`This part must be exactly ${expectedBytes} bytes`);
 		if (!body) throw new ValidationError('The part has no body');
 
+		// Under `vite dev` this runs in Node, whose R2 binding is a proxy into workerd that refuses a
+		// stream of unknown length, and only the Worker has `FixedLengthStream`; so dev buffers the
+		// part, at most one part size, while the Worker streams it.
+		const payload =
+			typeof FixedLengthStream === 'undefined'
+				? await new Response(body).arrayBuffer()
+				: (body as unknown as WorkersReadableStream);
 		const part = await this.bucket
 			.resumeMultipartUpload(session.r2Key, session.r2UploadId)
-			// The DOM and Workers stream types differ only in declarations; it is one runtime object.
-			.uploadPart(partNumber, body as unknown as WorkersReadableStream);
+			.uploadPart(partNumber, payload);
 		await this.uploads.recordPart(session.id, partNumber, part.etag, crc32Of?.() ?? null);
 		return { partNumber, etag: part.etag };
 	}
