@@ -87,3 +87,4 @@ Each decision lives in `docs/adr/ADR-NNN.md`; a new ADR takes the next number an
 | 81 | The flat tree prints as one poster cut to its drawing, and downloads as a PDF built in the browser | [ADR-081.md](adr/ADR-081.md) | Implemented |
 | 82 | A GEDCOM OBJE is a media record with files and links | [ADR-082.md](adr/ADR-082.md) | Proposed |
 | 83 | DB tests run inside workerd with Cloudflare's Vitest plugin | [ADR-083.md](adr/ADR-083.md) | Implemented |
+| 84 | Anonymous public-tree reads need a Turnstile pass | [ADR-084.md](adr/ADR-084.md) | Implemented |

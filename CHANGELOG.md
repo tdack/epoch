@@ -5,6 +5,14 @@ significant changes by week, newest first. It was written retrospectively from t
 it summarises themes rather than listing every commit. Decisions and their reasons are in
 [docs/decisions.md](docs/decisions.md); open work is in [docs/backlog.md](docs/backlog.md).
 
+## 2026-11-09 to 2026-11-15
+
+### Security
+
+- **Public tree checks for bots.** Anonymous readers of the public tree solve a Cloudflare Turnstile
+  challenge once a day before it is served. Members never see it. An install opts in by storing
+  `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET` as Worker secrets.
+
 ## 2026-11-02 to 2026-11-08
 
 ### Added

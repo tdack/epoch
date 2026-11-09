@@ -158,7 +158,9 @@ Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate action
 - Sub-trees are managed by `tree:manage_subtrees` (manager and above). A sub-tree whose root the
   viewer may not see is left out of the list and its address is a 404 ([ADR-062](./adr/ADR-062.md)).
 - Members join by invitation ([ADR-016](./adr/ADR-016.md), [ADR-031](./adr/ADR-031.md)). Only the install owner, members and invitees are
-  admitted ([ADR-034](./adr/ADR-034.md)). A tree can be made public to read without signing in ([ADR-041](./adr/ADR-041.md)).
+  admitted ([ADR-034](./adr/ADR-034.md)). A tree can be made public to read without signing in ([ADR-041](./adr/ADR-041.md)); with
+  `TURNSTILE_SITE_KEY` set, an anonymous reader first solves a Turnstile challenge at `/verify` for a
+  day-long pass ([ADR-084](./adr/ADR-084.md)).
   Each member may mark one of their trees as the default that `/` opens ([ADR-044](./adr/ADR-044.md)).
 - Media reads check the tree first, then the file's row, then the role, so a caller outside the tree
   learns nothing about a key. Uploads are sniffed and capped, and served by `Content-Type` allowlist
