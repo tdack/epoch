@@ -6,7 +6,12 @@
  */
 
 import type { DbClient } from '../db';
-import { grantableRoles, canManageMemberOf, canSetPersonOf } from '../../shared/membership-policy';
+import {
+	grantableRoles,
+	canManageMemberOf,
+	canSetPersonOf,
+	canGrantPrivateAccessTo
+} from '../../shared/membership-policy';
 import {
 	ConcurrencyConflictError,
 	NotFoundError,
@@ -93,7 +98,8 @@ export class MemberService {
 					isYou,
 					canManage: canManageMemberOf(scope.role, m.role),
 					person: name === null ? null : { id: selfPersonId!, name },
-					canSetPerson: canSetPersonOf(scope.role, m.role, isYou)
+					canSetPerson: canSetPersonOf(scope.role, m.role, isYou),
+					canSetPrivateAccess: canGrantPrivateAccessTo(scope.role, m.role)
 				};
 			})
 		);
@@ -340,6 +346,38 @@ export class MemberService {
 						personId === null
 							? `Cleared which person ${memberLabel(target)} is`
 							: `Set which person ${memberLabel(target)} is`
+					)
+		);
+	}
+
+	/**
+	 * Let a viewer or contributor read private people, or take that back. Manager-only, and the role
+	 * rules apply. Reads only: the write guard still treats those people as private (ADR-015).
+	 * Logged without naming anyone but the member, and never undoable, like a role change.
+	 */
+	async setCanSeePrivate(
+		treeId: string,
+		userId: string,
+		canSeePrivate: boolean,
+		context: AuthenticatedContext
+	): Promise<void> {
+		requireRealUser(context);
+		const actor = await this.requireManager(treeId, context);
+		const target = await this.members.getMember(treeId, userId);
+		if (!target) throw new NotFoundError('Member', userId);
+		if (!canGrantPrivateAccessTo(actor, target.role))
+			throw new UnauthorizedError('Forbidden: you cannot change this member');
+		await this.members.setCanSeePrivate(
+			treeId,
+			userId,
+			canSeePrivate,
+			canSeePrivate === target.canSeePrivate
+				? undefined
+				: logEntry(
+						treeId,
+						context,
+						'set_member_private_access',
+						`${canSeePrivate ? 'Let' : 'Stopped letting'} ${memberLabel(target)} see private people`
 					)
 		);
 	}

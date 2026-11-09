@@ -400,6 +400,13 @@
       "when": 1793502030769,
       "tag": "0056_union_partner_gedcom_role",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "6",
+      "when": 1794227528129,
+      "tag": "0057_careful_machine_man",
+      "breakpoints": true
     }
   ]
 }

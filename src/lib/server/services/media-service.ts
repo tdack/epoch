@@ -573,13 +573,15 @@ export class MediaService {
 		const objectIds = rows.filter((r) => r.treeId === treeId).map(objectIdOf);
 		const resolved = await resolveLinks(this.media, treeId, objectIds);
 		const objects = await this.media.objectsOf(treeId, objectIds);
-		const isRestricted = !canSeePrivatePeople(role);
-		const scope = isRestricted
+		const scope = !canSeePrivatePeople(role)
 			? await requireTreeScope(this.users, this.trees, treeId, context, 'media:view', this.now())
 			: null;
-		const visible: VisibleOwners = scope
-			? await visibleOf(this.db, treeId, resolved, scope)
-			: { people: new Set<string>(), sources: new Set<string>() };
+		// A grant from a manager makes the scope unrestricted, so the viewer is treated like an editor here.
+		const isRestricted = scope?.isRestricted ?? false;
+		const visible: VisibleOwners =
+			scope && isRestricted
+				? await visibleOf(this.db, treeId, resolved, scope)
+				: { people: new Set<string>(), sources: new Set<string>() };
 		const sourceTitles = await this.media.sourceTitlesOf(treeId, resolved.sourceIds);
 		const names = await this.media.personNamesOf(treeId, [...resolved.personIds]);
 		const labels = new Map<string, string>();

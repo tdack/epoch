@@ -74,3 +74,16 @@ export async function setMemberPersonApi(
 		'Failed to save who they are'
 	);
 }
+
+/** Let a viewer or contributor read private people, or take that back. */
+export async function setMemberPrivateAccessApi(
+	treeId: string,
+	userId: string,
+	canSeePrivate: boolean
+): Promise<void> {
+	await call(
+		path`/api/trees/${treeId}/members/${userId}/private-access`,
+		json('PUT', { canSeePrivate }),
+		'Failed to save private access'
+	);
+}

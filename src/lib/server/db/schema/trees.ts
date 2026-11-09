@@ -83,6 +83,9 @@ export const treeMemberships = sqliteTable(
 		// The person this member says they are. Private to them: never in the members list, the change
 		// log or an export. No foreign key, for the same reason as `homePersonId`.
 		selfPersonId: text('self_person_id'),
+		// A manager's grant for a viewer or contributor to read private people (ADR-015). Read-only: the
+		// write guard still treats those people as private. Meaningless for editors and up, who see all.
+		canSeePrivate: integer('can_see_private', { mode: 'boolean' }).notNull().default(false),
 		// Two managers can change the same member at once; the second sees a conflict, not a silent overwrite.
 		version: integer('version').notNull().default(1),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),

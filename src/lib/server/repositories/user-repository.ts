@@ -223,6 +223,7 @@ export class UserRepository {
 			userId: member.userId,
 			role: member.role as TreeRole,
 			selfPersonId: member.selfPersonId,
+			canSeePrivate: member.canSeePrivate,
 			createdAt: member.createdAt || new Date(),
 			updatedAt: member.updatedAt || new Date()
 		};
@@ -246,6 +247,7 @@ export class UserRepository {
 			userId,
 			role,
 			selfPersonId: null,
+			canSeePrivate: false,
 			createdAt: now,
 			updatedAt: now
 		};

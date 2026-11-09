@@ -16,6 +16,7 @@
 		inviteMemberApi,
 		removeMemberApi,
 		setMemberPersonApi,
+		setMemberPrivateAccessApi,
 		withdrawInvitationApi,
 		type MemberDto
 	} from '#lib/api/members.js';
@@ -76,6 +77,14 @@
 		await setMemberPersonApi(treeId, member.userId, personId);
 		// Your own link drives the "You" badge and where the tree opens, which the layout loads.
 		if (member.isYou) await invalidate(DATA_KEY);
+	}
+
+	function setPrivateAccess(member: MemberDto, canSeePrivate: boolean) {
+		const who = member.name ?? member.email;
+		void run(
+			() => setMemberPrivateAccessApi(treeId, member.userId, canSeePrivate),
+			canSeePrivate ? `${who} can see private people` : `${who} cannot see private people`
+		);
 	}
 
 	function invite(event: SubmitEvent) {
@@ -259,6 +268,19 @@
 							</span>
 						{:else if member.canSetPerson}
 							<span class="mt-0.5 block text-xs text-stone-500">Not linked to a person</span>
+						{/if}
+						{#if member.canSetPrivateAccess}
+							<label class="mt-0.5 flex items-center gap-1.5 text-xs text-stone-600">
+								<input
+									type="checkbox"
+									checked={member.canSeePrivate}
+									disabled={isBusy}
+									onchange={(event) => setPrivateAccess(member, event.currentTarget.checked)}
+								/>
+								Can see private people (read only)
+							</label>
+						{:else if member.canSeePrivate}
+							<span class="mt-0.5 block text-xs text-stone-600">Can see private people</span>
 						{/if}
 					</span>
 					{#if member.canManage}

@@ -17,6 +17,7 @@ export interface MemberRow {
 	role: TreeRole;
 	version: number;
 	selfPersonId: string | null;
+	canSeePrivate: boolean;
 }
 
 /** An invitation that made its holder a member, for telling whoever sent it. */
@@ -51,6 +52,7 @@ export interface MembershipLogEntry {
 		| 'invite_member'
 		| 'withdraw_invitation'
 		| 'set_member_person'
+		| 'set_member_private_access'
 		| 'join_tree'
 		| 'leave_epoch';
 	summary: string;
@@ -76,7 +78,8 @@ export class MemberRepository {
 				name: users.name,
 				role: treeMemberships.role,
 				version: treeMemberships.version,
-				selfPersonId: treeMemberships.selfPersonId
+				selfPersonId: treeMemberships.selfPersonId,
+				canSeePrivate: treeMemberships.canSeePrivate
 			})
 			.from(treeMemberships)
 			.innerJoin(users, eq(users.id, treeMemberships.userId))
@@ -92,7 +95,8 @@ export class MemberRepository {
 				name: users.name,
 				role: treeMemberships.role,
 				version: treeMemberships.version,
-				selfPersonId: treeMemberships.selfPersonId
+				selfPersonId: treeMemberships.selfPersonId,
+				canSeePrivate: treeMemberships.canSeePrivate
 			})
 			.from(treeMemberships)
 			.innerJoin(users, eq(users.id, treeMemberships.userId))
@@ -142,6 +146,23 @@ export class MemberRepository {
 		const update = this.db
 			.update(treeMemberships)
 			.set({ selfPersonId: personId })
+			.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
+			.returning({ id: treeMemberships.id });
+		if (!log) return (await update).length > 0;
+		const [changed] = await this.db.batch([update, this.logIfChanged(log)]);
+		return changed.length > 0;
+	}
+
+	/** Grant or withdraw sight of private people. Leaves `version` alone, like `setPerson`. */
+	async setCanSeePrivate(
+		treeId: string,
+		userId: string,
+		canSeePrivate: boolean,
+		log?: MembershipLogEntry
+	): Promise<boolean> {
+		const update = this.db
+			.update(treeMemberships)
+			.set({ canSeePrivate })
 			.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
 			.returning({ id: treeMemberships.id });
 		if (!log) return (await update).length > 0;

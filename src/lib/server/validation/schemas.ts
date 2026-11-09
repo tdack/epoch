@@ -514,6 +514,8 @@ export const viewModeSchema = z.object({ mode: z.enum(LAYOUT_MODE_VALUES).nullab
 export const homePersonSchema = z.object({ personId: z.string().min(1).nullable() });
 /** The member's own person, or null to clear it. */
 export const selfPersonSchema = z.object({ personId: z.string().min(1).nullable() });
+/** A manager's grant of sight of private people to one member. */
+export const privateAccessSchema = z.object({ canSeePrivate: z.boolean() });
 export const defaultTreeSchema = z.object({ treeId: z.string().min(1).nullable() });
 export const privacySettingsSchema = z
 	.object({

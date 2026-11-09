@@ -52,6 +52,8 @@ export interface TreeMembership {
 	role: TreeRole;
 	/** The person this member is in the tree, if linked (ADR-075); no foreign key, so it may be stale. */
 	selfPersonId: string | null;
+	/** A manager's grant to read private people (ADR-015); only a viewer or contributor needs it. */
+	canSeePrivate: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 }

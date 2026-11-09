@@ -194,7 +194,17 @@ export class MutationRunner {
 		commands: RelationshipCommand[],
 		scope: ViewerScope
 	): RowOp[] {
-		if (!scope.isRestricted) return this.plan(treeId, rows, commands, scope.userId);
+		if (!scope.isRestricted && !scope.hasPrivateGrant)
+			return this.plan(treeId, rows, commands, scope.userId);
+		// A grant lets them read everyone, but a write that touches a private person is still refused.
+		if (scope.hasPrivateGrant) {
+			const ops = this.plan(treeId, rows, commands, scope.userId);
+			if (opsTouchPrivate(ops, rows, scope.cutoff, scope.creatorId))
+				throw new UnauthorizedError(
+					`Forbidden: insufficient privileges for action '${actionForOps(ops)}'`
+				);
+			return ops;
+		}
 		const seen = this.plan(treeId, this.visibleRows(rows, scope), commands, scope.userId);
 		const refusal = (ops: RowOp[]) =>
 			new UnauthorizedError(`Forbidden: insufficient privileges for action '${actionForOps(ops)}'`);

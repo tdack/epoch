@@ -18,6 +18,10 @@ export interface MemberDto {
 	person: { id: string; name: string } | null;
 	/** Whether the caller may change or clear `person`. */
 	canSetPerson: boolean;
+	/** Whether they may read private people although their role would not allow it. */
+	canSeePrivate: boolean;
+	/** Whether the caller may change `canSeePrivate`: a viewer or contributor they can manage. */
+	canSetPrivateAccess: boolean;
 }
 
 interface InvitationDto {

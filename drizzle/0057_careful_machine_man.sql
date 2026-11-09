@@ -1,0 +1,1 @@
+ALTER TABLE `tree_memberships` ADD `can_see_private` integer DEFAULT false NOT NULL;

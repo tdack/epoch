@@ -38,6 +38,14 @@ export function canSetPersonOf(actor: TreeRole, target: TreeRole, isSelf: boolea
 }
 
 /**
+ * Whether `actor` may let a member holding `target` read private people: only a viewer or
+ * contributor needs it (editors and up already do), and the actor must be able to manage them.
+ */
+export function canGrantPrivateAccessTo(actor: TreeRole, target: TreeRole): boolean {
+	return (target === 'viewer' || target === 'contributor') && canManageMemberOf(actor, target);
+}
+
+/**
  * What `role` may do in the tree called `treeName`, as one sentence for whoever is choosing a role
  * to give. It restates `auth/authorization.ts`'s action table and the privacy rule (ADR-015) in
  * words, so a change to either needs one here too.

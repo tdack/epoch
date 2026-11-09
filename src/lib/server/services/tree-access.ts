@@ -30,8 +30,14 @@ export interface ViewerScope {
 	 * living or marked private, since it is their own record. Null for an outsider and when unlinked.
 	 */
 	selfPersonId: string | null;
-	/** True for contributors and viewers: private people are absent from what they read. */
+	/** True for contributors and viewers without a grant: private people are absent from what they read. */
 	isRestricted: boolean;
+	/**
+	 * A contributor or viewer a manager let read private people. `isRestricted` is then false so every
+	 * read shows them, but the role is still below editor, so the write guard must keep treating
+	 * those people as private. Absent means false.
+	 */
+	hasPrivateGrant?: boolean;
 	/** A birth that ended before this day makes a person not living; computed from an injected `now`. */
 	cutoff: string;
 	/** Show a restricted viewer a "Private" placeholder in the graph and on partnerships, or omit them. */
@@ -90,6 +96,7 @@ interface TreeAccess {
 	role: TreeRole;
 	isOutsider: boolean;
 	selfPersonId: string | null;
+	canSeePrivate: boolean;
 }
 
 async function resolveTreeAccess(
@@ -102,9 +109,14 @@ async function resolveTreeAccess(
 	// The public tree is read by anyone, so a miss is the one case that asks whether it is public;
 	// members never pay for the extra read. It is a viewer's role, never more, whoever is asking.
 	const access: TreeAccess | null = membership
-		? { role: membership.role, isOutsider: false, selfPersonId: membership.selfPersonId }
+		? {
+				role: membership.role,
+				isOutsider: false,
+				selfPersonId: membership.selfPersonId,
+				canSeePrivate: membership.canSeePrivate
+			}
 		: (await users.isTreePublic(treeId))
-			? { role: 'viewer', isOutsider: true, selfPersonId: null }
+			? { role: 'viewer', isOutsider: true, selfPersonId: null, canSeePrivate: false }
 			: null;
 	if (!access || !isActionAllowed(access.role, action)) {
 		throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${action}'`);
@@ -125,7 +137,7 @@ export async function requireTreeScope(
 	action: TreeAction,
 	now: Date = new Date()
 ): Promise<ViewerScope> {
-	const { role, isOutsider, selfPersonId } = await resolveTreeAccess(
+	const { role, isOutsider, selfPersonId, canSeePrivate } = await resolveTreeAccess(
 		users,
 		treeId,
 		context.user.id,
@@ -140,7 +152,8 @@ export async function requireTreeScope(
 		userId: context.user.id,
 		creatorId: role === 'contributor' ? context.user.id : null,
 		selfPersonId,
-		isRestricted: !canSeePrivatePeople(role),
+		isRestricted: !canSeePrivatePeople(role) && !canSeePrivate,
+		hasPrivateGrant: canSeePrivate && !canSeePrivatePeople(role),
 		// On the public tree the living rule is switched off for the restricted roles, not the whole
 		// filter: a person marked private must stay hidden, and `isRestricted: false` would show them.
 		cutoff: settings.isPublic
