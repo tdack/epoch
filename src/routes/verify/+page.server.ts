@@ -1,7 +1,7 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getPlatformBindings } from '#lib/server/platform.js';
-import { LOGIN_PATH, safeNextPath } from '#lib/server/auth/public-routes.js';
+import { LOGIN_PATH, VERIFY_PATH, safeNextPath } from '#lib/server/auth/public-routes.js';
 import {
 	PUBLIC_PASS_COOKIE,
 	PUBLIC_PASS_TTL_SECONDS,
@@ -25,6 +25,8 @@ export const load: PageServerLoad = ({ locals, url, setHeaders }) => {
 		siteKey,
 		action: PUBLIC_READ_ACTION,
 		next,
+		// Only selects the wording; a crafted link can do no more than say "try again".
+		didFail: url.searchParams.has('failed'),
 		signInHref: `${LOGIN_PATH}?next=${encodeURIComponent(next)}`
 	};
 };
@@ -42,7 +44,8 @@ export const actions: Actions = {
 				remoteIp: request.headers.get('cf-connecting-ip'),
 				hostname: url.hostname
 			}));
-		if (!isHuman) return fail(403, { failed: true });
+		// A fresh GET, not a rendered POST: reloading would resend a token that can only fail again.
+		if (!isHuman) redirect(303, `${VERIFY_PATH}?next=${encodeURIComponent(next)}&failed=1`);
 		cookies.set(PUBLIC_PASS_COOKIE, await issuePublicPass(secret!), {
 			path: '/',
 			httpOnly: true,

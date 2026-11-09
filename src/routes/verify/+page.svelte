@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Splash from '#lib/components/brand/Splash.svelte';
 
-	let { data, form } = $props();
+	let { data } = $props();
 </script>
 
 <svelte:head>
@@ -15,7 +15,7 @@
 	actionHref={data.signInHref}
 	sourceUrl={data.sourceUrl}
 	sourceCommit={data.sourceCommit}
-	message={form?.failed ? 'That check did not go through. Please try again.' : undefined}
+	message={data.didFail ? 'That check did not go through. Please try again.' : undefined}
 >
 	<form method="POST" class="flex flex-col items-center gap-4 md:items-start">
 		<p class="text-emerald-100">Confirm you are a person to read this family tree.</p>
