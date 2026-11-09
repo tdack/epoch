@@ -78,7 +78,7 @@ type Result = Response | unknown;
  * The same 403 for every refusal of the visitor, whether the endpoint is closed to them or the tree
  * is not public, so a probe cannot tell a private tree from an unknown id.
  */
-const VISITOR_REFUSED_MESSAGE = 'Forbidden: sign in to do that';
+export const VISITOR_REFUSED_MESSAGE = 'Forbidden: sign in to do that';
 
 /** Handlers built with `allowPublicVisitor`, and every handler a factory built at all. */
 const publicVisitorHandlers = new WeakSet<RequestHandler>();

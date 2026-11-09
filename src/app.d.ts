@@ -54,6 +54,9 @@ declare global {
 				CF_ACCESS_TEAM_DOMAIN?: string;
 				CF_ACCESS_AUD?: string;
 				ACCESS_BYPASS_DEV?: string;
+				/** Worker secrets; the site key turns the anonymous public-read challenge on (ADR-084). */
+				TURNSTILE_SITE_KEY?: string;
+				TURNSTILE_SECRET?: string;
 			};
 			context: ExecutionContext;
 			caches: CacheStorage;

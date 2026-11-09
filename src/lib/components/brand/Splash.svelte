@@ -6,6 +6,7 @@
 
 <script lang="ts">
 	import EpochMark from './EpochMark.svelte';
+	import type { Snippet } from 'svelte';
 	import SourceLink from '#lib/components/layout/SourceLink.svelte';
 
 	interface Props {
@@ -21,6 +22,8 @@
 		sourceUrl: string;
 		/** The short commit this build was made from, shown beside the source link. */
 		sourceCommit?: string | null;
+		/** Shown above the button, such as the public tree's challenge form. */
+		children?: Snippet;
 	}
 
 	let {
@@ -29,7 +32,8 @@
 		message,
 		explore,
 		sourceUrl,
-		sourceCommit = null
+		sourceCommit = null,
+		children
 	}: Props = $props();
 </script>
 
@@ -55,6 +59,7 @@ announce. The emerald wash keeps the cream text above contrast over the brightes
 		<div class="flex flex-col items-center gap-6 md:items-start">
 			<h1 class="text-6xl font-bold tracking-tight sm:text-7xl md:text-8xl">Epoch</h1>
 			<p class="max-w-xl text-xl leading-snug text-emerald-200 sm:text-2xl">{SPLASH_TAGLINE}</p>
+			{@render children?.()}
 			<a
 				href={actionHref}
 				class="mt-2 inline-flex min-h-12 items-center rounded-xl bg-amber-50 px-7 text-base font-semibold text-emerald-900 shadow-lg shadow-emerald-950/30 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300"

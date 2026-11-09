@@ -10,8 +10,11 @@ export { WELCOME_PATH };
  */
 export const LOGIN_PATH = '/login';
 
+/** The Turnstile challenge an anonymous reader solves before the public tree is served (ADR-084). */
+export const VERIFY_PATH = '/verify';
+
 /** Pages served without an identified user. Every other page and endpoint denies by default. */
-const PUBLIC_PAGE_PATHS: readonly string[] = [WELCOME_PATH, LOGIN_PATH];
+const PUBLIC_PAGE_PATHS: readonly string[] = [WELCOME_PATH, LOGIN_PATH, VERIFY_PATH];
 
 export function isPublicPagePath(pathname: string): boolean {
 	return PUBLIC_PAGE_PATHS.includes(pathname);

@@ -75,7 +75,9 @@ export default defineConfig({
 				mode: 'auto',
 				reportOnly: {
 					'default-src': ['self'],
-					'script-src': ['self'],
+					// Turnstile's script and its challenge iframe, on the public tree's challenge page (ADR-084).
+					'script-src': ['self', 'https://challenges.cloudflare.com'],
+					'frame-src': ['https://challenges.cloudflare.com'],
 					// Svelte transitions and component styles set inline styles.
 					'style-src': ['self', 'unsafe-inline'],
 					// The default map tile host (ADR-078). The policy is fixed at build time, so a tile URL

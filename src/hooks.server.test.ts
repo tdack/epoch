@@ -16,19 +16,27 @@ vi.mock('#lib/server/auth/access.js', () => ({
 	validateAccessJwt: vi.fn()
 }));
 vi.mock('#lib/server/auth/resolve-user.js', () => ({ resolveUser: vi.fn() }));
+vi.mock('#lib/server/services/public-tree-service.js', () => ({
+	PublicTreeService: class {
+		async current() {
+			return { id: 'pub', slug: 'pub' };
+		}
+	}
+}));
 
 import { handle } from './hooks.server';
 import { extractAccessJwt, validateAccessJwt } from '#lib/server/auth/access.js';
 import { resolveUser } from '#lib/server/auth/resolve-user.js';
+import { issuePublicPass, PUBLIC_PASS_COOKIE } from '#lib/server/auth/public-pass.js';
 
-function run(path: string) {
+function run(path: string, cookie?: string) {
 	const resolve = vi.fn(async () => new Response('ok'));
 	const event = {
 		url: new URL(`https://epoch.test${path}`),
 		request: new Request(`https://epoch.test${path}`),
 		locals: {},
 		isDataRequest: false,
-		cookies: { get: () => undefined },
+		cookies: { get: (name: string) => (name === PUBLIC_PASS_COOKIE ? cookie : undefined) },
 		platform: undefined
 	};
 	return { resolve, result: handle({ event, resolve } as unknown as Parameters<typeof handle>[0]) };
@@ -79,5 +87,43 @@ describe('handle: the public tree', () => {
 		} finally {
 			delete bindings.PUBLIC_READ_RATE_LIMIT;
 		}
+	});
+});
+
+describe('handle: the public-read challenge (ADR-084)', () => {
+	beforeEach(() => {
+		vi.mocked(extractAccessJwt).mockReturnValueOnce(null);
+		bindings.TURNSTILE_SITE_KEY = 'site';
+		bindings.TURNSTILE_SECRET = 'secret';
+		return () => {
+			delete bindings.TURNSTILE_SITE_KEY;
+			delete bindings.TURNSTILE_SECRET;
+		};
+	});
+
+	it('refuses an anonymous API read without a pass with a 403, never a 401', async () => {
+		const { resolve, result } = run('/api/trees/pub/people');
+		expect((await result).status).toBe(403);
+		expect(resolve).not.toHaveBeenCalled();
+	});
+
+	it('sends an anonymous page read without a pass to the challenge, keeping the address', async () => {
+		const response = await run('/trees/pub/people?x=1').result;
+		expect(response.status).toBe(303);
+		expect(response.headers.get('location')).toBe(
+			`/verify?next=${encodeURIComponent('/trees/pub/people?x=1')}`
+		);
+	});
+
+	it('serves an anonymous read that carries a valid pass', async () => {
+		const { resolve, result } = run('/trees/pub', await issuePublicPass('secret'));
+		expect((await result).status).toBe(200);
+		expect(resolve).toHaveBeenCalled();
+	});
+
+	it('refuses every anonymous read when the secret is missing', async () => {
+		const pass = await issuePublicPass('secret');
+		delete bindings.TURNSTILE_SECRET;
+		expect((await run('/api/trees/pub/people', pass).result).status).toBe(403);
 	});
 });

@@ -370,6 +370,8 @@ const NO_RECORD_LOADS = [
 	'./+layout.server.ts',
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts',
+	// The Turnstile challenge (ADR-084): a site key and a return address, nothing from a tree.
+	'./verify/+page.server.ts',
 	// The person's own pages (ADR-075): their tree list with roles, their profile and colours, and,
 	// for the install owner alone, every tree's name and counts. No person record of any tree.
 	'./(app)/+layout.server.ts',

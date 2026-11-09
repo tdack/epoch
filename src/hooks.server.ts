@@ -14,9 +14,12 @@ import {
 	notAdmittedOutcome,
 	isPublicTreeSegment,
 	publicReadAccess,
-	signedOutRedirect
+	signedOutRedirect,
+	VERIFY_PATH
 } from '#lib/server/auth/public-routes.js';
-import { NotAdmittedError } from '#lib/server/domain/errors.js';
+import { isPublicPassValid, PUBLIC_PASS_COOKIE } from '#lib/server/auth/public-pass.js';
+import { NotAdmittedError, UnauthorizedError } from '#lib/server/domain/errors.js';
+import { VISITOR_REFUSED_MESSAGE } from '#lib/server/http/handler.js';
 import { PUBLIC_VISITOR } from '#lib/server/domain/identity.js';
 import { getDb } from '#lib/server/db/index.js';
 import { ProfileService } from '#lib/server/services/profile-service.js';
@@ -259,6 +262,26 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 				});
 			} catch (err) {
 				return errorResponse(err, 'Failed to read the public tree');
+			}
+			// With a site key set, only a reader who solved the challenge gets in (ADR-084). A missing
+			// secret refuses everyone rather than serving the tree ungated.
+			const secret = bindings.TURNSTILE_SECRET;
+			const hasPass =
+				!bindings.TURNSTILE_SITE_KEY ||
+				(Boolean(secret) &&
+					(await isPublicPassValid(event.cookies.get(PUBLIC_PASS_COOKIE), secret!)));
+			if (!hasPass && publicRead.kind === 'api') {
+				// A 403 like any refused visitor (ADR-052): a 401 would start a sign-in.
+				const refusal = errorResponse(new UnauthorizedError(VISITOR_REFUSED_MESSAGE), 'Forbidden');
+				refusal.headers.set('x-correlation-id', correlationId);
+				return refusal;
+			}
+			if (!hasPass) {
+				const next = encodeURIComponent(event.url.pathname + event.url.search);
+				return new Response(null, {
+					status: 303,
+					headers: { location: `${VERIFY_PATH}?next=${next}`, 'x-correlation-id': correlationId }
+				});
 			}
 		}
 	}
