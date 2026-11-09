@@ -7,6 +7,12 @@ it summarises themes rather than listing every commit. Decisions and their reaso
 
 ## 2026-11-09 to 2026-11-15
 
+### Added
+
+- **Private people for a chosen viewer or contributor.** An owner or manager can tick "Can see private
+  people" for a viewer or contributor on the Members page. They then read everyone, living people
+  included, but still cannot change a private person.
+
 ### Security
 
 - **Public tree checks for bots.** Anonymous readers of the public tree solve a Cloudflare Turnstile
