@@ -116,7 +116,8 @@ const NOT_ABOUT_A_TREE = [
 	'./+layout.server.ts',
 	'./(app)/+layout.server.ts',
 	'./login/+page.server.ts',
-	'./welcome/+page.server.ts'
+	'./welcome/+page.server.ts',
+	'./verify/+page.server.ts'
 ];
 
 const modules = import.meta.glob<LoadModule>(['./**/+page.server.ts', './**/+layout.server.ts'], {
